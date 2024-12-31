@@ -1,4 +1,6 @@
 name: Test and maybe publish
+permissions:
+  contents: write
 on:
   push:
     branches:
