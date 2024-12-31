@@ -3,7 +3,3 @@
 /packages/*/node_modules
 .turbo
 /temp
-
-
-# Written when github action publishes packages.
-/.npmrc

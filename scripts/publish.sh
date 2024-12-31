@@ -10,6 +10,6 @@ if [ $REPO_VERSION != "$PUBLISHED_VERSION" ]
   then
     # Because some workspace:* dependencies point to unpublished packages.
     pnpm pkg delete devDependencies
-    pnpm publish --access=public || exit 1
+    pnpm publish --access=public --no-git-checks || exit 1
     git tag $PNPM_PACKAGE_NAME@$REPO_VERSION
 fi
