@@ -1,0 +1,33 @@
+{
+  "typescript.tsdk": "packages/core/node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.preferences.importModuleSpecifier": "shortest",
+  "typescript.preferences.preferTypeOnlyAutoImports": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "[typescript]": {
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit",
+      // A plain source.fixAll would remove unused code.
+      "source.fixAll.eslint": "explicit"
+    }
+  },
+  "[typescriptreact]": {
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit",
+      // A plain source.fixAll would remove unused code.
+      "source.fixAll.eslint": "explicit"
+    }
+  },
+  "files.associations": {
+    // Turbo config supports comments.
+    "turbo.json": "jsonc"
+  },
+  "jest.virtualFolders": [{ "name": "core", "rootPath": "packages/core" }],
+  "eslint.codeActionsOnSave.rules": [
+    "!prefer-const",
+    "!eslint-comments/no-unused-disable",
+    "!@typescript-eslint/no-unnecessary-type-assertion",
+    "*"
+  ]
+}

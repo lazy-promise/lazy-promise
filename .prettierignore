@@ -1,0 +1,6 @@
+/cspell.json
+/pnpm-lock.yaml
+# Prettier currently ignores .prettierignore files in subpackages, so have to
+# specify package-specific exceptions here.
+/packages/*/build
+/packages/*/coverage

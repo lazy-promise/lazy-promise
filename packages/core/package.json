@@ -1,0 +1,39 @@
+{
+  "name": "@lazy-promise/core",
+  "version": "0.0.0",
+  "description": "A Promise-like primitive which is lazy/cancelable, has typed errors, and does not use microtask queue",
+  "repository": "https://github.com/lazy-promise/lazy-promise.git",
+  "license": "MIT",
+  "sideEffects": false,
+  "main": "build/main/index.js",
+  "module": "build/module/index.js",
+  "types": "build/types/index.d.ts",
+  "files": [
+    "build/module",
+    "build/main",
+    "build/types",
+    "!**/*.test.*"
+  ],
+  "scripts": {
+    "build:clean": "rm -rf build",
+    "build:main": "babel build/module --out-dir build/main",
+    "build:module": "tsc --build",
+    "test:eslint": "eslint . --max-warnings=0",
+    "test:jest": "jest --passWithNoTests",
+    "test:typescript": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.19.3",
+    "@babel/core": "^7.24.7",
+    "@babel/preset-env": "^7.24.7",
+    "@babel/preset-typescript": "^7.24.7",
+    "@jest/globals": "^29.7.0",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "babel-jest": "^29.7.0",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "pipe-function": "^1.0.1",
+    "typescript": "^5.5.3"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["build:clean", "build:module", "build:main"]
+    },
+    "build:clean": {
+      "cache": false
+    },
+    "build:module": {
+      "dependsOn": ["^build", "build:clean"],
+      "outputs": ["build/module/**", "build/types/**"]
+    },
+    "build:main": {
+      "dependsOn": ["build:module"],
+      "outputs": ["build/main/**"]
+    },
+    "test": {
+      "dependsOn": ["test:eslint", "test:jest", "build"]
+    },
+    "test:eslint": { "dependsOn": ["^build"] },
+    "test:typescript": { "dependsOn": ["^build"] },
+    "test:jest": { "dependsOn": ["^build"] }
+  }
+}
