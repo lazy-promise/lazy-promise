@@ -8,6 +8,8 @@ fi
 PUBLISHED_VERSION=$(pnpm view "$PNPM_PACKAGE_NAME" version 2>/dev/null || echo "")
 if [ $REPO_VERSION != "$PUBLISHED_VERSION" ]
   then
+    # Because some workspace:* dependencies point to unpublished packages.
+    pnpm pkg delete devDependencies
     pnpm publish --access=public || exit 1
     git tag $PNPM_PACKAGE_NAME@$REPO_VERSION
 fi
