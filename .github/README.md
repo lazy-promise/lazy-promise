@@ -5,8 +5,10 @@ A LazyPromise is just like a regular promise, but is lazy and cancelable, suppor
 ## Installation
 
 ```bash
-npm install @lazy-promise/core
+npm install @lazy-promise/core pipe-function
 ```
+
+In the above snippet, [`pipe-function` package](https://github.com/ivan7237d/pipe-function) provides the `pipe` function (`pipe(x, foo, bar)` is `bar(foo(x))`) - you can use one from another library if you like.
 
 ## Usage
 
