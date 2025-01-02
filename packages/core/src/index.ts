@@ -1,5 +1,5 @@
-// export { all } from "./all";
-// export { any } from "./any";
+export { all } from "./all";
+export { any } from "./any";
 export { catchError } from "./catchError";
 export { eager } from "./eager";
 export { finalize } from "./finalize";
@@ -17,4 +17,4 @@ export type {
   LazyPromiseValue,
 } from "./lazyPromise";
 export { map } from "./map";
-// export { race } from "./race";
+export { race } from "./race";
