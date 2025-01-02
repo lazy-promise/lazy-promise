@@ -65,6 +65,8 @@ export const createLazyPromise = <Value, Error = never>(
     status = resolvedSymbol;
     // For GC purposes.
     (produce as unknown) = undefined;
+    // For GC purposes.
+    dispose = undefined;
     for (let i = 0; i < subscribers.length; i++) {
       const resolve = subscribers[i]!.resolve;
       if (resolve) {
@@ -73,7 +75,13 @@ export const createLazyPromise = <Value, Error = never>(
         } catch (error) {
           throwInMicrotask(error);
         }
+        // For GC purposes: unsubscribe handle keeps a reference to the
+        // subscriber.
+        delete subscribers[i]!.resolve;
       }
+      // For GC purposes: unsubscribe handle keeps a reference to the
+      // subscriber.
+      delete subscribers[i]!.reject;
     }
     subscribers = undefined;
   };
@@ -89,18 +97,26 @@ export const createLazyPromise = <Value, Error = never>(
     status = rejectedSymbol;
     // For GC purposes.
     (produce as unknown) = undefined;
+    // For GC purposes.
+    dispose = undefined;
     let unhandledRejection = false;
     for (let i = 0; i < subscribers.length; i++) {
-      try {
-        const reject = subscribers[i]!.reject;
-        if (reject) {
+      const reject = subscribers[i]!.reject;
+      if (reject) {
+        try {
           reject(result);
-        } else {
-          unhandledRejection = true;
+        } catch (error) {
+          throwInMicrotask(error);
         }
-      } catch (error) {
-        throwInMicrotask(error);
+        // For GC purposes: unsubscribe handle keeps a reference to the
+        // subscriber.
+        delete subscribers[i]!.reject;
+      } else {
+        unhandledRejection = true;
       }
+      // For GC purposes: unsubscribe handle keeps a reference to the
+      // subscriber.
+      delete subscribers[i]!.resolve;
     }
     if (unhandledRejection) {
       throwInMicrotask(result);
@@ -187,6 +203,10 @@ export const createLazyPromise = <Value, Error = never>(
           subscribers[swap] = subscribers[subscribers.length - 1]!;
           subscribers.pop();
         }
+        // For GC purposes.
+        delete subscriber.resolve;
+        // For GC purposes.
+        delete subscriber.reject;
       };
     },
     [lazyPromiseSymbol]: true,

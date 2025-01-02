@@ -24,6 +24,7 @@
     "turbo.json": "jsonc"
   },
   "jest.virtualFolders": [{ "name": "core", "rootPath": "packages/core" }],
+  "jest.jestCommandLine": "node --expose-gc ./node_modules/jest/bin/jest.js",
   "eslint.codeActionsOnSave.rules": [
     "!prefer-const",
     "!eslint-comments/no-unused-disable",
