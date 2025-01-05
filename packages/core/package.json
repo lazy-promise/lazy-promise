@@ -1,6 +1,6 @@
 {
   "name": "@lazy-promise/core",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "A Promise-like primitive which is lazy/cancelable, has typed errors, and does not use microtask queue",
   "repository": "https://github.com/lazy-promise/lazy-promise.git",
   "license": "MIT",
@@ -33,7 +33,7 @@
     "babel-jest": "^29.7.0",
     "eslint": "^8.57.0",
     "jest": "^29.7.0",
-    "pipe-function": "^1.0.1",
+    "pipe-function": "^1.0.3",
     "typescript": "^5.5.3"
   }
 }

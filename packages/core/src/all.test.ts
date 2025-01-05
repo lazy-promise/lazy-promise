@@ -38,6 +38,32 @@ afterEach(() => {
   }
 });
 
+test("types", () => {
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+
+  // $ExpectType LazyPromise<[], never>
+  const promise1 = all([]);
+
+  // $ExpectType LazyPromise<["value a", "value b"], "error a" | "error b">
+  const promise2 = all([
+    createLazyPromise<"value a", "error a">(() => {}),
+    createLazyPromise<"value b", "error b">(() => {}),
+  ]);
+
+  // $ExpectType LazyPromise<never, "error a">
+  const promise3 = all([
+    createLazyPromise<"value a", "error a">(() => {}),
+    createLazyPromise<never, never>(() => {}),
+  ]);
+
+  // $ExpectType LazyPromise<"value a"[], "error a">
+  const promise4 = all(
+    new Set([createLazyPromise<"value a", "error a">(() => {})]),
+  );
+
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+});
+
 test("empty iterable", () => {
   const promise = all([]);
   promise.subscribe((value) => {

@@ -8,6 +8,7 @@ module.exports = {
     "jest",
     "eslint-plugin-only-warn",
     "eslint-plugin-import",
+    "eslint-plugin-expect-type",
   ],
   extends: [
     "eslint:recommended",
@@ -16,6 +17,7 @@ module.exports = {
     "prettier",
     "plugin:eslint-comments/recommended",
     "turbo",
+    "plugin:eslint-plugin-expect-type/recommended",
   ],
   rules: {
     // All the lint rules here are marked as "error" as opposed to "warning",

@@ -7,6 +7,7 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-config-turbo": "^2.0.3",
     "eslint-plugin-eslint-comments": "^3.2.0",
+    "eslint-plugin-expect-type": "^0.2.1",
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-jest": "^28.5.0",
     "eslint-plugin-only-warn": "^1.1.0",

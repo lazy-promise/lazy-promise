@@ -8,7 +8,7 @@ A LazyPromise is just like a regular promise, but is lazy and cancelable, suppor
 npm install @lazy-promise/core pipe-function
 ```
 
-In the above snippet, [`pipe-function` package](https://github.com/ivan7237d/pipe-function) provides the `pipe` function (`pipe(x, foo, bar)` is `bar(foo(x))`) - you can use one from another library if you like.
+In the above snippet, `pipe-function` [package](https://github.com/ivan7237d/pipe-function) provides the `pipe` function (`pipe(x, foo, bar)` is `bar(foo(x))`) - you can use one from another library if you like.
 
 ## Usage
 
@@ -42,6 +42,6 @@ The callback that you give to `createLazyPromise` is run whenever the subscriber
 
 When you subscribe to a LazyPromise whose error type is other than `never`, you must provide an error handler or you'll get a type error. This way you can make sure that all errors are handled.
 
-Since errors are typed, you should not intentionally throw in callbacks. If a callback does throw an error, it's automatically a bug. Instead of rejecting the promise, we just asynchronously re-throw the error so it could get picked up by the browser console or an error tracker.
+Because errors are typed, if you actually `throw` in a callback like the one you pass to `createLazyPromise`, this will not reject the LazyPromise, and instead the error will just be asynchronously re-thrown for it to be picked up by the browser console or an error tracker.
 
 You can interop with regular promises using functions `lazy` and `eager`.

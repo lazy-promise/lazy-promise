@@ -54,6 +54,43 @@ afterEach(() => {
   }
 });
 
+test("types", () => {
+  // $ExpectType LazyPromise<"value a", "error a">
+  const promise1 = createLazyPromise<"value a", "error a">(() => {});
+
+  promise1.subscribe(
+    () => {},
+    () => {},
+  );
+
+  promise1.subscribe(undefined, () => {});
+
+  /** @ts-expect-error */
+  promise1.subscribe();
+
+  /** @ts-expect-error */
+  promise1.subscribe(() => {});
+
+  /** @ts-expect-error */
+  promise1.subscribe(() => {}, undefined);
+
+  // $ExpectType LazyPromise<"value a", never>
+  const promise2 = createLazyPromise<"value a", never>(() => {});
+
+  promise2.subscribe(
+    () => {},
+    () => {},
+  );
+
+  promise2.subscribe(undefined, () => {});
+
+  promise2.subscribe();
+
+  promise2.subscribe(() => {});
+
+  promise2.subscribe(() => {}, undefined);
+});
+
 test("async resolve", () => {
   const promise = createLazyPromise<string>((resolve) => {
     setTimeout(() => {

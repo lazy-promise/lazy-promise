@@ -40,6 +40,24 @@ afterEach(() => {
   }
 });
 
+test("types", () => {
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+
+  // $ExpectType LazyPromise<"value b", "error a">
+  const promise1 = pipe(
+    createLazyPromise<"value a", "error a">(() => {}),
+    map(() => "value b" as const),
+  );
+
+  // $ExpectType LazyPromise<"value b", "error a" | "error b">
+  const promise2 = pipe(
+    createLazyPromise<"value a", "error a">(() => {}),
+    map(() => createLazyPromise<"value b", "error b">(() => {})),
+  );
+
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+});
+
 test("mapping", () => {
   const promise = pipe(
     resolved(1),
