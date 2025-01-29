@@ -7,7 +7,7 @@ import { createLazyPromise } from "./lazyPromise";
 import type { NeverIfContainsNever } from "./utils";
 
 /**
- * The LazyPromise equivalent of Promise.any.
+ * The LazyPromise equivalent of `Promise.any`.
  */
 export const any: {
   <Sources extends LazyPromise<unknown, unknown>[]>(sources: {
@@ -24,7 +24,7 @@ export const any: {
 } = <Value, Error>(
   sources: Iterable<LazyPromise<Value, Error>>,
 ): LazyPromise<Value, Error[]> =>
-  createLazyPromise<Value, Error[]>((resolve, reject) => {
+  createLazyPromise<Value, Error[]>((resolve, reject, fail) => {
     // false means we haven't subscribed to all sources.
     let initialized = false;
     // A sparse array. undefined if the subscription was cancelled or the
@@ -52,6 +52,15 @@ export const any: {
             rejectedCount++;
             if (initialized && rejectedCount === i) {
               reject(errors);
+            }
+          }
+        },
+        () => {
+          if (errors) {
+            errors = undefined;
+            fail();
+            for (let j = 0; j < disposables.length; j++) {
+              disposables[j]!();
             }
           }
         },

@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { pipe } from "pipe-function";
 import { catchError } from "./catchError";
-import type { LazyPromise } from "./lazyPromise";
 import { createLazyPromise, rejected, resolved } from "./lazyPromise";
 
+const mockMicrotaskQueue: (() => void)[] = [];
+const originalQueueMicrotask = queueMicrotask;
 const logContents: unknown[] = [];
 let logTime: number;
 
@@ -24,12 +25,21 @@ const readLog = () => {
   }
 };
 
+const processMockMicrotaskQueue = () => {
+  while (mockMicrotaskQueue.length) {
+    mockMicrotaskQueue.shift()!();
+  }
+};
+
 beforeEach(() => {
   jest.useFakeTimers();
   logTime = Date.now();
+  global.queueMicrotask = (task) => mockMicrotaskQueue.push(task);
 });
 
 afterEach(() => {
+  processMockMicrotaskQueue();
+  global.queueMicrotask = originalQueueMicrotask;
   jest.useRealTimers();
   try {
     if (logContents.length) {
@@ -64,42 +74,12 @@ test("falling back to a value", () => {
     catchError((error) => error + 1),
   );
   promise.subscribe((value) => {
-    log("resolve", value);
+    log("handleValue", value);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "resolve",
-        2,
-      ],
-    ]
-  `);
-});
-
-test("falling back to a promise", () => {
-  const promise = pipe(
-    createLazyPromise<never, number>((_, reject) => {
-      setTimeout(() => {
-        reject(1);
-      }, 1000);
-    }),
-    catchError((error) =>
-      createLazyPromise<number>((resolve) => {
-        setTimeout(() => {
-          resolve(error + 1);
-        }, 1000);
-      }),
-    ),
-  );
-  promise.subscribe((value) => {
-    log("resolve", value);
-  });
-  jest.runAllTimers();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      "2000 ms passed",
-      [
-        "resolve",
+        "handleValue",
         2,
       ],
     ]
@@ -108,17 +88,54 @@ test("falling back to a promise", () => {
 
 test("outer promise resolves", () => {
   const promise = pipe(
-    resolved(1) as LazyPromise<number, number>,
+    resolved(1),
     catchError(() => undefined),
   );
   promise.subscribe((value) => {
-    log("resolved", value);
+    log("handleValue", value);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "resolved",
+        "handleValue",
         1,
+      ],
+    ]
+  `);
+});
+
+test("outer promise fails", () => {
+  const promise = pipe(
+    createLazyPromise((resolve, reject, fail) => {
+      fail();
+    }),
+    catchError(() => undefined),
+  );
+  promise.subscribe(undefined, undefined, () => {
+    log("handleFailure");
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleFailure",
+      ],
+    ]
+  `);
+});
+
+test("inner promise resolves", () => {
+  const promise = pipe(
+    rejected("a"),
+    catchError(() => resolved("b")),
+  );
+  promise.subscribe((value) => {
+    log("handleValue", value);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleValue",
+        "b",
       ],
     ]
   `);
@@ -130,27 +147,63 @@ test("inner promise rejects", () => {
     catchError(() => rejected("b")),
   );
   promise.subscribe(undefined, (error) => {
-    log("reject", error);
+    log("handleError", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "reject",
+        "handleError",
         "b",
       ],
     ]
   `);
 });
 
+test("inner promise fails", () => {
+  const promise = pipe(
+    rejected(1),
+    catchError(() =>
+      createLazyPromise((resolve, reject, fail) => {
+        fail();
+      }),
+    ),
+  );
+  promise.subscribe(undefined, undefined, () => {
+    log("handleFailure");
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleFailure",
+      ],
+    ]
+  `);
+});
+
+test("callback throws", () => {
+  const promise = pipe(
+    rejected(1),
+    catchError(() => {
+      throw "oops";
+    }),
+  );
+  promise.subscribe(undefined, undefined, () => {
+    log("handleFailure");
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleFailure",
+      ],
+    ]
+  `);
+  expect(processMockMicrotaskQueue).toThrow("oops");
+});
+
 test("cancel outer promise", () => {
   const promise = pipe(
-    createLazyPromise<never, number>((_, reject) => {
-      setTimeout(() => {
-        reject(1);
-      }, 1000);
-      return () => {
-        log("dispose");
-      };
+    createLazyPromise(() => () => {
+      log("dispose");
     }),
     catchError((value) => value + 1),
   );
@@ -171,14 +224,9 @@ test("cancel outer promise", () => {
 test("cancel inner promise", () => {
   const promise = pipe(
     rejected(1),
-    catchError((error) =>
-      createLazyPromise<number>((resolve) => {
-        setTimeout(() => {
-          resolve(error + 1);
-        }, 1000);
-        return () => {
-          log("dispose");
-        };
+    catchError(() =>
+      createLazyPromise(() => () => {
+        log("dispose");
       }),
     ),
   );

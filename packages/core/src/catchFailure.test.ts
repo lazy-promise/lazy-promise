@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { pipe } from "pipe-function";
+import { catchFailure } from "./catchFailure";
 import { createLazyPromise, rejected, resolved } from "./lazyPromise";
-import { map } from "./map";
 
 const mockMicrotaskQueue: (() => void)[] = [];
 const originalQueueMicrotask = queueMicrotask;
@@ -53,80 +53,27 @@ afterEach(() => {
 test("types", () => {
   /* eslint-disable @typescript-eslint/no-unused-vars */
 
-  // $ExpectType LazyPromise<"value b", "error a">
+  // $ExpectType LazyPromise<"value a" | "value b", "error a">
   const promise1 = pipe(
     createLazyPromise<"value a", "error a">(() => {}),
-    map(() => "value b" as const),
+    catchFailure(() => "value b" as const),
   );
 
-  // $ExpectType LazyPromise<"value b", "error a" | "error b">
+  // $ExpectType LazyPromise<"value a" | "value b", "error a" | "error b">
   const promise2 = pipe(
     createLazyPromise<"value a", "error a">(() => {}),
-    map(() => createLazyPromise<"value b", "error b">(() => {})),
+    catchFailure(() => createLazyPromise<"value b", "error b">(() => {})),
   );
 
   /* eslint-enable @typescript-eslint/no-unused-vars */
 });
 
-test("mapping to a value", () => {
-  const promise = pipe(
-    resolved(1),
-    map((value) => value + 1),
-  );
-  promise.subscribe((value) => {
-    log("handleValue", value);
-  });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "handleValue",
-        2,
-      ],
-    ]
-  `);
-});
-
-test("outer promise rejects", () => {
-  const promise = pipe(
-    rejected("oops"),
-    map(() => undefined),
-  );
-  promise.subscribe(undefined, (error) => {
-    log("handleError", error);
-  });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "handleError",
-        "oops",
-      ],
-    ]
-  `);
-});
-
-test("outer promise fails", () => {
+test("falling back to a value", () => {
   const promise = pipe(
     createLazyPromise((resolve, reject, fail) => {
       fail();
     }),
-    map(() => undefined),
-  );
-  promise.subscribe(undefined, undefined, () => {
-    log("handleFailure");
-  });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "handleFailure",
-      ],
-    ]
-  `);
-});
-
-test("inner promise resolves", () => {
-  const promise = pipe(
-    resolved(1),
-    map(() => resolved(1)),
+    catchFailure(() => 1),
   );
   promise.subscribe((value) => {
     log("handleValue", value);
@@ -141,10 +88,28 @@ test("inner promise resolves", () => {
   `);
 });
 
-test("inner promise rejects", () => {
+test("outer promise resolves", () => {
   const promise = pipe(
     resolved(1),
-    map(() => rejected("oops")),
+    catchFailure(() => undefined),
+  );
+  promise.subscribe((value) => {
+    log("handleValue", value);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleValue",
+        1,
+      ],
+    ]
+  `);
+});
+
+test("outer promise rejects", () => {
+  const promise = pipe(
+    rejected("a"),
+    catchFailure(() => undefined),
   );
   promise.subscribe(undefined, (error) => {
     log("handleError", error);
@@ -153,7 +118,47 @@ test("inner promise rejects", () => {
     [
       [
         "handleError",
-        "oops",
+        "a",
+      ],
+    ]
+  `);
+});
+
+test("inner promise resolves", () => {
+  const promise = pipe(
+    createLazyPromise((resolve, reject, fail) => {
+      fail();
+    }),
+    catchFailure(() => resolved("b")),
+  );
+  promise.subscribe((value) => {
+    log("handleValue", value);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleValue",
+        "b",
+      ],
+    ]
+  `);
+});
+
+test("inner promise rejects", () => {
+  const promise = pipe(
+    createLazyPromise((resolve, reject, fail) => {
+      fail();
+    }),
+    catchFailure(() => rejected("b")),
+  );
+  promise.subscribe(undefined, (error) => {
+    log("handleError", error);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleError",
+        "b",
       ],
     ]
   `);
@@ -161,8 +166,10 @@ test("inner promise rejects", () => {
 
 test("inner promise fails", () => {
   const promise = pipe(
-    resolved(1),
-    map(() =>
+    createLazyPromise((resolve, reject, fail) => {
+      fail();
+    }),
+    catchFailure(() =>
       createLazyPromise((resolve, reject, fail) => {
         fail();
       }),
@@ -182,8 +189,10 @@ test("inner promise fails", () => {
 
 test("callback throws", () => {
   const promise = pipe(
-    resolved(1),
-    map(() => {
+    createLazyPromise((resolve, reject, fail) => {
+      fail();
+    }),
+    catchFailure(() => {
       throw "oops";
     }),
   );
@@ -205,7 +214,7 @@ test("cancel outer promise", () => {
     createLazyPromise(() => () => {
       log("dispose");
     }),
-    map(() => undefined),
+    catchFailure(() => undefined),
   );
   const dispose = promise.subscribe();
   jest.advanceTimersByTime(500);
@@ -223,8 +232,10 @@ test("cancel outer promise", () => {
 
 test("cancel inner promise", () => {
   const promise = pipe(
-    resolved(1),
-    map(() =>
+    createLazyPromise((resolve, reject, fail) => {
+      fail();
+    }),
+    catchFailure(() =>
       createLazyPromise(() => () => {
         log("dispose");
       }),

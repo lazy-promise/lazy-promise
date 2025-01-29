@@ -41,44 +41,73 @@ const DOMException =
     }
   })();
 
-test("resolve", async () => {
+test("source resolves", async () => {
   const promise = lazy(() => Promise.resolve("value"));
   promise.subscribe(
     (value) => {
-      log("resolve", value);
+      log("handleValue", value);
     },
-    (error) => {
-      log("reject", error);
-    },
+    () => {},
   );
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "resolve",
+        "handleValue",
         "value",
       ],
     ]
   `);
 });
 
-test("reject", async () => {
+test("source rejects", async () => {
   const promise = lazy(() => Promise.reject("oops"));
-  promise.subscribe(
-    (value) => {
-      log("resolve", value);
-    },
-    (error) => {
-      log("reject", error);
-    },
-  );
+  promise.subscribe(undefined, (error) => {
+    log("handleError", error);
+  });
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "reject",
+        "handleError",
+        "oops",
+      ],
+    ]
+  `);
+});
+
+test("source rejects with DOMException", async () => {
+  const promise = lazy(() => Promise.reject(new DOMException()));
+  promise.subscribe(undefined, (error) => {
+    log("handleError", error);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  await flushMicrotasks();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleError",
+        DOMException {},
+      ],
+    ]
+  `);
+});
+
+test("callback throws", async () => {
+  const promise = lazy(() => {
+    throw "oops";
+  });
+  promise.subscribe(undefined, (error) => {
+    log("handleError", error);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  await flushMicrotasks();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleError",
         "oops",
       ],
     ]
@@ -88,20 +117,18 @@ test("reject", async () => {
 test("cancelation", () => {
   const promise = lazy(
     (signal) =>
-      new Promise((_, reject) => {
+      new Promise((resolve, reject) => {
         log("produce");
         expect(signal.aborted).toBe(false);
         signal.addEventListener("abort", () => {
+          log("handleAbort", signal.reason.toString());
           expect(signal.aborted).toBe(true);
-          log("abort", signal.reason.toString());
           expect(signal.reason instanceof DOMException).toBe(true);
           reject(signal.reason);
         });
       }),
   );
-  const dispose = promise.subscribe(undefined, () => {
-    log("error");
-  });
+  const dispose = promise.subscribe(undefined, () => {});
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -113,7 +140,7 @@ test("cancelation", () => {
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "abort",
+        "handleAbort",
         "AbortError: The lazy promise no longer has any subscribers.",
       ],
     ]
@@ -122,28 +149,14 @@ test("cancelation", () => {
 
 test("un-aborted promise resolves", async () => {
   const promise = lazy(() => Promise.resolve(1));
-  promise.subscribe(
-    (value) => {
-      log("resolve", value);
-    },
-    (error) => {
-      log("reject", error);
-    },
-  )();
+  promise.subscribe(undefined, () => {})();
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
 test("un-aborted promise rejects", async () => {
   const promise = lazy(() => Promise.reject(1));
-  promise.subscribe(
-    (value) => {
-      log("resolve", value);
-    },
-    (error) => {
-      log("reject", error);
-    },
-  )();
+  promise.subscribe(undefined, () => {})();
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });

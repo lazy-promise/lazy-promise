@@ -1,36 +1,43 @@
 const lazyPromiseSymbol = Symbol("lazyPromise");
 const resolvedSymbol = Symbol("resolved");
 const rejectedSymbol = Symbol("rejected");
+const failedSymbol = Symbol("failed");
 
 /**
- * Like a Promise, but
- *
- * - Is lazy and cancelable
- *
- * - Has typed errors
- *
- * - Does not use microtask queue
+ * A Promise-like primitive which is lazy/cancelable, has typed errors, and
+ * emits synchronously instead of on the microtask queue.
  */
 export interface LazyPromise<Value, Error = never> {
   subscribe: [Error] extends [never]
     ? (
-        resolve?: ((value: Value) => void) | undefined,
-        reject?: ((error: Error) => void) | undefined,
+        handleValue?: ((value: Value) => void) | undefined,
+        handleError?: ((error: Error) => void) | undefined,
+        handleFailure?: () => void,
       ) => () => void
     : (
-        resolve: ((value: Value) => void) | undefined,
-        reject: (error: Error) => void,
+        handleValue: ((value: Value) => void) | undefined,
+        handleError: (error: Error) => void,
+        handleFailure?: () => void,
       ) => () => void;
   [lazyPromiseSymbol]: true;
 }
 
 interface Subscriber<Value, Error> {
-  resolve?: (value: Value) => void;
-  reject?: (error: Error) => void;
+  handleValue?: (value: Value) => void;
+  handleError?: (error: Error) => void;
+  handleFailure?: () => void;
 }
 
-const alreadySettledErrorMessage = `You cannot resolve or reject a lazy promise that was already resolved or rejected.`;
-const noSubscribersErrorMessage = `You cannot resolve or reject a lazy promise that no longer has any subscribers. Make sure that when you create the promise using createLazyPromise, you return a working teardown function.`;
+const alreadySettledErrorMessage = (
+  settle: "resolve" | "reject" | "fail",
+  status: typeof resolvedSymbol | typeof rejectedSymbol | typeof failedSymbol,
+) =>
+  `You cannot ${settle} a ${status === resolvedSymbol ? `resolved` : status === rejectedSymbol ? `rejected` : (status satisfies typeof failedSymbol, `failed`)} lazy promise. Generally, you cannot settle (resolve, reject, or fail) a lazy promise that is already settled.`;
+
+const noSubscribersErrorMessage = (resolveOrReject: "resolve" | "reject") =>
+  `You cannot ${resolveOrReject} (or generally, resolve or reject) a lazy promise that no longer has any subscribers. Make sure that the callback you're passing to createLazyPromise returns a working teardown function.`;
+
+const cannotSubscribeMessage = `You cannot subscribe to a lazy promise while its teardown function is running.`;
 
 const voidFunction = () => {};
 
@@ -41,25 +48,30 @@ const throwInMicrotask = (error: unknown) => {
 };
 
 /**
- * Creates a LazyPromise. The callback optionally returns a teardown function.
+ * Creates a LazyPromise. The callback can return a teardown function.
  */
 export const createLazyPromise = <Value, Error = never>(
   produce: (
     resolve: (value: Value) => void,
     reject: (error: Error) => void,
+    fail: () => void,
   ) => (() => void) | void,
 ): LazyPromise<Value, Error> => {
-  let status: undefined | typeof resolvedSymbol | typeof rejectedSymbol;
+  let status:
+    | undefined
+    | typeof resolvedSymbol
+    | typeof rejectedSymbol
+    | typeof failedSymbol;
   let result: undefined | Value | Error;
   let subscribers: Subscriber<Value, Error>[] | undefined;
   let dispose: (() => void) | undefined;
 
-  const produceResolve = (value: Value) => {
+  const resolve = (value: Value) => {
     if (status) {
-      throw new Error(alreadySettledErrorMessage);
+      throw new Error(alreadySettledErrorMessage("resolve", status));
     }
     if (!subscribers) {
-      throw new Error(noSubscribersErrorMessage);
+      throw new Error(noSubscribersErrorMessage("resolve"));
     }
     result = value;
     status = resolvedSymbol;
@@ -68,30 +80,31 @@ export const createLazyPromise = <Value, Error = never>(
     // For GC purposes.
     dispose = undefined;
     for (let i = 0; i < subscribers.length; i++) {
-      const resolve = subscribers[i]!.resolve;
-      if (resolve) {
+      const handleValue = subscribers[i]!.handleValue;
+      if (handleValue) {
         try {
-          resolve(result);
+          handleValue(result);
         } catch (error) {
           throwInMicrotask(error);
         }
         // For GC purposes: unsubscribe handle keeps a reference to the
         // subscriber.
-        delete subscribers[i]!.resolve;
+        delete subscribers[i]!.handleValue;
       }
       // For GC purposes: unsubscribe handle keeps a reference to the
       // subscriber.
-      delete subscribers[i]!.reject;
+      delete subscribers[i]!.handleError;
+      delete subscribers[i]!.handleFailure;
     }
     subscribers = undefined;
   };
 
-  const produceReject = (error: Error) => {
+  const reject = (error: Error) => {
     if (status) {
-      throw new Error(alreadySettledErrorMessage);
+      throw new Error(alreadySettledErrorMessage("reject", status));
     }
     if (!subscribers) {
-      throw new Error(noSubscribersErrorMessage);
+      throw new Error(noSubscribersErrorMessage("reject"));
     }
     result = error;
     status = rejectedSymbol;
@@ -101,22 +114,23 @@ export const createLazyPromise = <Value, Error = never>(
     dispose = undefined;
     let unhandledRejection = false;
     for (let i = 0; i < subscribers.length; i++) {
-      const reject = subscribers[i]!.reject;
-      if (reject) {
+      const handleError = subscribers[i]!.handleError;
+      if (handleError) {
         try {
-          reject(result);
+          handleError(result);
         } catch (error) {
           throwInMicrotask(error);
         }
         // For GC purposes: unsubscribe handle keeps a reference to the
         // subscriber.
-        delete subscribers[i]!.reject;
+        delete subscribers[i]!.handleError;
       } else {
         unhandledRejection = true;
       }
       // For GC purposes: unsubscribe handle keeps a reference to the
       // subscriber.
-      delete subscribers[i]!.resolve;
+      delete subscribers[i]!.handleValue;
+      delete subscribers[i]!.handleFailure;
     }
     if (unhandledRejection) {
       throwInMicrotask(result);
@@ -124,15 +138,48 @@ export const createLazyPromise = <Value, Error = never>(
     subscribers = undefined;
   };
 
+  const fail = () => {
+    if (status) {
+      throw new Error(alreadySettledErrorMessage("fail", status));
+    }
+    status = failedSymbol;
+    // For GC purposes.
+    (produce as unknown) = undefined;
+    // For GC purposes.
+    dispose = undefined;
+    if (!subscribers) {
+      return;
+    }
+    for (let i = 0; i < subscribers.length; i++) {
+      const handleFailure = subscribers[i]!.handleFailure;
+      if (handleFailure) {
+        try {
+          handleFailure();
+        } catch (error) {
+          throwInMicrotask(error);
+        }
+        // For GC purposes: unsubscribe handle keeps a reference to the
+        // subscriber.
+        delete subscribers[i]!.handleFailure;
+      }
+      // For GC purposes: unsubscribe handle keeps a reference to the
+      // subscriber.
+      delete subscribers[i]!.handleValue;
+      delete subscribers[i]!.handleError;
+    }
+    subscribers = undefined;
+  };
+
   return {
     subscribe: (
-      resolve?: (value: Value) => void,
-      reject?: (error: Error) => void,
+      handleValue?: (value: Value) => void,
+      handleError?: (error: Error) => void,
+      handleFailure?: () => void,
     ) => {
       if (status === resolvedSymbol) {
-        if (resolve) {
+        if (handleValue) {
           try {
-            resolve(result as Value);
+            handleValue(result as Value);
           } catch (error) {
             throwInMicrotask(error);
           }
@@ -140,9 +187,9 @@ export const createLazyPromise = <Value, Error = never>(
         return voidFunction;
       }
       if (status === rejectedSymbol) {
-        if (reject) {
+        if (handleError) {
           try {
-            reject(result as Error);
+            handleError(result as Error);
           } catch (error) {
             throwInMicrotask(error);
           }
@@ -151,19 +198,35 @@ export const createLazyPromise = <Value, Error = never>(
         }
         return voidFunction;
       }
-      const subscriber: Subscriber<Value, Error> = {};
-      if (resolve) {
-        subscriber.resolve = resolve;
+      if (status === failedSymbol) {
+        if (handleFailure) {
+          try {
+            handleFailure();
+          } catch (error) {
+            throwInMicrotask(error);
+          }
+        }
+        return voidFunction;
       }
-      if (reject) {
-        subscriber.reject = reject;
+      if (!subscribers && dispose) {
+        throw new Error(cannotSubscribeMessage);
+      }
+      const subscriber: Subscriber<Value, Error> = {};
+      if (handleValue) {
+        subscriber.handleValue = handleValue;
+      }
+      if (handleError) {
+        subscriber.handleError = handleError;
+      }
+      if (handleFailure) {
+        subscriber.handleFailure = handleFailure;
       }
       if (subscribers) {
         subscribers.push(subscriber);
       } else {
         subscribers = [subscriber];
         try {
-          const retVal = produce(produceResolve, produceReject) as
+          const retVal = produce(resolve, reject, fail) as
             | (() => void)
             | undefined;
           // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -171,6 +234,10 @@ export const createLazyPromise = <Value, Error = never>(
             dispose = retVal;
           }
         } catch (error) {
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+          if (!status) {
+            fail();
+          }
           throwInMicrotask(error);
         }
       }
@@ -190,9 +257,12 @@ export const createLazyPromise = <Value, Error = never>(
             try {
               dispose();
             } catch (error) {
+              // `status` may or may not be `failedSymbol` at this point.
+              status = failedSymbol;
+              // For GC purposes.
+              (produce as unknown) = undefined;
               throwInMicrotask(error);
             }
-            // For GC purposes.
             dispose = undefined;
           }
         } else {
@@ -204,9 +274,11 @@ export const createLazyPromise = <Value, Error = never>(
           subscribers.pop();
         }
         // For GC purposes.
-        delete subscriber.resolve;
+        delete subscriber.handleValue;
         // For GC purposes.
-        delete subscriber.reject;
+        delete subscriber.handleError;
+        // For GC purposes.
+        delete subscriber.handleFailure;
       };
     },
     [lazyPromiseSymbol]: true,

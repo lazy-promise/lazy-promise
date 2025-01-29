@@ -2,6 +2,8 @@ import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { any } from "./any";
 import { createLazyPromise, rejected, resolved } from "./lazyPromise";
 
+const mockMicrotaskQueue: (() => void)[] = [];
+const originalQueueMicrotask = queueMicrotask;
 const logContents: unknown[] = [];
 let logTime: number;
 
@@ -22,12 +24,21 @@ const readLog = () => {
   }
 };
 
+const processMockMicrotaskQueue = () => {
+  while (mockMicrotaskQueue.length) {
+    mockMicrotaskQueue.shift()!();
+  }
+};
+
 beforeEach(() => {
   jest.useFakeTimers();
   logTime = Date.now();
+  global.queueMicrotask = (task) => mockMicrotaskQueue.push(task);
 });
 
 afterEach(() => {
+  processMockMicrotaskQueue();
+  global.queueMicrotask = originalQueueMicrotask;
   jest.useRealTimers();
   try {
     if (logContents.length) {
@@ -66,28 +77,28 @@ test("types", () => {
 
 test("empty iterable", () => {
   const promise = any([]);
-  promise.subscribe(undefined, (error) => {
-    log("reject", error);
+  promise.subscribe(undefined, (value) => {
+    log("handleError", value);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "reject",
+        "handleError",
         [],
       ],
     ]
   `);
 });
 
-test("sync reject", () => {
+test("sync resolve", () => {
   const promise = any([rejected("a" as const), rejected("b" as const)]);
-  promise.subscribe(undefined, (error) => {
-    log("reject", error);
+  promise.subscribe(undefined, (value) => {
+    log("handleError", value);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "reject",
+        "handleError",
         [
           "a",
           "b",
@@ -98,20 +109,17 @@ test("sync reject", () => {
 });
 
 test("non-array iterable", () => {
-  const promise = any(new Set([resolved("a")]));
-  promise.subscribe(
-    (value) => {
-      log("resolve", value);
-    },
-    (error) => {
-      log("reject", error);
-    },
-  );
+  const promise = any(new Set([rejected("a")]));
+  promise.subscribe(undefined, (value) => {
+    log("handleError", value);
+  });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "resolve",
-        "a",
+        "handleError",
+        [
+          "a",
+        ],
       ],
     ]
   `);
@@ -119,27 +127,27 @@ test("non-array iterable", () => {
 
 test("async reject", () => {
   const promise = any([
-    createLazyPromise<never, "a">((_, reject) => {
+    createLazyPromise<never, "a">((resolve, reject) => {
       setTimeout(() => {
         reject("a");
       }, 2000);
     }),
-    createLazyPromise<never, "b">((_, reject) => {
+    createLazyPromise<never, "b">((resolve, reject) => {
       setTimeout(() => {
         reject("b");
       }, 1000);
     }),
     rejected("c" as const),
   ]);
-  promise.subscribe(undefined, (error) => {
-    log("reject", error);
+  promise.subscribe(undefined, (value) => {
+    log("handleError", value);
   });
   jest.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "2000 ms passed",
       [
-        "reject",
+        "handleError",
         [
           "a",
           "b",
@@ -150,43 +158,26 @@ test("async reject", () => {
   `);
 });
 
-test("sync resolve", () => {
+test("resolving of one of the sources should resolve result", () => {
   const promise = any([
-    createLazyPromise<never, string>((_, reject) => {
-      log("produce a");
-      setTimeout(() => {
-        reject("a");
-      }, 1000);
-      return () => {
-        log("dispose a");
-      };
+    createLazyPromise<"a">(() => () => {
+      log("dispose a");
     }),
-    resolved("b"),
-    createLazyPromise<never, string>((_, reject) => {
-      log("produce c");
+    createLazyPromise<"b", "oops">((resolve) => {
       setTimeout(() => {
-        reject("c");
+        resolve("b");
       }, 1000);
-      return () => {
-        log("dispose c");
-      };
     }),
   ]);
-  promise.subscribe(
-    (value) => {
-      log("resolve", value);
-    },
-    (error) => {
-      log("reject", error);
-    },
-  );
+  promise.subscribe((value) => {
+    log("handleValue", value);
+  });
+  jest.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
+      "1000 ms passed",
       [
-        "produce a",
-      ],
-      [
-        "resolve",
+        "handleValue",
         "b",
       ],
       [
@@ -196,62 +187,74 @@ test("sync resolve", () => {
   `);
 });
 
-test("async resolve", () => {
+test("failure of one of the sources should fail result", () => {
   const promise = any([
-    createLazyPromise<never, string>((_, reject) => {
+    createLazyPromise<"a">(() => () => {
+      log("dispose a");
+    }),
+    createLazyPromise<"b", "oops">((resolve, reject, fail) => {
+      setTimeout(() => {
+        fail();
+      }, 1000);
+    }),
+  ]);
+  promise.subscribe(
+    undefined,
+    () => {},
+    () => {
+      log("handleFailure");
+    },
+  );
+  jest.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "handleFailure",
+      ],
+      [
+        "dispose a",
+      ],
+    ]
+  `);
+});
+
+test("internally disposed when a source resolves, internal disposal should prevent further subscriptions to sources", () => {
+  const promise = any([
+    createLazyPromise<undefined, string>((resolve, reject) => {
       log("produce a");
-      const timeoutId = setTimeout(() => {
+      setTimeout(() => {
         reject("a");
       }, 1000);
       return () => {
         log("dispose a");
-        clearTimeout(timeoutId);
       };
     }),
-    createLazyPromise<"b">((resolve) => {
-      const timeoutId = setTimeout(() => {
-        resolve("b");
-      }, 2000);
-      return () => {
-        log("dispose b");
-        clearTimeout(timeoutId);
-      };
-    }),
-    createLazyPromise<never, string>((_, reject) => {
+    resolved("b"),
+    createLazyPromise<undefined, string>((resolve, reject) => {
       log("produce c");
-      const timeoutId = setTimeout(() => {
+      setTimeout(() => {
         reject("c");
-      }, 3000);
+      }, 1000);
       return () => {
         log("dispose c");
-        clearTimeout(timeoutId);
       };
     }),
   ]);
-  promise.subscribe(
-    (value) => {
-      log("resolve", value);
-    },
-    (error) => {
-      log("reject", error);
-    },
-  );
-  jest.runAllTimers();
+  promise.subscribe((value) => {
+    log("handleValue", value);
+  });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "produce a",
       ],
       [
-        "produce c",
-      ],
-      "2000 ms passed",
-      [
-        "resolve",
+        "handleValue",
         "b",
       ],
       [
-        "dispose c",
+        "dispose a",
       ],
     ]
   `);
@@ -259,21 +262,15 @@ test("async resolve", () => {
 
 test("unsubscribe", () => {
   const promise = any([
-    createLazyPromise<never, "a">((_, reject) => {
+    createLazyPromise<"a">(() => {
       log("produce a");
-      const timeoutId = setTimeout(() => {
-        reject("a");
-      }, 2000);
       return () => {
         log("dispose a");
-        clearTimeout(timeoutId);
       };
     }),
     rejected("b" as const),
   ]);
-  const dispose = promise.subscribe(undefined, (error) => {
-    log("reject", error);
-  });
+  const dispose = promise.subscribe();
   jest.advanceTimersByTime(1000);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -293,29 +290,22 @@ test("unsubscribe", () => {
   `);
 });
 
-test("reject inside a resolve consumer", () => {
+test("internally disposed when a source resolves, a source reject is ignored when internally disposed", () => {
   let rejectA: (error: "a") => void;
   const promise = any([
-    createLazyPromise<never, "a">((_, reject) => {
+    createLazyPromise<never, "a">((resolve, reject) => {
       log("produce a");
       rejectA = reject;
-      return () => {
-        log("dispose a");
-      };
     }),
     createLazyPromise<"b">((resolve) => {
-      const timeoutId = setTimeout(() => {
-        log("resolve b");
+      setTimeout(() => {
+        log("call resolve b");
         resolve("b");
       }, 1000);
-      return () => {
-        log("dispose b");
-        clearTimeout(timeoutId);
-      };
     }),
   ]);
   promise.subscribe(() => {
-    log("reject a");
+    log("call reject a");
     rejectA("a");
   });
   jest.runAllTimers();
@@ -326,38 +316,31 @@ test("reject inside a resolve consumer", () => {
       ],
       "1000 ms passed",
       [
-        "resolve b",
+        "call resolve b",
       ],
       [
-        "reject a",
+        "call reject a",
       ],
     ]
   `);
 });
 
-test("resolve inside a resolve consumer", () => {
+test("internally disposed when a source resolves, a source resolve is ignored when internally disposed", () => {
   let resolveA: (value: "a") => void;
   const promise = any([
     createLazyPromise<"a">((resolve) => {
       log("produce a");
       resolveA = resolve;
-      return () => {
-        log("dispose a");
-      };
     }),
     createLazyPromise<"b">((resolve) => {
-      const timeoutId = setTimeout(() => {
-        log("resolve b");
+      setTimeout(() => {
+        log("call resolve b");
         resolve("b");
       }, 1000);
-      return () => {
-        log("dispose b");
-        clearTimeout(timeoutId);
-      };
     }),
   ]);
   promise.subscribe(() => {
-    log("resolve a");
+    log("call resolve a");
     resolveA("a");
   });
   jest.runAllTimers();
@@ -368,62 +351,82 @@ test("resolve inside a resolve consumer", () => {
       ],
       "1000 ms passed",
       [
-        "resolve b",
+        "call resolve b",
       ],
       [
-        "resolve a",
+        "call resolve a",
       ],
     ]
   `);
 });
 
-test("reject inside a teardown function", () => {
-  let rejectA: ((error: "a") => void) | undefined;
-  let rejectB: ((error: "b") => void) | undefined;
+test("internally disposed when a source resolves, a source failure is ignored when internally disposed", () => {
+  let failA: () => void;
   const promise = any([
-    createLazyPromise<never, "a">((_, reject) => {
+    createLazyPromise<"a">((resolve, reject, fail) => {
       log("produce a");
-      rejectA = reject;
-      return () => {
-        rejectA = undefined;
-        log("dispose a");
-        rejectB?.("b");
-      };
+      failA = fail;
     }),
-    createLazyPromise<never, "b">((_, reject) => {
-      log("produce b");
-      rejectB = reject;
-      return () => {
-        rejectB = undefined;
-        log("dispose b");
-        rejectA?.("a");
-      };
+    createLazyPromise<"b">((resolve) => {
+      setTimeout(() => {
+        log("call resolve b");
+        resolve("b");
+      }, 1000);
     }),
   ]);
-  promise.subscribe(
-    (value) => {
-      log("value", value);
-    },
-    (error) => {
-      log("error", error);
-    },
-  )();
+  promise.subscribe(() => {
+    log("call fail a");
+    failA();
+  });
+  jest.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "produce a",
       ],
+      "1000 ms passed",
       [
-        "produce b",
+        "call resolve b",
       ],
       [
-        "dispose a",
+        "call fail a",
       ],
     ]
   `);
 });
 
-test("resolve inside a teardown function", () => {
+test("internally disposed when a source fails, a source resolve is ignored when internally disposed", () => {
+  let resolveA: (value: "a") => void;
+  const promise = any([
+    createLazyPromise<"a">((resolve) => {
+      resolveA = resolve;
+    }),
+    createLazyPromise<never>((resolve, reject, fail) => {
+      setTimeout(() => {
+        log("call fail b");
+        fail();
+      }, 1000);
+    }),
+  ]);
+  promise.subscribe(undefined, undefined, () => {
+    log("call resolve a");
+    resolveA("a");
+  });
+  jest.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "call fail b",
+      ],
+      [
+        "call resolve a",
+      ],
+    ]
+  `);
+});
+
+test("internally disposed when unsubscribed, a source resolve is ignored when internally disposed", () => {
   let resolveA: ((value: "a") => void) | undefined;
   let resolveB: ((value: "b") => void) | undefined;
   const promise = any([
@@ -431,7 +434,6 @@ test("resolve inside a teardown function", () => {
       log("produce a");
       resolveA = resolve;
       return () => {
-        resolveA = undefined;
         log("dispose a");
         resolveB?.("b");
       };
@@ -440,20 +442,12 @@ test("resolve inside a teardown function", () => {
       log("produce b");
       resolveB = resolve;
       return () => {
-        resolveB = undefined;
         log("dispose b");
         resolveA?.("a");
       };
     }),
   ]);
-  promise.subscribe(
-    (value) => {
-      log("value", value);
-    },
-    (error) => {
-      log("error", error);
-    },
-  )();
+  promise.subscribe()();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -464,51 +458,6 @@ test("resolve inside a teardown function", () => {
       ],
       [
         "dispose a",
-      ],
-    ]
-  `);
-});
-
-test("resolve a source in producer of another source", () => {
-  let resolveA: ((value: "a") => void) | undefined;
-  const promise = any([
-    createLazyPromise<"a">((resolve) => {
-      log("produce a");
-      resolveA = resolve;
-      return () => {
-        log("dispose a");
-      };
-    }),
-    createLazyPromise<never>(() => {
-      log("produce b");
-      resolveA?.("a");
-      return () => {
-        log("dispose b");
-      };
-    }),
-  ]);
-  promise.subscribe(
-    (value) => {
-      log("resolve", value);
-    },
-    (error) => {
-      log("reject", error);
-    },
-  );
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "produce a",
-      ],
-      [
-        "produce b",
-      ],
-      [
-        "resolve",
-        "a",
-      ],
-      [
-        "dispose b",
       ],
     ]
   `);

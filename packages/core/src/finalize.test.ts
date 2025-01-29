@@ -1,8 +1,10 @@
-import { afterEach, expect, test } from "@jest/globals";
+import { afterEach, beforeEach, expect, test } from "@jest/globals";
 import { pipe } from "pipe-function";
 import { finalize } from "./finalize";
-import { rejected, resolved } from "./lazyPromise";
+import { createLazyPromise, rejected, resolved } from "./lazyPromise";
 
+const mockMicrotaskQueue: (() => void)[] = [];
+const originalQueueMicrotask = queueMicrotask;
 const logContents: unknown[] = [];
 
 const log = (...args: unknown[]) => {
@@ -17,7 +19,19 @@ const readLog = () => {
   }
 };
 
+const processMockMicrotaskQueue = () => {
+  while (mockMicrotaskQueue.length) {
+    mockMicrotaskQueue.shift()!();
+  }
+};
+
+beforeEach(() => {
+  global.queueMicrotask = (task) => mockMicrotaskQueue.push(task);
+});
+
 afterEach(() => {
+  processMockMicrotaskQueue();
+  global.queueMicrotask = originalQueueMicrotask;
   try {
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
@@ -27,7 +41,7 @@ afterEach(() => {
   }
 });
 
-test("resolve", () => {
+test("source resolves", () => {
   const promise = pipe(
     resolved(1),
     finalize(() => {
@@ -35,7 +49,7 @@ test("resolve", () => {
     }),
   );
   promise.subscribe((value) => {
-    log("resolve", value);
+    log("handleValue", value);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -43,14 +57,14 @@ test("resolve", () => {
         "finalize",
       ],
       [
-        "resolve",
+        "handleValue",
         1,
       ],
     ]
   `);
 });
 
-test("reject", () => {
+test("source rejects", () => {
   const promise = pipe(
     rejected(1),
     finalize(() => {
@@ -58,7 +72,7 @@ test("reject", () => {
     }),
   );
   promise.subscribe(undefined, (error) => {
-    log("reject", error);
+    log("handleError", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -66,9 +80,92 @@ test("reject", () => {
         "finalize",
       ],
       [
-        "reject",
+        "handleError",
         1,
       ],
     ]
   `);
+});
+
+test("source fails", () => {
+  const promise = pipe(
+    createLazyPromise((resolve, reject, fail) => {
+      fail();
+    }),
+    finalize(() => {
+      log("finalize");
+    }),
+  );
+  promise.subscribe(undefined, undefined, () => {
+    log("handleFailure");
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "finalize",
+      ],
+      [
+        "handleFailure",
+      ],
+    ]
+  `);
+});
+
+test("callback throws", () => {
+  pipe(
+    resolved(1),
+    finalize(() => {
+      throw "oops";
+    }),
+  ).subscribe(undefined, undefined, () => {
+    log("handleFailure");
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleFailure",
+      ],
+    ]
+  `);
+  expect(processMockMicrotaskQueue).toThrow("oops");
+
+  pipe(
+    rejected(1),
+    finalize(() => {
+      throw "oops";
+    }),
+  ).subscribe(
+    undefined,
+    () => {},
+    () => {
+      log("handleFailure");
+    },
+  );
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleFailure",
+      ],
+    ]
+  `);
+  expect(processMockMicrotaskQueue).toThrow("oops");
+
+  pipe(
+    createLazyPromise((resolve, reject, fail) => {
+      fail();
+    }),
+    finalize(() => {
+      throw "oops";
+    }),
+  ).subscribe(undefined, undefined, () => {
+    log("handleFailure");
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleFailure",
+      ],
+    ]
+  `);
+  expect(processMockMicrotaskQueue).toThrow("oops");
 });

@@ -2,7 +2,7 @@ import type { LazyPromise } from "./lazyPromise";
 import { createLazyPromise, isLazyPromise } from "./lazyPromise";
 
 /**
- * The LazyPromise equivalent of promise.catch(...). To make the resulting
+ * The LazyPromise equivalent of `promise.then(...)`. To make the resulting
  * promise reject, return `rejected(yourError)`.
  */
 export const map =
@@ -12,16 +12,26 @@ export const map =
   <Error>(
     source: LazyPromise<Value, Error>,
   ): LazyPromise<NewValue, Error | NewError> =>
-    createLazyPromise((resolve, reject) => {
+    createLazyPromise((resolve, reject, fail) => {
       let dispose: (() => void) | undefined;
-      const disposeOuter = source.subscribe((value) => {
-        const newValueOrPromise = callback(value);
-        if (isLazyPromise(newValueOrPromise)) {
-          dispose = newValueOrPromise.subscribe(resolve, reject);
-        } else {
-          resolve(newValueOrPromise);
-        }
-      }, reject);
+      const disposeOuter = source.subscribe(
+        (value) => {
+          let newValueOrPromise;
+          try {
+            newValueOrPromise = callback(value);
+          } catch (error) {
+            fail();
+            throw error;
+          }
+          if (isLazyPromise(newValueOrPromise)) {
+            dispose = newValueOrPromise.subscribe(resolve, reject, fail);
+          } else {
+            resolve(newValueOrPromise);
+          }
+        },
+        reject,
+        fail,
+      );
       if (!dispose) {
         dispose = disposeOuter;
       }

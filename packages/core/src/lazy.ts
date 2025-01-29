@@ -14,14 +14,22 @@ const DOMException =
   })();
 
 /**
- * Converts a Promise to a LazyPromise.
+ * Converts a Promise to a LazyPromise. If the callback returns a rejected
+ * Promise or throws, the LazyPromise rejects (but never fails). The callback
+ * can (but doesn't have to) use an AbortSignal provided as argument.
  */
 export const lazy = <Value>(
   callback: (abortSignal: AbortSignal) => PromiseLike<Value>,
 ): LazyPromise<Value, unknown> =>
   createLazyPromise((resolve, reject) => {
     const abortController = new AbortController();
-    callback(abortController.signal).then(
+    let promise: PromiseLike<Value>;
+    try {
+      promise = callback(abortController.signal);
+    } catch (error) {
+      promise = Promise.reject(error);
+    }
+    promise.then(
       (value) => {
         if (!abortController.signal.aborted) {
           resolve(value);

@@ -1,6 +1,7 @@
 export { all } from "./all";
 export { any } from "./any";
 export { catchError } from "./catchError";
+export { catchFailure } from "./catchFailure";
 export { eager } from "./eager";
 export { finalize } from "./finalize";
 export { lazy } from "./lazy";

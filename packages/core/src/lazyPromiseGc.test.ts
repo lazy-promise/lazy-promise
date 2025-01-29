@@ -1,4 +1,4 @@
-import { expect, test } from "@jest/globals";
+import { test } from "@jest/globals";
 import { createLazyPromise } from "./lazyPromise";
 
 const gc = () =>
@@ -13,15 +13,38 @@ const gc = () =>
     }, 0);
   });
 
+const gcMaxAttempts = 10;
+
+const expectCollected = async (ref: WeakRef<object>) => {
+  let attempts = 0;
+  while (attempts <= gcMaxAttempts) {
+    attempts++;
+    await gc();
+    if (ref.deref() === undefined) {
+      return;
+    }
+  }
+  throw new Error("Expected to be garbage collected but wasn't.");
+};
+
+const expectNotCollected = async (ref: WeakRef<object>) => {
+  let attempts = 0;
+  while (attempts <= gcMaxAttempts) {
+    attempts++;
+    await gc();
+    if (ref.deref() === undefined) {
+      throw new Error("Expected to NOT be garbage collected but was.");
+    }
+  }
+};
+
 test("garbage collect teardown function when unsubscribed", async () => {
   const ref = new WeakRef(() => {});
   const promise = createLazyPromise<undefined>(() => ref.deref());
   const dispose = promise.subscribe();
-  await gc();
-  expect(ref.deref()).toBeDefined();
+  await expectNotCollected(ref);
   dispose();
-  await gc();
-  expect(ref.deref()).toBeUndefined();
+  await expectCollected(ref);
 });
 
 test("garbage collect teardown function when resolved", async () => {
@@ -32,26 +55,39 @@ test("garbage collect teardown function when resolved", async () => {
     return ref.deref();
   });
   promise.subscribe();
-  await gc();
-  expect(ref.deref()).toBeDefined();
+  await expectNotCollected(ref);
   resolve!(undefined);
-  await gc();
-  expect(ref.deref()).toBeUndefined();
+  await expectCollected(ref);
 });
 
 test("garbage collect teardown function when rejected", async () => {
   const ref = new WeakRef(() => {});
   let reject: (error: undefined) => void;
-  const promise = createLazyPromise<undefined, undefined>((_, rejectLocal) => {
-    reject = rejectLocal;
-    return ref.deref();
-  });
+  const promise = createLazyPromise<undefined, undefined>(
+    (resolve, rejectLocal) => {
+      reject = rejectLocal;
+      return ref.deref();
+    },
+  );
   promise.subscribe(undefined, () => {});
-  await gc();
-  expect(ref.deref()).toBeDefined();
+  await expectNotCollected(ref);
   reject!(undefined);
-  await gc();
-  expect(ref.deref()).toBeUndefined();
+  await expectCollected(ref);
+});
+
+test("garbage collect teardown function when failed", async () => {
+  const ref = new WeakRef(() => {});
+  let fail: () => void;
+  const promise = createLazyPromise<undefined, undefined>(
+    (resolve, reject, failLocal) => {
+      fail = failLocal;
+      return ref.deref();
+    },
+  );
+  promise.subscribe(undefined, () => {});
+  await expectNotCollected(ref);
+  fail!();
+  await expectCollected(ref);
 });
 
 test("garbage collect produce function when resolved", async () => {
@@ -61,90 +97,148 @@ test("garbage collect produce function when resolved", async () => {
   });
   const promise = createLazyPromise<undefined>(ref.deref()!);
   promise.subscribe();
-  await gc();
-  expect(ref.deref()).toBeDefined();
+  await expectNotCollected(ref);
   resolve!(undefined);
-  await gc();
-  expect(ref.deref()).toBeUndefined();
+  await expectCollected(ref);
 });
 
 test("garbage collect produce function when rejected", async () => {
   let reject: (error: undefined) => void;
   const ref = new WeakRef(
-    (_: unknown, rejectLocal: (error: undefined) => void) => {
+    (resolve: unknown, rejectLocal: (error: undefined) => void) => {
       reject = rejectLocal;
     },
   );
   const promise = createLazyPromise<undefined, undefined>(ref.deref()!);
   promise.subscribe(undefined, () => {});
-  await gc();
-  expect(ref.deref()).toBeDefined();
+  await expectNotCollected(ref);
   reject!(undefined);
-  await gc();
-  expect(ref.deref()).toBeUndefined();
+  await expectCollected(ref);
+});
+
+test("garbage collect produce function when failed", async () => {
+  let fail: () => void;
+  const ref = new WeakRef(
+    (resolve: unknown, reject: unknown, failLocal: () => void) => {
+      fail = failLocal;
+    },
+  );
+  const promise = createLazyPromise<undefined, undefined>(ref.deref()!);
+  promise.subscribe(undefined, () => {});
+  await expectNotCollected(ref);
+  fail!();
+  await expectCollected(ref);
 });
 
 test("garbage collect subscriber callbacks when unsubscribed", async () => {
-  const resolve1 = new WeakRef(() => {});
-  const reject1 = new WeakRef(() => {});
-  const resolve2 = new WeakRef(() => {});
-  const reject2 = new WeakRef(() => {});
+  const handleValue1 = new WeakRef(() => {});
+  const handleError1 = new WeakRef(() => {});
+  const handleFailure1 = new WeakRef(() => {});
+  const handleValue2 = new WeakRef(() => {});
+  const handleError2 = new WeakRef(() => {});
+  const handleFailure2 = new WeakRef(() => {});
   const promise = createLazyPromise(() => {});
-  const dispose1 = promise.subscribe(resolve1.deref(), reject1.deref());
-  const dispose2 = promise.subscribe(resolve2.deref(), reject2.deref());
-  await gc();
-  expect(resolve1.deref()).toBeDefined();
-  expect(reject1.deref()).toBeDefined();
-  expect(resolve2.deref()).toBeDefined();
-  expect(reject2.deref()).toBeDefined();
+  const dispose1 = promise.subscribe(
+    handleValue1.deref(),
+    handleError1.deref(),
+    handleFailure1.deref(),
+  );
+  const dispose2 = promise.subscribe(
+    handleValue2.deref(),
+    handleError2.deref(),
+    handleFailure2.deref(),
+  );
+  await expectNotCollected(handleValue1);
+  await expectNotCollected(handleError1);
+  await expectNotCollected(handleFailure1);
+  await expectNotCollected(handleValue2);
+  await expectNotCollected(handleError2);
+  await expectNotCollected(handleFailure2);
   dispose1();
-  await gc();
-  expect(resolve1.deref()).toBeUndefined();
-  expect(reject1.deref()).toBeUndefined();
-  expect(resolve2.deref()).toBeDefined();
-  expect(reject2.deref()).toBeDefined();
+  await expectCollected(handleValue1);
+  await expectCollected(handleError1);
+  await expectCollected(handleFailure1);
+  await expectNotCollected(handleValue2);
+  await expectNotCollected(handleError2);
+  await expectNotCollected(handleFailure2);
   dispose2();
-  await gc();
-  expect(resolve1.deref()).toBeUndefined();
-  expect(reject1.deref()).toBeUndefined();
-  expect(resolve2.deref()).toBeUndefined();
-  expect(reject2.deref()).toBeUndefined();
+  await expectCollected(handleValue2);
+  await expectCollected(handleError2);
+  await expectCollected(handleFailure2);
 });
 
 test("garbage collect subscriber callbacks when resolved", async () => {
-  const resolve = new WeakRef(() => {});
-  const reject = new WeakRef(() => {});
-  let resolvePromise: (value: undefined) => void;
-  const promise = createLazyPromise((resolve) => {
-    resolvePromise = resolve;
+  const handleValue = new WeakRef(() => {});
+  const handleError = new WeakRef(() => {});
+  const handleFailure = new WeakRef(() => {});
+  let resolve: (value: undefined) => void;
+  const promise = createLazyPromise((resolveLocal) => {
+    resolve = resolveLocal;
   });
   // It's necessary to hold on to the teardown function.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const dispose = promise.subscribe(resolve.deref(), reject.deref());
-  await gc();
-  expect(resolve.deref()).toBeDefined();
-  expect(reject.deref()).toBeDefined();
-  resolvePromise!(undefined);
-  await gc();
-  expect(resolve.deref()).toBeUndefined();
-  expect(reject.deref()).toBeUndefined();
+  const dispose = promise.subscribe(
+    handleValue.deref(),
+    handleError.deref(),
+    handleFailure.deref(),
+  );
+  await expectNotCollected(handleValue);
+  await expectNotCollected(handleError);
+  await expectNotCollected(handleFailure);
+  resolve!(undefined);
+  await expectCollected(handleValue);
+  await expectCollected(handleError);
+  await expectCollected(handleFailure);
 });
 
 test("garbage collect subscriber callbacks when rejected", async () => {
-  const resolve = new WeakRef(() => {});
-  const reject = new WeakRef(() => {});
-  let rejectPromise: (error: undefined) => void;
-  const promise = createLazyPromise<undefined, undefined>((_, reject) => {
-    rejectPromise = reject;
-  });
+  const handleValue = new WeakRef(() => {});
+  const handleError = new WeakRef(() => {});
+  const handleFailure = new WeakRef(() => {});
+  let reject: (error: undefined) => void;
+  const promise = createLazyPromise<undefined, undefined>(
+    (resolve, rejectLocal) => {
+      reject = rejectLocal;
+    },
+  );
   // It's necessary to hold on to the teardown function.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const dispose = promise.subscribe(resolve.deref(), reject.deref()!);
-  await gc();
-  expect(resolve.deref()).toBeDefined();
-  expect(reject.deref()).toBeDefined();
-  rejectPromise!(undefined);
-  await gc();
-  expect(resolve.deref()).toBeUndefined();
-  expect(reject.deref()).toBeUndefined();
+  const dispose = promise.subscribe(
+    handleValue.deref(),
+    handleError.deref()!,
+    handleFailure.deref(),
+  );
+  await expectNotCollected(handleValue);
+  await expectNotCollected(handleError);
+  await expectNotCollected(handleFailure);
+  reject!(undefined);
+  await expectCollected(handleValue);
+  await expectCollected(handleError);
+  await expectCollected(handleFailure);
+});
+
+test("garbage collect subscriber callbacks when failed", async () => {
+  const handleValue = new WeakRef(() => {});
+  const handleError = new WeakRef(() => {});
+  const handleFailure = new WeakRef(() => {});
+  let fail: () => void;
+  const promise = createLazyPromise<undefined, undefined>(
+    (resolve, reject, failLocal) => {
+      fail = failLocal;
+    },
+  );
+  // It's necessary to hold on to the teardown function.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const dispose = promise.subscribe(
+    handleValue.deref(),
+    handleError.deref()!,
+    handleFailure.deref(),
+  );
+  await expectNotCollected(handleValue);
+  await expectNotCollected(handleError);
+  await expectNotCollected(handleFailure);
+  fail!();
+  await expectCollected(handleValue);
+  await expectCollected(handleError);
+  await expectCollected(handleFailure);
 });
