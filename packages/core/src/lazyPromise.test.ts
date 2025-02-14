@@ -232,6 +232,55 @@ test("sync fail", () => {
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
+test("fail in teardown function", () => {
+  const promise = createLazyPromise<unknown, never>(
+    (resolve, reject, fail) => () => {
+      log("will call fail");
+      fail();
+      log("fail didn't throw");
+    },
+  );
+  promise.subscribe(
+    (value) => {
+      log("handleValue 1", value);
+    },
+    (error) => {
+      log("handleError 1", error);
+    },
+    () => {
+      log("handleFailure 1");
+    },
+  )();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "will call fail",
+      ],
+      [
+        "fail didn't throw",
+      ],
+    ]
+  `);
+  promise.subscribe(
+    (value) => {
+      log("handleValue 2", value);
+    },
+    (error) => {
+      log("handleError 2", error);
+    },
+    () => {
+      log("handleFailure 2");
+    },
+  )();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleFailure 2",
+      ],
+    ]
+  `);
+});
+
 test("cancellation", () => {
   const promise = createLazyPromise<string>(() => {
     log("produce");
@@ -580,15 +629,15 @@ test("already resolved", () => {
     [
       [
         "resolve error",
-        [Error: You cannot resolve a resolved lazy promise. Generally, you cannot settle (resolve, reject, or fail) a lazy promise that is already settled.],
+        [Error: You cannot resolve an already resolved lazy promise.],
       ],
       [
         "reject error",
-        [Error: You cannot reject a resolved lazy promise. Generally, you cannot settle (resolve, reject, or fail) a lazy promise that is already settled.],
+        [Error: You cannot reject a resolved lazy promise.],
       ],
       [
         "fail error",
-        [Error: You cannot fail a resolved lazy promise. Generally, you cannot settle (resolve, reject, or fail) a lazy promise that is already settled.],
+        [Error: You cannot fail a resolved lazy promise.],
       ],
     ]
   `);
@@ -618,15 +667,15 @@ test("already rejected", () => {
     [
       [
         "resolve error",
-        [Error: You cannot resolve a rejected lazy promise. Generally, you cannot settle (resolve, reject, or fail) a lazy promise that is already settled.],
+        [Error: You cannot resolve a rejected lazy promise.],
       ],
       [
         "reject error",
-        [Error: You cannot reject a rejected lazy promise. Generally, you cannot settle (resolve, reject, or fail) a lazy promise that is already settled.],
+        [Error: You cannot reject an already rejected lazy promise.],
       ],
       [
         "fail error",
-        [Error: You cannot fail a rejected lazy promise. Generally, you cannot settle (resolve, reject, or fail) a lazy promise that is already settled.],
+        [Error: You cannot fail a rejected lazy promise.],
       ],
     ]
   `);
@@ -656,15 +705,15 @@ test("already failed", () => {
     [
       [
         "resolve error",
-        [Error: You cannot resolve a failed lazy promise. Generally, you cannot settle (resolve, reject, or fail) a lazy promise that is already settled.],
+        [Error: You cannot resolve a failed lazy promise.],
       ],
       [
         "reject error",
-        [Error: You cannot reject a failed lazy promise. Generally, you cannot settle (resolve, reject, or fail) a lazy promise that is already settled.],
+        [Error: You cannot reject a failed lazy promise.],
       ],
       [
         "fail error",
-        [Error: You cannot fail a failed lazy promise. Generally, you cannot settle (resolve, reject, or fail) a lazy promise that is already settled.],
+        [Error: You cannot fail an already failed lazy promise.],
       ],
     ]
   `);
@@ -684,7 +733,11 @@ test("no subscribers", () => {
       } catch (error) {
         log("reject error", error);
       }
-      fail();
+      try {
+        fail();
+      } catch (error) {
+        log("fail error", error);
+      }
     });
   });
   promise.subscribe(
@@ -706,29 +759,15 @@ test("no subscribers", () => {
       ],
       [
         "resolve error",
-        [Error: You cannot resolve (or generally, resolve or reject) a lazy promise that no longer has any subscribers. Make sure that the callback you're passing to createLazyPromise returns a working teardown function.],
+        [Error: You cannot resolve a lazy promise that no longer has any subscribers. Make sure that the callback you're passing to createLazyPromise returns a working teardown function.],
       ],
       [
         "reject error",
-        [Error: You cannot reject (or generally, resolve or reject) a lazy promise that no longer has any subscribers. Make sure that the callback you're passing to createLazyPromise returns a working teardown function.],
+        [Error: You cannot reject a lazy promise that no longer has any subscribers. Make sure that the callback you're passing to createLazyPromise returns a working teardown function.],
       ],
-    ]
-  `);
-  promise.subscribe(
-    (value) => {
-      log("handleValue 2", value);
-    },
-    (error) => {
-      log("handleError 2", error);
-    },
-    () => {
-      log("handleFailure 2");
-    },
-  )();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
       [
-        "handleFailure 2",
+        "fail error",
+        [Error: You cannot fail a lazy promise that no longer has any subscribers, except while its teardown function is running. Make sure that the callback you're passing to createLazyPromise returns a working teardown function.],
       ],
     ]
   `);

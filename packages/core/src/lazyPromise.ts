@@ -29,13 +29,15 @@ interface Subscriber<Value, Error> {
 }
 
 const alreadySettledErrorMessage = (
-  settle: "resolve" | "reject" | "fail",
+  action: typeof resolvedSymbol | typeof rejectedSymbol | typeof failedSymbol,
   status: typeof resolvedSymbol | typeof rejectedSymbol | typeof failedSymbol,
 ) =>
-  `You cannot ${settle} a ${status === resolvedSymbol ? `resolved` : status === rejectedSymbol ? `rejected` : (status satisfies typeof failedSymbol, `failed`)} lazy promise. Generally, you cannot settle (resolve, reject, or fail) a lazy promise that is already settled.`;
+  `You cannot ${action === resolvedSymbol ? `resolve` : action === rejectedSymbol ? `reject` : (action satisfies typeof failedSymbol, `fail`)} ${action === status ? `an already` : `a`} ${status === resolvedSymbol ? `resolved` : status === rejectedSymbol ? `rejected` : (status satisfies typeof failedSymbol, `failed`)} lazy promise.`;
 
 const noSubscribersErrorMessage = (resolveOrReject: "resolve" | "reject") =>
-  `You cannot ${resolveOrReject} (or generally, resolve or reject) a lazy promise that no longer has any subscribers. Make sure that the callback you're passing to createLazyPromise returns a working teardown function.`;
+  `You cannot ${resolveOrReject} a lazy promise that no longer has any subscribers. Make sure that the callback you're passing to createLazyPromise returns a working teardown function.`;
+
+const failErrorMessage = `You cannot fail a lazy promise that no longer has any subscribers, except while its teardown function is running. Make sure that the callback you're passing to createLazyPromise returns a working teardown function.`;
 
 const cannotSubscribeMessage = `You cannot subscribe to a lazy promise while its teardown function is running.`;
 
@@ -68,7 +70,7 @@ export const createLazyPromise = <Value, Error = never>(
 
   const resolve = (value: Value) => {
     if (status) {
-      throw new Error(alreadySettledErrorMessage("resolve", status));
+      throw new Error(alreadySettledErrorMessage(resolvedSymbol, status));
     }
     if (!subscribers) {
       throw new Error(noSubscribersErrorMessage("resolve"));
@@ -94,6 +96,8 @@ export const createLazyPromise = <Value, Error = never>(
       // For GC purposes: unsubscribe handle keeps a reference to the
       // subscriber.
       delete subscribers[i]!.handleError;
+      // For GC purposes: unsubscribe handle keeps a reference to the
+      // subscriber.
       delete subscribers[i]!.handleFailure;
     }
     subscribers = undefined;
@@ -101,7 +105,7 @@ export const createLazyPromise = <Value, Error = never>(
 
   const reject = (error: Error) => {
     if (status) {
-      throw new Error(alreadySettledErrorMessage("reject", status));
+      throw new Error(alreadySettledErrorMessage(rejectedSymbol, status));
     }
     if (!subscribers) {
       throw new Error(noSubscribersErrorMessage("reject"));
@@ -130,6 +134,8 @@ export const createLazyPromise = <Value, Error = never>(
       // For GC purposes: unsubscribe handle keeps a reference to the
       // subscriber.
       delete subscribers[i]!.handleValue;
+      // For GC purposes: unsubscribe handle keeps a reference to the
+      // subscriber.
       delete subscribers[i]!.handleFailure;
     }
     if (unhandledRejection) {
@@ -140,7 +146,10 @@ export const createLazyPromise = <Value, Error = never>(
 
   const fail = () => {
     if (status) {
-      throw new Error(alreadySettledErrorMessage("fail", status));
+      throw new Error(alreadySettledErrorMessage(failedSymbol, status));
+    }
+    if (!subscribers && !dispose) {
+      throw new Error(failErrorMessage);
     }
     status = failedSymbol;
     // For GC purposes.
@@ -165,6 +174,8 @@ export const createLazyPromise = <Value, Error = never>(
       // For GC purposes: unsubscribe handle keeps a reference to the
       // subscriber.
       delete subscribers[i]!.handleValue;
+      // For GC purposes: unsubscribe handle keeps a reference to the
+      // subscriber.
       delete subscribers[i]!.handleError;
     }
     subscribers = undefined;
