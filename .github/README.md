@@ -100,4 +100,4 @@ A few random items:
 
   - subscribe to a lazy promise inside its teardown function.
 
-Design logic and downsides are discussed in this [article](https://dev.to/ivan7237d/lazypromise-typed-errors-and-cancelability-for-lazy-people-who-dont-want-to-learn-a-new-api-17a5).
+Design logic and downsides are discussed in this [article](https://dev.to/ivan7237d/lazypromise-typed-errors-and-cancelability-for-lazy-people-who-dont-want-to-learn-a-new-api-17a5) (skip to the section "Vs Observable").
