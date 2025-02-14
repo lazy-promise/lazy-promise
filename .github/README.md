@@ -38,7 +38,7 @@ const lazyPromise = createLazyPromise<0, "oops">((resolve, reject) => {
 Unlike a promise, a lazy promise doesn't do anything until you subscribe to it:
 
 ```ts
-// `unsubscribe` is a an idempotent `() => void` function.
+// `unsubscribe` is an idempotent `() => void` function.
 const unsubscribe = lazyPromise.subscribe(handleValue, handleError);
 ```
 
