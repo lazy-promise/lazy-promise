@@ -8,6 +8,8 @@ A LazyPromise is like a Promise, with three differences:
 
 - It emits synchronously instead of on the microtask queue.
 
+Here is in an [article that introduces it](https://dev.to/ivan7237d/lazypromise-typed-errors-and-cancelability-for-lazy-people-who-dont-want-to-learn-a-new-api-17a5).
+
 ## Installation
 
 ```bash
@@ -100,4 +102,4 @@ A few random items:
 
   - subscribe to a lazy promise inside its teardown function.
 
-Design logic and downsides are discussed in this [article](https://dev.to/ivan7237d/lazypromise-typed-errors-and-cancelability-for-lazy-people-who-dont-want-to-learn-a-new-api-17a5) (skip to the section "Vs Observable").
+Design logic and downsides are discussed in the above-mentioned [article](https://dev.to/ivan7237d/lazypromise-typed-errors-and-cancelability-for-lazy-people-who-dont-want-to-learn-a-new-api-17a5) (skip to the section "Vs Observable").
