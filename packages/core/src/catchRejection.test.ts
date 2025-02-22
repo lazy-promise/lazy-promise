@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import { pipe } from "pipe-function";
-import { catchError } from "./catchError";
+import { catchRejection } from "./catchRejection";
 import { createLazyPromise, rejected, resolved } from "./lazyPromise";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -56,13 +56,13 @@ test("types", () => {
   // $ExpectType LazyPromise<"value a" | "value b", never>
   const promise1 = pipe(
     createLazyPromise<"value a", "error a">(() => {}),
-    catchError(() => "value b" as const),
+    catchRejection(() => "value b" as const),
   );
 
   // $ExpectType LazyPromise<"value a" | "value b", "error b">
   const promise2 = pipe(
     createLazyPromise<"value a", "error a">(() => {}),
-    catchError(() => createLazyPromise<"value b", "error b">(() => {})),
+    catchRejection(() => createLazyPromise<"value b", "error b">(() => {})),
   );
 
   /* eslint-enable @typescript-eslint/no-unused-vars */
@@ -71,7 +71,7 @@ test("types", () => {
 test("falling back to a value", () => {
   const promise = pipe(
     rejected(1),
-    catchError((error) => error + 1),
+    catchRejection((error) => error + 1),
   );
   promise.subscribe((value) => {
     log("handleValue", value);
@@ -89,7 +89,7 @@ test("falling back to a value", () => {
 test("outer promise resolves", () => {
   const promise = pipe(
     resolved(1),
-    catchError(() => undefined),
+    catchRejection(() => undefined),
   );
   promise.subscribe((value) => {
     log("handleValue", value);
@@ -109,7 +109,7 @@ test("outer promise fails", () => {
     createLazyPromise((resolve, reject, fail) => {
       fail();
     }),
-    catchError(() => undefined),
+    catchRejection(() => undefined),
   );
   promise.subscribe(undefined, undefined, () => {
     log("handleFailure");
@@ -126,7 +126,7 @@ test("outer promise fails", () => {
 test("inner promise resolves", () => {
   const promise = pipe(
     rejected("a"),
-    catchError(() => resolved("b")),
+    catchRejection(() => resolved("b")),
   );
   promise.subscribe((value) => {
     log("handleValue", value);
@@ -144,7 +144,7 @@ test("inner promise resolves", () => {
 test("inner promise rejects", () => {
   const promise = pipe(
     rejected("a"),
-    catchError(() => rejected("b")),
+    catchRejection(() => rejected("b")),
   );
   promise.subscribe(undefined, (error) => {
     log("handleError", error);
@@ -162,7 +162,7 @@ test("inner promise rejects", () => {
 test("inner promise fails", () => {
   const promise = pipe(
     rejected(1),
-    catchError(() =>
+    catchRejection(() =>
       createLazyPromise((resolve, reject, fail) => {
         fail();
       }),
@@ -183,7 +183,7 @@ test("inner promise fails", () => {
 test("callback throws", () => {
   const promise = pipe(
     rejected(1),
-    catchError(() => {
+    catchRejection(() => {
       throw "oops";
     }),
   );
@@ -205,7 +205,7 @@ test("cancel outer promise", () => {
     createLazyPromise(() => () => {
       log("dispose");
     }),
-    catchError((value) => value + 1),
+    catchRejection((value) => value + 1),
   );
   const dispose = promise.subscribe();
   jest.advanceTimersByTime(500);
@@ -224,7 +224,7 @@ test("cancel outer promise", () => {
 test("cancel inner promise", () => {
   const promise = pipe(
     rejected(1),
-    catchError(() =>
+    catchRejection(() =>
       createLazyPromise(() => () => {
         log("dispose");
       }),

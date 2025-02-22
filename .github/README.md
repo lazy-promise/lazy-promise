@@ -78,7 +78,7 @@ Instead of dot-chaining LazyPromise uses pipes: `pipe(x, foo, bar)` is the same 
 | Promise api                    | LazyPromise equivalent                       |
 | :----------------------------- | :------------------------------------------- |
 | `promise.then(foo)`            | `pipe(lazyPromise, map(foo))`                |
-| `promise.catch(foo)`           | `pipe(lazyPromise, catchError(foo))`         |
+| `promise.catch(foo)`           | `pipe(lazyPromise, catchRejection(foo))`     |
 | `promise.finally(foo)`         | `pipe(lazyPromise, finalize(foo))`           |
 | `Promise.resolve(value)`       | `resolved(value)`                            |
 | `Promise.reject(error)`        | `rejected(error)`                            |
@@ -94,7 +94,7 @@ A few random items:
 
 - There are utility functions `eager` and `lazy` that convert to and from a regular promise. `eager` takes a LazyPromise and returns a Promise, `lazy` takes a function `async (abortSignal) => ...` and returns a LazyPromise.
 
-- There is `catchFailure` function analogous to `catchError`.
+- There is `catchFailure` function analogous to `catchRejection`.
 
 - An error will be thrown if you try to
 
