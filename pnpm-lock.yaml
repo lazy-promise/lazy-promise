@@ -95,9 +95,6 @@ importers:
 
   packages/solid-js:
     dependencies:
-      '@lazy-promise/core':
-        specifier: workspace:*
-        version: link:../core
       solid-js:
         specifier: ^1.0.0
         version: 1.9.10
@@ -117,6 +114,9 @@ importers:
       '@jest/globals':
         specifier: ^29.7.0
         version: 29.7.0
+      '@lazy-promise/core':
+        specifier: workspace:^
+        version: link:../core
       '@repo/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config

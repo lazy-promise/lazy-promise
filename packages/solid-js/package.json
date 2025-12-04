@@ -28,6 +28,7 @@
     "@babel/preset-env": "^7.24.7",
     "@babel/preset-typescript": "^7.24.7",
     "@jest/globals": "^29.7.0",
+    "@lazy-promise/core": "workspace:^",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "babel-jest": "^29.7.0",
@@ -37,7 +38,7 @@
     "typescript": "^5.5.3"
   },
   "peerDependencies": {
-    "@lazy-promise/core": "workspace:*",
+    "@lazy-promise/core": "workspace:^",
     "solid-js": "^1.0.0"
   }
 }
