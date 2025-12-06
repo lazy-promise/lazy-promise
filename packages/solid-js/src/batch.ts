@@ -42,12 +42,12 @@ export const batchValue = <Value, Error>(
  *   lazyPromise,
  *   batchError,
  *   trackProcessing,
- *   useLazyPromise(handleValue);
+ *   useLazyPromise(undefined, handleError);
  * );
  * ```
  *
  * Here `processing` will be updated in a batch together with any signals that
- * batchError updates.
+ * handleError updates.
  */
 export const batchError = <Value, Error>(
   source: LazyPromise<Value, Error>,
