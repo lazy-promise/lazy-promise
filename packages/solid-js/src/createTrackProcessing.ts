@@ -14,6 +14,7 @@ export type TrackProcessing = <Value, Error>(
  * can apply to one or more lazy promises:
  *
  * ```
+ * const [processing, trackProcessing] = createTrackProcessing();
  * const wrappedLazyPromise = pipe(lazyPromise, trackProcessing);
  * ```
  *

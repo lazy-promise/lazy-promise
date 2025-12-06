@@ -5,6 +5,13 @@ import { onCleanup, runWithOwner } from "solid-js";
  * Subscribes to a lazy promise and unsubscribes when the scope is disposed. All
  * callbacks, whether they're run synchronously or asynchronously, are run
  * outside of the scope (which among other things means no tracking).
+ *
+ * ```
+ * pipe(lazyPromise, useLazyPromise(handleValue, handleError));
+ * ```
+ *
+ * If the error type of your lazy promise is other than `never`, the type system
+ * will want you to provide an error handler.
  */
 export const useLazyPromise: <Value, Error>(
   ...args: [Error] extends [never]

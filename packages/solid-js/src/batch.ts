@@ -3,7 +3,20 @@ import { createLazyPromise } from "@lazy-promise/core";
 import { batch } from "solid-js";
 
 /**
- * Wraps the value handler in a Solid `batch`.
+ * Wraps the value handler in a Solid `batch`. E.g.
+ *
+ * ```
+ * const [processing, trackProcessing] = createTrackProcessing();
+ * const wrappedLazyPromise = pipe(
+ *   lazyPromise,
+ *   batchValue,
+ *   trackProcessing,
+ *   useLazyPromise(handleValue);
+ * );
+ * ```
+ *
+ * Here `processing` will be updated in a batch together with any signals that
+ * handleValue updates.
  */
 export const batchValue = <Value, Error>(
   source: LazyPromise<Value, Error>,
@@ -21,7 +34,20 @@ export const batchValue = <Value, Error>(
   );
 
 /**
- * Wraps the error handler in a Solid `batch`.
+ * Wraps the error handler in a Solid `batch`. E.g.
+ *
+ * ```
+ * const [processing, trackProcessing] = createTrackProcessing();
+ * const wrappedLazyPromise = pipe(
+ *   lazyPromise,
+ *   batchError,
+ *   trackProcessing,
+ *   useLazyPromise(handleValue);
+ * );
+ * ```
+ *
+ * Here `processing` will be updated in a batch together with any signals that
+ * batchError updates.
  */
 export const batchError = <Value, Error>(
   source: LazyPromise<Value, Error>,
