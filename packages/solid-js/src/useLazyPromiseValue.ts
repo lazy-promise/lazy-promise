@@ -23,15 +23,23 @@ export const errorSymbol = Symbol("error");
  * will want you to provide an error handler, and `data` will have another
  * possible value `errorSymbol`.
  */
-export const useLazyPromiseValue = <Value, Error>(
+export const useLazyPromiseValue: <Value, Error>(
   lazyPromiseAccessor: Accessor<LazyPromise<Value, Error>>,
-  handleError?: (error: Error) => void,
-  handleFailure?: () => void,
-): Accessor<
+  ...args: [Error] extends [never]
+    ? [
+        handleError?: ((error: Error) => void) | undefined,
+        handleFailure?: () => void,
+      ]
+    : [handleError: (error: Error) => void, handleFailure?: () => void]
+) => Accessor<
   | Value
   | typeof loadingSymbol
   | (Error extends never ? never : typeof errorSymbol)
-> => {
+> = <Value, Error>(
+  lazyPromiseAccessor: Accessor<LazyPromise<Value, Error>>,
+  handleError?: (error: Error) => void,
+  handleFailure?: () => void,
+) => {
   let value: Value | typeof loadingSymbol | typeof errorSymbol;
 
   const lazyPromiseMemo = createMemo<LazyPromise<Value, Error>>((prev) => {
