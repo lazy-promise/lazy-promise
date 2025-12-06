@@ -18,10 +18,10 @@ export const errorSymbol = Symbol("error");
  * const data = useLazyPromiseValue(() => getLazyPromise(mySignal()));
  * ```
  *
- * Before the promise resolves, the `data` accessor returns `loadingSymbol`. If
- * the error type of your lazy promise is other than `never`, the type system
- * will want you to provide an error handler, and `data` will have another
- * possible value `errorSymbol`.
+ * Before the promise resolves, the `data` accessor returns a Symbol
+ * `loadingSymbol`. If the error type of your lazy promise is other than
+ * `never`, the type system will want you to provide an error handler, and
+ * `data` will have another possible value `errorSymbol`.
  */
 export const useLazyPromiseValue: <Value, Error>(
   lazyPromiseAccessor: Accessor<LazyPromise<Value, Error>>,
