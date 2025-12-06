@@ -15,8 +15,8 @@ import { batch } from "solid-js";
  * );
  * ```
  *
- * Here `processing` will be updated in a batch together with any signals that
- * handleValue updates.
+ * Here when the promise resolves, `processing` will be updated in a batch
+ * together with any signals that handleValue updates.
  */
 export const batchValue = <Value, Error>(
   source: LazyPromise<Value, Error>,
@@ -46,8 +46,8 @@ export const batchValue = <Value, Error>(
  * );
  * ```
  *
- * Here `processing` will be updated in a batch together with any signals that
- * handleError updates.
+ * Here when the promise errors, `processing` will be updated in a batch
+ * together with any signals that handleError updates.
  */
 export const batchError = <Value, Error>(
   source: LazyPromise<Value, Error>,
