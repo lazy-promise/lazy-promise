@@ -92,7 +92,7 @@ pipe(
 );
 ```
 
-## A few random items to know:
+## A few random items to know
 
 - There are utility functions `eager` and `lazy` that convert to and from a regular promise. `eager` takes a LazyPromise and returns a Promise, `lazy` takes a function `async (abortSignal) => ...` and returns a LazyPromise.
 
@@ -102,7 +102,7 @@ pipe(
 
 - Settling a settled lazy promise or subscribing to a lazy promise in its own teardown function is not allowed (will result in an error).
 
-## Failure Channel
+## Failure channel
 
 Typed errors mean that you don't reject lazy promises by throwing an error, but only by calling `reject`. If you do throw, two things will happen. First, the error will be asynchronously re-thrown so it would be picked up by the browser console, Sentry, Next.js error popup etc. Second, a notification will be sent down a third "failure" channel that exists in addition to the value and error channels. It does not pass along the error, but just tells subscribers that there is no resolve or reject forthcoming:
 
