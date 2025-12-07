@@ -129,6 +129,4 @@ There is `catchFailure` function analogous to `catchRejection`.
 
 ## Experimental SolidJS bindings
 
-https://github.com/lazy-promise/lazy-promise/tree/main/packages/solid-js
-
-Article: https://dev.to/ivan7237d/cancelable-async-tasks-and-typed-server-errors-with-solidjs-and-lazypromise-1la
+https://github.com/lazy-promise/lazy-promise/tree/main/packages/solid-js ([article](https://dev.to/ivan7237d/cancelable-async-tasks-and-typed-server-errors-with-solidjs-and-lazypromise-1la))
