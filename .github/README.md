@@ -65,7 +65,7 @@ Instead of dot-chaining LazyPromise uses pipes: `pipe(x, foo, bar)` is the same 
 | `Promise<Value>`               | `LazyPromise<Value, Error>`                  |
 | `Awaited<T>`                   | `LazyPromiseValue<T>`, `LazyPromiseError<T>` |
 
-You basic code could look something like this (types of all values and errors will be inferred):
+You typical code could look something like this (types of all values and errors will be inferred):
 
 ```ts
 pipe(
