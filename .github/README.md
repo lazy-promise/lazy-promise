@@ -96,10 +96,8 @@ A few random items:
 
 - There is `catchFailure` function analogous to `catchRejection`.
 
-- An error will be thrown if you try to
+- The teardown function will not be called if the promise settles (it's either-or).
 
-  - settle (resolve, reject, or fail) a lazy promise that is already settled or has no subscribers, with an exception that you can call `fail` in the teardown function
-
-  - subscribe to a lazy promise inside its teardown function.
+- Settling a settled lazy promise or subscribing to a lazy promise in its own teardown function is not allowed (will result in an error).
 
 Design logic and downsides are discussed in the above-mentioned [article](https://dev.to/ivan7237d/lazypromise-typed-errors-and-cancelability-for-lazy-people-who-dont-want-to-learn-a-new-api-17a5) (skip to the section "Vs Observable").
