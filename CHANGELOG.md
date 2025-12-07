@@ -1,5 +1,5 @@
 # Changelog
 
-## [0.0.7]
+## @lazy-promise/core@0.0.7
 
-`catchError` renamed to `catchRejection`.
+- `catchError` renamed to `catchRejection`.
