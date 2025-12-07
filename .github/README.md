@@ -8,8 +8,6 @@ A LazyPromise is like a Promise, with three differences:
 
 - It emits synchronously instead of on the microtask queue.
 
-Here is in an [article that introduces it](https://dev.to/ivan7237d/lazypromise-typed-errors-and-cancelability-for-lazy-people-who-dont-want-to-learn-a-new-api-17a5).
-
 ## Installation
 
 ```bash
@@ -50,6 +48,62 @@ If a lazy promise does fire, then like a regular promise it will remember foreve
 
 The errors are typed and `.subscribe(...)` function requires that you provide a `handleError` callback unless the type of errors is `never`.
 
+Instead of dot-chaining LazyPromise uses pipes: `pipe(x, foo, bar)` is the same as `bar(foo(x))`. Also, there are small naming differences. That aside, LazyPromise API mirrors that of Promise:
+
+| Promise api                    | LazyPromise equivalent                       |
+| :----------------------------- | :------------------------------------------- |
+| `promise.then(foo)`            | `pipe(lazyPromise, map(foo))`                |
+| `promise.catch(foo)`           | `pipe(lazyPromise, catchRejection(foo))`     |
+| `promise.finally(foo)`         | `pipe(lazyPromise, finalize(foo))`           |
+| `Promise.resolve(value)`       | `resolved(value)`                            |
+| `Promise.reject(error)`        | `rejected(error)`                            |
+| `new Promise<never>(() => {})` | `never`                                      |
+| `Promise.all(...)`             | `all(...)`                                   |
+| `Promise.any(...)`             | `any(...)`                                   |
+| `Promise.race(...)`            | `race(...)`                                  |
+| `x instanceof Promise`         | `isLazyPromise(x)`                           |
+| `Promise<Value>`               | `LazyPromise<Value, Error>`                  |
+| `Awaited<T>`                   | `LazyPromiseValue<T>`, `LazyPromiseError<T>` |
+
+You basic code could look something like this (types of all values and errors will be inferred):
+
+```ts
+pipe(
+  // Create a LazyPromise.
+  callAnApiEndpoint(params),
+  // Handle some errors.
+  catchRejection(error => {
+    // To turn the error into a value, return that value.
+
+    // To turn the error into another error, return `rejected(newError)`, which
+    // will have type LazyPromise<never, NewError>.
+
+    // To perform some side effect and have the resulting promise never fire,
+    // return `never` which has type LazyPromise<never, never>.
+    ...
+  }),
+  // The return value is treated the same way as for `catchRejection`.
+  map(value => ...),
+).subscribe(
+  (value) => { ... },
+  // The type system will only want you to provide this handler if by now the
+  // type of `error` is other than `never`.
+  (error) => { ... },
+);
+```
+
+## A few random items to know:
+
+- There are utility functions `eager` and `lazy` that convert to and from a regular promise. `eager` takes a LazyPromise and returns a Promise, `lazy` takes a function `async (abortSignal) => ...` and returns a LazyPromise.
+
+- There is `catchFailure` function analogous to `catchRejection`.
+
+- The teardown function will not be called if the promise settles (it's either-or).
+
+- Settling a settled lazy promise or subscribing to a lazy promise in its own teardown function is not allowed (will result in an error).
+
+## Failure Channel
+
 Typed errors mean that you don't reject lazy promises by throwing an error, but only by calling `reject`. If you do throw, two things will happen. First, the error will be asynchronously re-thrown so it would be picked up by the browser console, Sentry, Next.js error popup etc. Second, a notification will be sent down a third "failure" channel that exists in addition to the value and error channels. It does not pass along the error, but just tells subscribers that there is no resolve or reject forthcoming:
 
 ```ts
@@ -72,32 +126,3 @@ const lazyPromise = createLazyPromise((resolve, reject, fail) => {
 // `handleFailure` has signature `() => void`.
 lazyPromise.subscribe(handleValue, handleError, handleFailure);
 ```
-
-Instead of dot-chaining LazyPromise uses pipes: `pipe(x, foo, bar)` is the same as `bar(foo(x))`. Also, there are small naming differences. That aside, LazyPromise API mirrors that of Promise:
-
-| Promise api                    | LazyPromise equivalent                       |
-| :----------------------------- | :------------------------------------------- |
-| `promise.then(foo)`            | `pipe(lazyPromise, map(foo))`                |
-| `promise.catch(foo)`           | `pipe(lazyPromise, catchRejection(foo))`     |
-| `promise.finally(foo)`         | `pipe(lazyPromise, finalize(foo))`           |
-| `Promise.resolve(value)`       | `resolved(value)`                            |
-| `Promise.reject(error)`        | `rejected(error)`                            |
-| `new Promise<never>(() => {})` | `never`                                      |
-| `Promise.all(...)`             | `all(...)`                                   |
-| `Promise.any(...)`             | `any(...)`                                   |
-| `Promise.race(...)`            | `race(...)`                                  |
-| `x instanceof Promise`         | `isLazyPromise(x)`                           |
-| `Promise<Value>`               | `LazyPromise<Value, Error>`                  |
-| `Awaited<T>`                   | `LazyPromiseValue<T>`, `LazyPromiseError<T>` |
-
-A few random items:
-
-- There are utility functions `eager` and `lazy` that convert to and from a regular promise. `eager` takes a LazyPromise and returns a Promise, `lazy` takes a function `async (abortSignal) => ...` and returns a LazyPromise.
-
-- There is `catchFailure` function analogous to `catchRejection`.
-
-- The teardown function will not be called if the promise settles (it's either-or).
-
-- Settling a settled lazy promise or subscribing to a lazy promise in its own teardown function is not allowed (will result in an error).
-
-Design logic and downsides are discussed in the above-mentioned [article](https://dev.to/ivan7237d/lazypromise-typed-errors-and-cancelability-for-lazy-people-who-dont-want-to-learn-a-new-api-17a5) (skip to the section "Vs Observable").
