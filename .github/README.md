@@ -96,8 +96,6 @@ pipe(
 
 - There are utility functions `eager` and `lazy` that convert to and from a regular promise. `eager` takes a LazyPromise and returns a Promise, `lazy` takes a function `async (abortSignal) => ...` and returns a LazyPromise.
 
-- There is `catchFailure` function analogous to `catchRejection`.
-
 - The teardown function will not be called if the promise settles (it's either-or).
 
 - Settling a settled lazy promise or subscribing to a lazy promise in its own teardown function is not allowed (will result in an error).
@@ -126,3 +124,11 @@ const lazyPromise = createLazyPromise((resolve, reject, fail) => {
 // `handleFailure` has signature `() => void`.
 lazyPromise.subscribe(handleValue, handleError, handleFailure);
 ```
+
+There is `catchFailure` function analogous to `catchRejection`.
+
+## Experimental SolidJS bindings
+
+https://github.com/lazy-promise/lazy-promise/tree/main/packages/solid-js
+
+Article: https://dev.to/ivan7237d/cancelable-async-tasks-and-typed-server-errors-with-solidjs-and-lazypromise-1la
