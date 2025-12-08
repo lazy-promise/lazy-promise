@@ -48,7 +48,7 @@ If a lazy promise does fire, then like a regular promise it will remember foreve
 
 The errors are typed and `.subscribe(...)` function requires that you provide a `handleError` callback unless the type of errors is `never`.
 
-Instead of dot-chaining LazyPromise uses pipes: `pipe(x, foo, bar)` is the same as `bar(foo(x))`. Also, there are small naming differences. That aside, LazyPromise API mirrors that of Promise:
+Instead of dot-chaining LazyPromise uses pipes, and there are small naming differences, but that aside, LazyPromise API mirrors that of Promise:
 
 | Promise api                    | LazyPromise equivalent                       |
 | :----------------------------- | :------------------------------------------- |
