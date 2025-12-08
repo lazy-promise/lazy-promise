@@ -102,7 +102,9 @@ pipe(
 
 ## Failure channel
 
-Typed errors mean that you don't reject lazy promises by throwing an error, but only by calling `reject`. If you do throw, two things will happen. First, the error will be asynchronously re-thrown so it would be picked up by the browser console, Sentry, Next.js error popup etc. Second, a notification will be sent down a third "failure" channel that exists in addition to the value and error channels. It does not pass along the error, but just tells subscribers that there is no resolve or reject forthcoming:
+This isn't something you're likely to use in application code but gives you more flexibility in dealing with bugs.
+
+Since the type system doesn't know what errors a function can throw, you don't reject a lazy promises by throwing an error, but only by calling `reject`. If you do throw, two things will happen. First, the error will be asynchronously re-thrown so it would be picked up by the browser console, Sentry, etc. Second, a notification will be sent down a third "failure" channel that exists in addition to the value and error channels. It does not pass along the error, but just tells subscribers that there is no resolve or reject forthcoming:
 
 ```ts
 // `fail` has signature `() => void`.
@@ -121,7 +123,7 @@ const lazyPromise = createLazyPromise((resolve, reject, fail) => {
   });
 });
 
-// `handleFailure` has signature `() => void`.
+// `handleFailure` is always optional and has signature `() => void`.
 lazyPromise.subscribe(handleValue, handleError, handleFailure);
 ```
 
