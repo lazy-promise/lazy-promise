@@ -99,7 +99,7 @@ pipe(
 
 - The teardown function will not be called if the promise settles (it's either-or).
 
-- Settling a settled lazy promise or subscribing to a lazy promise in its own teardown function is not allowed (will result in an error).
+- Settling a settled lazy promise or subscribing to a lazy promise in its own teardown function is not allowed (will throw an error).
 
 ## Failure channel
 
