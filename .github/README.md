@@ -82,7 +82,8 @@ pipe(
     // return `never` which has type LazyPromise<never, never>.
     ...
   }),
-  // The return value is treated the same way as for `catchRejection`.
+  // The return value of the callback is treated the same way as for `catchRejection`,
+  // so again, you can return either a value or a LazyPromise.
   map(value => ...),
 ).subscribe(
   (value) => { ... },
