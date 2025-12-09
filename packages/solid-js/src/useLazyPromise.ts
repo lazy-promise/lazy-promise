@@ -1,5 +1,5 @@
 import type { LazyPromise } from "@lazy-promise/core";
-import { onCleanup, runWithOwner } from "solid-js";
+import { getOwner, onCleanup, runWithOwner } from "solid-js";
 
 /**
  * Subscribes to a lazy promise and unsubscribes when the scope is disposed. All
@@ -14,24 +14,30 @@ import { onCleanup, runWithOwner } from "solid-js";
  * will want you to provide an error handler.
  */
 export const useLazyPromise: <Value, Error>(
+  lazyPromise: LazyPromise<Value, Error>,
   ...args: [Error] extends [never]
     ? [
         handleValue?: ((value: Value) => void) | undefined,
         handleError?: ((error: Error) => void) | undefined,
-        handleFailure?: () => void,
       ]
     : [
         handleValue: ((value: Value) => void) | undefined,
         handleError: (error: Error) => void,
-        handleFailure?: () => void,
       ]
-) => (lazyPromise: LazyPromise<Value, Error>) => void =
-  (handleValue?: any, handleError?: any, handleFailure?: any) =>
-  (lazyPromise: LazyPromise<any, any>) => {
-    const unsubscribe = runWithOwner(null, () =>
-      lazyPromise.subscribe(handleValue, handleError, handleFailure),
-    );
-    if (unsubscribe) {
-      onCleanup(unsubscribe);
-    }
-  };
+) => void = (
+  lazyPromise: LazyPromise<any, any>,
+  handleValue?: any,
+  handleError?: any,
+) => {
+  const owner = getOwner();
+  const unsubscribe = runWithOwner(null, () =>
+    lazyPromise.subscribe(handleValue, handleError, (error) => {
+      runWithOwner(owner, () => {
+        throw error;
+      });
+    }),
+  );
+  if (unsubscribe) {
+    onCleanup(unsubscribe);
+  }
+};

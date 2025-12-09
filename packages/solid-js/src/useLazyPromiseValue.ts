@@ -1,5 +1,4 @@
 import type { LazyPromise } from "@lazy-promise/core";
-import { pipe } from "pipe-function";
 import type { Accessor } from "solid-js";
 import { createMemo, createSignal } from "solid-js";
 import { useLazyPromise } from "./useLazyPromise";
@@ -26,11 +25,8 @@ export const errorSymbol = Symbol("error");
 export const useLazyPromiseValue: <Value, Error>(
   lazyPromiseAccessor: Accessor<LazyPromise<Value, Error>>,
   ...args: [Error] extends [never]
-    ? [
-        handleError?: ((error: Error) => void) | undefined,
-        handleFailure?: () => void,
-      ]
-    : [handleError: (error: Error) => void, handleFailure?: () => void]
+    ? [handleError?: ((error: Error) => void) | undefined]
+    : [handleError: (error: Error) => void]
 ) => Accessor<
   | Value
   | typeof loadingSymbol
@@ -38,7 +34,6 @@ export const useLazyPromiseValue: <Value, Error>(
 > = <Value, Error>(
   lazyPromiseAccessor: Accessor<LazyPromise<Value, Error>>,
   handleError?: (error: Error) => void,
-  handleFailure?: () => void,
 ) => {
   let value: Value | typeof loadingSymbol | typeof errorSymbol;
 
@@ -59,24 +54,21 @@ export const useLazyPromiseValue: <Value, Error>(
       return value;
     }
     let sync = true;
-    pipe(
+    useLazyPromise<any, any>(
       lazyPromise,
-      useLazyPromise<any, any>(
-        (newValue) => {
-          value = newValue;
-          if (!sync) {
-            setResolvedSymbol(Symbol());
-          }
-        },
-        (error) => {
-          value = errorSymbol;
-          if (!sync) {
-            setResolvedSymbol(Symbol());
-          }
-          handleError?.(error);
-        },
-        handleFailure,
-      ),
+      (newValue) => {
+        value = newValue;
+        if (!sync) {
+          setResolvedSymbol(Symbol());
+        }
+      },
+      (error) => {
+        value = errorSymbol;
+        if (!sync) {
+          setResolvedSymbol(Symbol());
+        }
+        handleError?.(error);
+      },
     );
     sync = false;
     if (value === loadingSymbol) {
