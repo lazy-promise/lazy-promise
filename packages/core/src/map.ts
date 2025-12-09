@@ -20,8 +20,8 @@ export const map =
           try {
             newValueOrPromise = callback(value);
           } catch (error) {
-            fail();
-            throw error;
+            fail(error);
+            return;
           }
           if (isLazyPromise(newValueOrPromise)) {
             dispose = newValueOrPromise.subscribe(resolve, reject, fail);

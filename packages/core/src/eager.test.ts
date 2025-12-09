@@ -1,6 +1,6 @@
 import { expect, test } from "@jest/globals";
 import { eager } from "./eager";
-import { createLazyPromise, rejected, resolved } from "./lazyPromise";
+import { failed, rejected, resolved } from "./lazyPromise";
 
 test("resolve", async () => {
   expect(await eager(resolved("value"))).toMatchInlineSnapshot(`"value"`);
@@ -13,13 +13,5 @@ test("reject", () => {
 
 test("fail", () => {
   // eslint-disable-next-line @typescript-eslint/no-floating-promises
-  expect(() =>
-    eager(
-      createLazyPromise((resolve, reject, fail) => {
-        fail();
-      }),
-    ),
-  ).rejects.toMatchInlineSnapshot(
-    `[Error: The LazyPromise passed to eager(...) has failed.]`,
-  );
+  expect(() => eager(failed("oops"))).rejects.toMatchInlineSnapshot(`"oops"`);
 });

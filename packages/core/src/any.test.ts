@@ -194,15 +194,15 @@ test("failure of one of the sources should fail result", () => {
     }),
     createLazyPromise<"b", "oops">((resolve, reject, fail) => {
       setTimeout(() => {
-        fail();
+        fail("oops");
       }, 1000);
     }),
   ]);
   promise.subscribe(
     undefined,
     () => {},
-    () => {
-      log("handleFailure");
+    (error) => {
+      log("handleFailure", error);
     },
   );
   jest.runAllTimers();
@@ -211,12 +211,13 @@ test("failure of one of the sources should fail result", () => {
       "1000 ms passed",
       [
         "handleFailure",
+        "oops",
       ],
       [
         "dispose a",
       ],
     ]
-  `);
+    `);
 });
 
 test("internally disposed when a source resolves, internal disposal should prevent further subscriptions to sources", () => {
@@ -361,7 +362,7 @@ test("internally disposed when a source resolves, a source resolve is ignored wh
 });
 
 test("internally disposed when a source resolves, a source failure is ignored when internally disposed", () => {
-  let failA: () => void;
+  let failA: (error: unknown) => void;
   const promise = any([
     createLazyPromise<"a">((resolve, reject, fail) => {
       log("produce a");
@@ -376,7 +377,7 @@ test("internally disposed when a source resolves, a source failure is ignored wh
   ]);
   promise.subscribe(() => {
     log("call fail a");
-    failA();
+    failA("oops");
   });
   jest.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -404,7 +405,7 @@ test("internally disposed when a source fails, a source resolve is ignored when 
     createLazyPromise<never>((resolve, reject, fail) => {
       setTimeout(() => {
         log("call fail b");
-        fail();
+        fail("oops");
       }, 1000);
     }),
   ]);

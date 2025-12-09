@@ -15,13 +15,14 @@ const DOMException =
 
 /**
  * Converts a Promise to a LazyPromise. If the callback returns a rejected
- * Promise or throws, the LazyPromise rejects (but never fails). The callback
- * can (but doesn't have to) use an AbortSignal provided as argument.
+ * Promise or throws, the LazyPromise fails, so if your promise can reject
+ * because of something other than a bug, make sure to `catchFailure`. The
+ * callback can use an AbortSignal provided as argument.
  */
 export const lazy = <Value>(
   callback: (abortSignal: AbortSignal) => PromiseLike<Value>,
-): LazyPromise<Value, unknown> =>
-  createLazyPromise((resolve, reject) => {
+): LazyPromise<Value, never> =>
+  createLazyPromise((resolve, reject, fail) => {
     const abortController = new AbortController();
     let promise: PromiseLike<Value>;
     try {
@@ -40,7 +41,7 @@ export const lazy = <Value>(
           !abortController.signal.aborted &&
           !(error instanceof DOMException && error.name === "AbortError")
         ) {
-          reject(error);
+          fail(error);
         }
       },
     );

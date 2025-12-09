@@ -194,15 +194,15 @@ test("failure of one of the sources should fail result", () => {
     }),
     createLazyPromise<"b", "oops">((resolve, reject, fail) => {
       setTimeout(() => {
-        fail();
+        fail("oops");
       }, 1000);
     }),
   ]);
   promise.subscribe(
     undefined,
     () => {},
-    () => {
-      log("handleFailure");
+    (error) => {
+      log("handleFailure", error);
     },
   );
   jest.runAllTimers();
@@ -211,12 +211,13 @@ test("failure of one of the sources should fail result", () => {
       "1000 ms passed",
       [
         "handleFailure",
+        "oops",
       ],
       [
         "dispose a",
       ],
     ]
-  `);
+    `);
 });
 
 test("internally disposed when a source rejects, internal disposal should prevent further subscriptions to sources", () => {
@@ -361,7 +362,7 @@ test("internally disposed when a source rejects, a source reject is ignored when
 });
 
 test("internally disposed when a source rejects, a source failure is ignored when internally disposed", () => {
-  let failA: () => void;
+  let failA: (error: unknown) => void;
   const promise = all([
     createLazyPromise<never, "a">((resolve, reject, fail) => {
       log("produce a");
@@ -376,7 +377,7 @@ test("internally disposed when a source rejects, a source failure is ignored whe
   ]);
   promise.subscribe(undefined, () => {
     log("call fail a");
-    failA();
+    failA("oops");
   });
   jest.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -396,15 +397,15 @@ test("internally disposed when a source rejects, a source failure is ignored whe
 });
 
 test("internally disposed when a source fails, a source reject is ignored when internally disposed", () => {
-  let rejectA: (error: "oops") => void;
+  let rejectA: (error: "oops 1") => void;
   const promise = all([
-    createLazyPromise<never, "oops">((resolve, reject) => {
+    createLazyPromise<never, "oops 1">((resolve, reject) => {
       rejectA = reject;
     }),
     createLazyPromise<never>((resolve, reject, fail) => {
       setTimeout(() => {
         log("call fail b");
-        fail();
+        fail("oops 2");
       }, 1000);
     }),
   ]);
@@ -413,7 +414,7 @@ test("internally disposed when a source fails, a source reject is ignored when i
     () => {},
     () => {
       log("call reject a");
-      rejectA("oops");
+      rejectA("oops 1");
     },
   );
   jest.runAllTimers();

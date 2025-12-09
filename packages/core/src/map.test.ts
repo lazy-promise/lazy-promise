@@ -107,17 +107,18 @@ test("outer promise rejects", () => {
 test("outer promise fails", () => {
   const promise = pipe(
     createLazyPromise((resolve, reject, fail) => {
-      fail();
+      fail("oops");
     }),
     map(() => undefined),
   );
-  promise.subscribe(undefined, undefined, () => {
-    log("handleFailure");
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleFailure",
+        "oops",
       ],
     ]
   `);
@@ -164,17 +165,18 @@ test("inner promise fails", () => {
     resolved(1),
     map(() =>
       createLazyPromise((resolve, reject, fail) => {
-        fail();
+        fail("oops");
       }),
     ),
   );
-  promise.subscribe(undefined, undefined, () => {
-    log("handleFailure");
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleFailure",
+        "oops",
       ],
     ]
   `);
@@ -187,17 +189,17 @@ test("callback throws", () => {
       throw "oops";
     }),
   );
-  promise.subscribe(undefined, undefined, () => {
-    log("handleFailure");
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleFailure",
+        "oops",
       ],
     ]
   `);
-  expect(processMockMicrotaskQueue).toThrow("oops");
 });
 
 test("cancel outer promise", () => {

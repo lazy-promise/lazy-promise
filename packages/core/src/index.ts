@@ -7,6 +7,7 @@ export { finalize } from "./finalize";
 export { lazy } from "./lazy";
 export {
   createLazyPromise,
+  failed,
   isLazyPromise,
   never,
   rejected,

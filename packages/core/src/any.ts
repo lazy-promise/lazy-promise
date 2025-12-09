@@ -7,7 +7,8 @@ import { createLazyPromise } from "./lazyPromise";
 import type { NeverIfContainsNever } from "./utils";
 
 /**
- * The LazyPromise equivalent of `Promise.any`.
+ * The LazyPromise equivalent of `Promise.any`. If all sources reject, rejects
+ * with an array of errors. If one source fails, fails, passing on the error.
  */
 export const any: {
   <Sources extends LazyPromise<unknown, unknown>[]>(sources: {
@@ -55,10 +56,10 @@ export const any: {
             }
           }
         },
-        () => {
+        (error) => {
           if (errors) {
             errors = undefined;
-            fail();
+            fail(error);
             for (let j = 0; j < disposables.length; j++) {
               disposables[j]!();
             }

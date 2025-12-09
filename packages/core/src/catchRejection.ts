@@ -21,8 +21,8 @@ export const catchRejection =
           try {
             newValueOrPromise = callback(error);
           } catch (newError) {
-            fail();
-            throw newError;
+            fail(newError);
+            return;
           }
           if (isLazyPromise(newValueOrPromise)) {
             dispose = newValueOrPromise.subscribe(resolve, reject, fail);

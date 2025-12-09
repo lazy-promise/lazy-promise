@@ -90,14 +90,14 @@ test("source rejects", () => {
 test("source fails", () => {
   const promise = pipe(
     createLazyPromise((resolve, reject, fail) => {
-      fail();
+      fail("oops");
     }),
     finalize(() => {
       log("finalize");
     }),
   );
-  promise.subscribe(undefined, undefined, () => {
-    log("handleFailure");
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -106,6 +106,7 @@ test("source fails", () => {
       ],
       [
         "handleFailure",
+        "oops",
       ],
     ]
   `);
@@ -115,57 +116,57 @@ test("callback throws", () => {
   pipe(
     resolved(1),
     finalize(() => {
-      throw "oops";
+      throw "oops 1";
     }),
-  ).subscribe(undefined, undefined, () => {
-    log("handleFailure");
+  ).subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleFailure",
+        "oops 1",
       ],
     ]
   `);
-  expect(processMockMicrotaskQueue).toThrow("oops");
 
   pipe(
     rejected(1),
     finalize(() => {
-      throw "oops";
+      throw "oops 2";
     }),
   ).subscribe(
     undefined,
     () => {},
-    () => {
-      log("handleFailure");
+    (error) => {
+      log("handleFailure", error);
     },
   );
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleFailure",
+        "oops 2",
       ],
     ]
   `);
-  expect(processMockMicrotaskQueue).toThrow("oops");
 
   pipe(
     createLazyPromise((resolve, reject, fail) => {
-      fail();
+      fail("oops 1");
     }),
     finalize(() => {
-      throw "oops";
+      throw "oops 2";
     }),
-  ).subscribe(undefined, undefined, () => {
-    log("handleFailure");
+  ).subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleFailure",
+        "oops 2",
       ],
     ]
   `);
-  expect(processMockMicrotaskQueue).toThrow("oops");
 });

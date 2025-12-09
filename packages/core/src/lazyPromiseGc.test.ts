@@ -77,16 +77,16 @@ test("garbage collect teardown function when rejected", async () => {
 
 test("garbage collect teardown function when failed", async () => {
   const ref = new WeakRef(() => {});
-  let fail: () => void;
-  const promise = createLazyPromise<undefined, undefined>(
+  let fail: (error: unknown) => void;
+  const promise = createLazyPromise<undefined, never>(
     (resolve, reject, failLocal) => {
       fail = failLocal;
       return ref.deref();
     },
   );
-  promise.subscribe(undefined, () => {});
+  promise.subscribe(undefined, undefined, () => {});
   await expectNotCollected(ref);
-  fail!();
+  fail!(undefined);
   await expectCollected(ref);
 });
 
@@ -117,16 +117,20 @@ test("garbage collect produce function when rejected", async () => {
 });
 
 test("garbage collect produce function when failed", async () => {
-  let fail: () => void;
+  let fail: (error: unknown) => void;
   const ref = new WeakRef(
-    (resolve: unknown, reject: unknown, failLocal: () => void) => {
+    (
+      resolve: unknown,
+      reject: unknown,
+      failLocal: (error: unknown) => void,
+    ) => {
       fail = failLocal;
     },
   );
-  const promise = createLazyPromise<undefined, undefined>(ref.deref()!);
-  promise.subscribe(undefined, () => {});
+  const promise = createLazyPromise<undefined, never>(ref.deref()!);
+  promise.subscribe(undefined, undefined, () => {});
   await expectNotCollected(ref);
-  fail!();
+  fail!(undefined);
   await expectCollected(ref);
 });
 
@@ -221,8 +225,8 @@ test("garbage collect subscriber callbacks when failed", async () => {
   const handleValue = new WeakRef(() => {});
   const handleError = new WeakRef(() => {});
   const handleFailure = new WeakRef(() => {});
-  let fail: () => void;
-  const promise = createLazyPromise<undefined, undefined>(
+  let fail: (error: unknown) => void;
+  const promise = createLazyPromise<undefined, never>(
     (resolve, reject, failLocal) => {
       fail = failLocal;
     },
@@ -231,13 +235,13 @@ test("garbage collect subscriber callbacks when failed", async () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const dispose = promise.subscribe(
     handleValue.deref(),
-    handleError.deref()!,
+    handleError.deref(),
     handleFailure.deref(),
   );
   await expectNotCollected(handleValue);
   await expectNotCollected(handleError);
   await expectNotCollected(handleFailure);
-  fail!();
+  fail!(undefined);
   await expectCollected(handleValue);
   await expectCollected(handleError);
   await expectCollected(handleFailure);

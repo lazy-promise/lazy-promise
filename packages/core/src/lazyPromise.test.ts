@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
 import {
   createLazyPromise,
+  failed,
   isLazyPromise,
   never,
   rejected,
@@ -183,11 +184,11 @@ test("sync reject", () => {
 test("async fail", () => {
   const promise = createLazyPromise<unknown, never>((resolve, reject, fail) => {
     setTimeout(() => {
-      fail();
+      fail("oops");
     }, 1000);
   });
-  promise.subscribe(undefined, undefined, () => {
-    log("handleFailure");
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
   });
   jest.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -195,6 +196,7 @@ test("async fail", () => {
       "1000 ms passed",
       [
         "handleFailure",
+        "oops",
       ],
     ]
   `);
@@ -203,10 +205,10 @@ test("async fail", () => {
 test("sync fail", () => {
   const promise = createLazyPromise<unknown, never>((resolve, reject, fail) => {
     log("produce");
-    fail();
+    fail("oops");
   });
-  promise.subscribe(undefined, undefined, () => {
-    log("handleFailure 1");
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure 1", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -215,67 +217,18 @@ test("sync fail", () => {
       ],
       [
         "handleFailure 1",
+        "oops",
       ],
     ]
   `);
-  promise.subscribe(undefined, undefined, () => {
-    log("handleFailure 2");
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure 2", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleFailure 2",
-      ],
-    ]
-  `);
-  promise.subscribe();
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
-});
-
-test("fail in teardown function", () => {
-  const promise = createLazyPromise<unknown, never>(
-    (resolve, reject, fail) => () => {
-      log("will call fail");
-      fail();
-      log("fail didn't throw");
-    },
-  );
-  promise.subscribe(
-    (value) => {
-      log("handleValue 1", value);
-    },
-    (error) => {
-      log("handleError 1", error);
-    },
-    () => {
-      log("handleFailure 1");
-    },
-  )();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "will call fail",
-      ],
-      [
-        "fail didn't throw",
-      ],
-    ]
-  `);
-  promise.subscribe(
-    (value) => {
-      log("handleValue 2", value);
-    },
-    (error) => {
-      log("handleError 2", error);
-    },
-    () => {
-      log("handleFailure 2");
-    },
-  )();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "handleFailure 2",
+        "oops",
       ],
     ]
   `);
@@ -363,6 +316,21 @@ test("teardown function is not called if the lazy promise rejects", () => {
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
+test("teardown function is not called if the lazy promise fails", () => {
+  const promise = createLazyPromise<number, never>((resolve, reject, fail) => {
+    setTimeout(() => {
+      fail(1);
+    }, 1000);
+    return () => {
+      log("dispose");
+    };
+  });
+  const dispose = promise.subscribe(undefined, undefined, () => {});
+  jest.runAllTimers();
+  dispose();
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+});
+
 test("teardown function called by consumer", () => {
   const promise = createLazyPromise<"a">((resolve) => {
     setTimeout(() => {
@@ -391,17 +359,17 @@ test("error in produce function before settling", () => {
   const promise = createLazyPromise(() => {
     throw "oops";
   });
-  promise.subscribe(undefined, undefined, () => {
-    log("handleFailure");
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleFailure",
+        "oops",
       ],
     ]
-  `);
-  expect(processMockMicrotaskQueue).toThrow("oops");
+    `);
 });
 
 test("error in produce function after settling", () => {
@@ -464,13 +432,14 @@ test("error in teardown function", () => {
     ]
   `);
   expect(processMockMicrotaskQueue).toThrow("oops");
-  promise.subscribe(undefined, undefined, () => {
-    log("handleFailure 2");
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure 2", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleFailure 2",
+        "oops",
       ],
     ]
   `);
@@ -559,20 +528,45 @@ test("error in error handler function", () => {
 });
 
 test("error in failure handler function", () => {
-  const promise = createLazyPromise<string>((resolve, reject, fail) => {
+  const promise = createLazyPromise<string, never>((resolve, reject, fail) => {
     setTimeout(() => {
-      fail();
+      fail("error");
     }, 1000);
   });
-  promise.subscribe(undefined, undefined, () => {
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure 1", error);
     throw "oops 1";
   });
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure 2", error);
+  });
   jest.runAllTimers();
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "handleFailure 1",
+        "error",
+      ],
+      [
+        "handleFailure 2",
+        "error",
+      ],
+    ]
+    `);
   expect(processMockMicrotaskQueue).toThrow("oops 1");
-  promise.subscribe(undefined, undefined, () => {
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure 3", error);
     throw "oops 2";
   });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleFailure 3",
+        "error",
+      ],
+    ]
+    `);
   expect(processMockMicrotaskQueue).toThrow("oops 2");
 });
 
@@ -582,6 +576,37 @@ test("unhandled rejection", () => {
       reject("oops");
     }, 1000);
   });
+  // @ts-expect-error
+  promise.subscribe();
+
+  // Make sure there is a type error in all cases.
+  // @ts-expect-error
+  promise.subscribe(undefined);
+  // @ts-expect-error
+  promise.subscribe(undefined, undefined);
+  // @ts-expect-error
+  promise.subscribe(() => {});
+  // @ts-expect-error
+  promise.subscribe(() => {}, undefined);
+
+  expect(mockMicrotaskQueue.length).toMatchInlineSnapshot(`0`);
+  jest.runAllTimers();
+  expect(processMockMicrotaskQueue).toThrow("oops");
+  // Only one error is thrown.
+  processMockMicrotaskQueue();
+  // @ts-expect-error
+  promise.subscribe();
+  expect(processMockMicrotaskQueue).toThrow("oops");
+});
+
+test("unhandled failure", () => {
+  const promise = createLazyPromise<unknown, string>(
+    (resolve, reject, fail) => {
+      setTimeout(() => {
+        fail("oops");
+      }, 1000);
+    },
+  );
   // @ts-expect-error
   promise.subscribe();
 
@@ -619,7 +644,7 @@ test("already resolved", () => {
       log("reject error", error);
     }
     try {
-      fail();
+      fail(1);
     } catch (error) {
       log("fail error", error);
     }
@@ -657,7 +682,7 @@ test("already rejected", () => {
       log("reject error", error);
     }
     try {
-      fail();
+      fail(1);
     } catch (error) {
       log("fail error", error);
     }
@@ -683,7 +708,7 @@ test("already rejected", () => {
 
 test("already failed", () => {
   const promise = createLazyPromise<number, number>((resolve, reject, fail) => {
-    fail();
+    fail(1);
     try {
       resolve(1);
     } catch (error) {
@@ -695,12 +720,16 @@ test("already failed", () => {
       log("reject error", error);
     }
     try {
-      fail();
+      fail(2);
     } catch (error) {
       log("fail error", error);
     }
   });
-  promise.subscribe(undefined, () => {});
+  promise.subscribe(
+    undefined,
+    () => {},
+    () => {},
+  );
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -734,7 +763,7 @@ test("no subscribers", () => {
         log("reject error", error);
       }
       try {
-        fail();
+        fail(1);
       } catch (error) {
         log("fail error", error);
       }
@@ -747,8 +776,8 @@ test("no subscribers", () => {
     (error) => {
       log("handleError 1", error);
     },
-    () => {
-      log("handleFailure 1");
+    (error) => {
+      log("handleFailure 1", error);
     },
   )();
   jest.runAllTimers();
@@ -767,7 +796,7 @@ test("no subscribers", () => {
       ],
       [
         "fail error",
-        [Error: You cannot fail a lazy promise that no longer has any subscribers, except while its teardown function is running. Make sure that the callback you're passing to createLazyPromise returns a working teardown function.],
+        [Error: You cannot fail a lazy promise that no longer has any subscribers. Make sure that the callback you're passing to createLazyPromise returns a working teardown function.],
       ],
     ]
   `);
@@ -831,6 +860,29 @@ test("rejected", () => {
   })();
   expect(processMockMicrotaskQueue).toThrow("oops");
   // @ts-expect-error
+  const dispose = promise.subscribe();
+  dispose();
+  expect(processMockMicrotaskQueue).toThrow("error");
+});
+
+test("failed", () => {
+  const promise = failed("error");
+  expect(isLazyPromise(promise)).toMatchInlineSnapshot(`true`);
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
+  })();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleFailure",
+        "error",
+      ],
+    ]
+  `);
+  promise.subscribe(undefined, undefined, () => {
+    throw "oops";
+  })();
+  expect(processMockMicrotaskQueue).toThrow("oops");
   const dispose = promise.subscribe();
   dispose();
   expect(processMockMicrotaskQueue).toThrow("error");

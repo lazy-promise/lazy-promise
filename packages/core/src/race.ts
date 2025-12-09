@@ -31,10 +31,10 @@ export const race = <Value, Error>(
       }
     };
 
-    const handleFailure = () => {
+    const handleFailure = (error: unknown) => {
       if (!abort) {
         abort = true;
-        fail();
+        fail(error);
         for (let i = 0; i < disposables.length; i++) {
           disposables[i]!();
         }

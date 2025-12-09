@@ -348,12 +348,12 @@ test("internally disposed when a source fails, a source resolve is ignored when 
     createLazyPromise<never>((resolve, reject, fail) => {
       setTimeout(() => {
         log("fail b");
-        fail();
+        fail("oops");
       }, 1000);
     }),
   ]);
-  promise.subscribe(undefined, undefined, () => {
-    log("handleFailure");
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
     log("resolve a");
     resolveA("a");
   });
@@ -366,6 +366,7 @@ test("internally disposed when a source fails, a source resolve is ignored when 
       ],
       [
         "handleFailure",
+        "oops",
       ],
       [
         "resolve a",
@@ -414,7 +415,7 @@ test("internally disposed when a source resolves, a source reject is ignored whe
 });
 
 test("internally disposed when a source resolves, a source failure is ignored when internally disposed", () => {
-  let failA: () => void;
+  let failA: (error: unknown) => void;
   const promise = race([
     createLazyPromise<never>((resolve, reject, fail) => {
       failA = fail;
@@ -429,7 +430,7 @@ test("internally disposed when a source resolves, a source failure is ignored wh
   promise.subscribe((value) => {
     log("handleValue", value);
     log("fail a");
-    failA();
+    failA("oops");
   });
   jest.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`

@@ -14,8 +14,8 @@ export const finalize =
           try {
             callback();
           } catch (error) {
-            fail();
-            throw error;
+            fail(error);
+            return;
           }
           resolve(value);
         },
@@ -23,19 +23,19 @@ export const finalize =
           try {
             callback();
           } catch (error) {
-            fail();
-            throw error;
+            fail(error);
+            return;
           }
           reject(error);
         },
-        () => {
+        (error) => {
           try {
             callback();
-          } catch (error) {
-            fail();
-            throw error;
+          } catch (callbackError) {
+            fail(callbackError);
+            return;
           }
-          fail();
+          fail(error);
         },
       ),
     );

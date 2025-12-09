@@ -63,15 +63,15 @@ test("source resolves", async () => {
 
 test("source rejects", async () => {
   const promise = lazy(() => Promise.reject("oops"));
-  promise.subscribe(undefined, (error) => {
-    log("handleError", error);
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleError",
+        "handleFailure",
         "oops",
       ],
     ]
@@ -80,15 +80,15 @@ test("source rejects", async () => {
 
 test("source rejects with DOMException", async () => {
   const promise = lazy(() => Promise.reject(new DOMException()));
-  promise.subscribe(undefined, (error) => {
-    log("handleError", error);
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleError",
+        "handleFailure",
         DOMException {},
       ],
     ]
@@ -99,15 +99,15 @@ test("callback throws", async () => {
   const promise = lazy(() => {
     throw "oops";
   });
-  promise.subscribe(undefined, (error) => {
-    log("handleError", error);
+  promise.subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleError",
+        "handleFailure",
         "oops",
       ],
     ]
@@ -149,14 +149,14 @@ test("cancelation", () => {
 
 test("un-aborted promise resolves", async () => {
   const promise = lazy(() => Promise.resolve(1));
-  promise.subscribe(undefined, () => {})();
+  promise.subscribe()();
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
 test("un-aborted promise rejects", async () => {
   const promise = lazy(() => Promise.reject(1));
-  promise.subscribe(undefined, () => {})();
+  promise.subscribe()();
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });

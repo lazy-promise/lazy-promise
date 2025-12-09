@@ -55,10 +55,10 @@ export const all: {
             }
           }
         },
-        () => {
+        (error) => {
           if (values) {
             values = undefined;
-            fail();
+            fail(error);
             for (let j = 0; j < disposables.length; j++) {
               disposables[j]!();
             }

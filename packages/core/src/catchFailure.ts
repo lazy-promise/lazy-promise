@@ -7,20 +7,20 @@ import { createLazyPromise, isLazyPromise } from "./lazyPromise";
  */
 export const catchFailure =
   <Error, NewValue, NewError = never>(
-    callback: () => NewValue | LazyPromise<NewValue, NewError>,
+    callback: (error: unknown) => NewValue | LazyPromise<NewValue, NewError>,
   ) =>
   <Value>(
     source: LazyPromise<Value, Error>,
   ): LazyPromise<Value | NewValue, Error | NewError> =>
     createLazyPromise((resolve, reject, fail) => {
       let dispose: (() => void) | undefined;
-      const disposeOuter = source.subscribe(resolve, reject, () => {
+      const disposeOuter = source.subscribe(resolve, reject, (error) => {
         let newValueOrPromise: NewValue | LazyPromise<NewValue, NewError>;
         try {
-          newValueOrPromise = callback();
-        } catch (error) {
-          fail();
-          throw error;
+          newValueOrPromise = callback(error);
+        } catch (callbackError) {
+          fail(callbackError);
+          return;
         }
         if (isLazyPromise(newValueOrPromise)) {
           dispose = newValueOrPromise.subscribe(resolve, reject, fail);

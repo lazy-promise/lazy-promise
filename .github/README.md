@@ -103,9 +103,14 @@ pipe(
 
 ## Failure channel
 
-This isn't something you're likely to use in application code but gives you more flexibility in dealing with bugs.
+Since the type system doesn't know what errors a function can throw, you don't reject a lazy promise by throwing an error, but only by calling `reject`. It's still possible however that an error will be thrown due to a bug, and for that there exists a third "failure" channel, which is much like the rejection channel, but deals with untyped errors, for instance failed assertions.
 
-Since the type system doesn't know what errors a function can throw, you don't reject a lazy promise by throwing an error, but only by calling `reject`. If you do throw, two things will happen. First, the error will be asynchronously re-thrown so it would be picked up by the browser console, Sentry, etc. Second, a notification will be sent down a third "failure" channel that exists in addition to the value and error channels. It does not pass along the error, but just tells subscribers that there is no resolve or reject forthcoming:
+```ts
+// `handleFailure` is always optional and has signature `(error: unknown) => void`.
+lazyPromise.subscribe(handleValue, handleError, handleFailure);
+```
+
+Besides throwing in any of the callbacks, you can also fail a lazy promise using the `fail` handle:
 
 ```ts
 // `fail` has signature `() => void`.
@@ -123,12 +128,9 @@ const lazyPromise = createLazyPromise((resolve, reject, fail) => {
     }
   });
 });
-
-// `handleFailure` is always optional and has signature `() => void`.
-lazyPromise.subscribe(handleValue, handleError, handleFailure);
 ```
 
-There is `catchFailure` function analogous to `catchRejection`.
+There are `catchFailure` and `failed` utilities analogous to `catchRejection` and `rejected`.
 
 ## Experimental SolidJS bindings
 
