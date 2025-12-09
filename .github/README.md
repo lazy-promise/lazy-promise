@@ -123,8 +123,7 @@ const lazyPromise = createLazyPromise((resolve, reject, fail) => {
     try {
       ...
     } catch (error) {
-      fail();
-      throw error;
+      fail(error);
     }
   });
 });
