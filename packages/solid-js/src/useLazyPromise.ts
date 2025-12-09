@@ -12,6 +12,8 @@ import { getOwner, onCleanup, runWithOwner } from "solid-js";
  *
  * If the error type of your lazy promise is other than `never`, the type system
  * will want you to provide an error handler.
+ *
+ * If the lazy promise fails, this will error out the scope.
  */
 export const useLazyPromise: <Value, Error>(
   lazyPromise: LazyPromise<Value, Error>,

@@ -21,6 +21,8 @@ export const errorSymbol = Symbol("error");
  * `loadingSymbol`. If the error type of your lazy promise is other than
  * `never`, the type system will want you to provide an error handler, and
  * `data` will have another possible value `errorSymbol`.
+ *
+ * If the lazy promise fails, this will error out the scope.
  */
 export const useLazyPromiseValue: <Value, Error>(
   lazyPromiseAccessor: Accessor<LazyPromise<Value, Error>>,
