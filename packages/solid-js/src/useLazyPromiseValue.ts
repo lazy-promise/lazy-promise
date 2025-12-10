@@ -7,20 +7,23 @@ export const loadingSymbol = Symbol("loading");
 export const errorSymbol = Symbol("error");
 
 /**
- * Takes an accessor that returns a lazy promise, and turns it into a signal.
+ * Takes an accessor returning a lazy promise, and turns it into a signal. The
+ * accessor's dependencies are tracked, and as soon as the return value changes,
+ * we're unsubscribing from the previous lazy promise and subscribing to the new
+ * one.
  *
- * All callbacks except for the passed-in accessor, whether they're run
- * synchronously or asynchronously, are run outside of the scope (which among
- * other things means no tracking).
+ * All other callbacks, whether they're run synchronously or asynchronously, are
+ * run outside of the scope (which among other things means no tracking).
  *
  * ```
- * const data = useLazyPromiseValue(() => getLazyPromise(mySignal()));
+ * const data = useLazyPromiseValue(lazyPromiseAccessor, handleValue, handleError);
  * ```
  *
- * Before the promise resolves, the `data` accessor returns a Symbol
- * `loadingSymbol`. If the error type of your lazy promise is other than
- * `never`, the type system will want you to provide an error handler, and
- * `data` will have another possible value `errorSymbol`.
+ * Above, `data` is an accessor that initially returns a Symbol `loadingSymbol`,
+ * and once the lazy promise resolves, the value it has resolved to. If the
+ * error type of your lazy promise is other than `never`, the type system will
+ * want you to provide an error handler, and `data` will have another possible
+ * value `errorSymbol`.
  *
  * If the lazy promise fails, this will error out the scope.
  */

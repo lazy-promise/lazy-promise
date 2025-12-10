@@ -7,7 +7,7 @@ import { getOwner, onCleanup, runWithOwner } from "solid-js";
  * outside of the scope (which among other things means no tracking).
  *
  * ```
- * pipe(lazyPromise, useLazyPromise(handleValue, handleError));
+ * useLazyPromise(lazyPromise, handleValue, handleError);
  * ```
  *
  * If the error type of your lazy promise is other than `never`, the type system

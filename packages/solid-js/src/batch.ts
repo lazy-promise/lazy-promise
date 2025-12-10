@@ -7,12 +7,14 @@ import { batch } from "solid-js";
  *
  * ```
  * const [processing, trackProcessing] = createTrackProcessing();
- * const wrappedLazyPromise = pipe(
- *   lazyPromise,
- *   batchValue,
- *   trackProcessing,
- *   useLazyPromise(handleValue);
- * );
+ * useLazyPromise(
+ *   pipe(
+ *     lazyPromise,
+ *     batchValue,
+ *     trackProcessing,
+ *   ),
+ *   handleValue,
+ * )
  * ```
  *
  * Here when the promise resolves, `processing` will be updated in a batch
@@ -38,15 +40,18 @@ export const batchValue = <Value, Error>(
  *
  * ```
  * const [processing, trackProcessing] = createTrackProcessing();
- * const wrappedLazyPromise = pipe(
- *   lazyPromise,
- *   batchError,
- *   trackProcessing,
- *   useLazyPromise(undefined, handleError);
- * );
+ * useLazyPromise(
+ *   pipe(
+ *     lazyPromise,
+ *     batchError,
+ *     trackProcessing,
+ *   ),
+ *   undefined,
+ *   handleError,
+ * )
  * ```
  *
- * Here when the promise errors, `processing` will be updated in a batch
+ * Here when the promise rejects, `processing` will be updated in a batch
  * together with any signals that handleError updates.
  */
 export const batchError = <Value, Error>(
