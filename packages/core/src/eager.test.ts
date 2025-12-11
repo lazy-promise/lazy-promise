@@ -153,23 +153,28 @@ test("already aborted signal", () => {
 
 test("signal aborted while subscribing", () => {
   const abortController = new AbortController();
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
-  expect(() =>
-    eager(
-      createLazyPromise<never, never>(() => {
-        log("subscribe");
-        abortController.abort("reason");
-      }),
-      abortController.signal,
-    ),
-  ).rejects.toMatchInlineSnapshot(`"reason"`);
+  const promise = eager(
+    createLazyPromise<never, never>(() => {
+      log("subscribe");
+      abortController.abort("reason");
+      return () => {
+        log("unsubscribe");
+      };
+    }),
+    abortController.signal,
+  );
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "subscribe",
       ],
+      [
+        "unsubscribe",
+      ],
     ]
   `);
+  // eslint-disable-next-line @typescript-eslint/no-floating-promises
+  expect(() => promise).rejects.toMatchInlineSnapshot(`"reason"`);
 });
 
 test("signal aborted after subscribing", async () => {
@@ -177,6 +182,9 @@ test("signal aborted after subscribing", async () => {
   eager(
     createLazyPromise<never, never>(() => {
       log("subscribe");
+      return () => {
+        log("unsubscribe");
+      };
     }),
     abortController.signal,
   ).catch((error) => {
@@ -190,7 +198,13 @@ test("signal aborted after subscribing", async () => {
     ]
   `);
   abortController.abort("reason");
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "unsubscribe",
+      ],
+    ]
+  `);
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`
     [
