@@ -50,7 +50,16 @@ const noSubscribersErrorMessage = (
 
 const cannotSubscribeMessage = `You cannot subscribe to a lazy promise while its teardown function is running.`;
 
-const voidFunction = () => {};
+/**
+ * A LazyPromise returns this no-op function as the disposal handle when it
+ * settles synchronously, so you can do
+ *
+ * ```
+ * const unsubscribe = lazyPromise.subscribe(...);
+ * const lazyPromiseIsSettled = (unsubscribe === noopUnsubscribe);
+ * ```
+ */
+export const noopUnsubscribe = () => {};
 
 const throwInMicrotask = (error: unknown) => {
   queueMicrotask(() => {
@@ -208,7 +217,7 @@ export const createLazyPromise = <Value, Error = never>(
             throwInMicrotask(error);
           }
         }
-        return voidFunction;
+        return noopUnsubscribe;
       }
       if (status === rejectedSymbol) {
         if (handleError) {
@@ -220,7 +229,7 @@ export const createLazyPromise = <Value, Error = never>(
         } else {
           throwInMicrotask(result);
         }
-        return voidFunction;
+        return noopUnsubscribe;
       }
       if (status === failedSymbol) {
         if (handleFailure) {
@@ -232,7 +241,7 @@ export const createLazyPromise = <Value, Error = never>(
         } else {
           throwInMicrotask(result);
         }
-        return voidFunction;
+        return noopUnsubscribe;
       }
       if (!subscribers && dispose) {
         throw new Error(cannotSubscribeMessage);
@@ -270,7 +279,7 @@ export const createLazyPromise = <Value, Error = never>(
       }
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (status) {
-        return voidFunction;
+        return noopUnsubscribe;
       }
       return () => {
         if (status || !subscribers) {
@@ -323,7 +332,7 @@ export const resolved = <Value>(value: Value): LazyPromise<Value, never> => ({
     } catch (error) {
       throwInMicrotask(error);
     }
-    return voidFunction;
+    return noopUnsubscribe;
   },
   [lazyPromiseSymbol]: true,
 });
@@ -345,7 +354,7 @@ export const rejected = <Error>(error: Error): LazyPromise<never, Error> => ({
     } else {
       throwInMicrotask(error);
     }
-    return voidFunction;
+    return noopUnsubscribe;
   },
   [lazyPromiseSymbol]: true,
 });
@@ -368,7 +377,7 @@ export const failed = (error: unknown): LazyPromise<never, never> => ({
     } else {
       throwInMicrotask(error);
     }
-    return voidFunction;
+    return noopUnsubscribe;
   },
   [lazyPromiseSymbol]: true,
 });
@@ -377,7 +386,7 @@ export const failed = (error: unknown): LazyPromise<never, never> => ({
  * A LazyPromise which never resolves or rejects.
  */
 export const never: LazyPromise<never, never> = {
-  subscribe: () => voidFunction,
+  subscribe: () => noopUnsubscribe,
   [lazyPromiseSymbol]: true,
 };
 

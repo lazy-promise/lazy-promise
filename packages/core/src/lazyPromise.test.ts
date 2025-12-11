@@ -4,6 +4,7 @@ import {
   failed,
   isLazyPromise,
   never,
+  noopUnsubscribe,
   rejected,
   resolved,
 } from "./lazyPromise";
@@ -99,9 +100,11 @@ test("sync resolve", () => {
     log("produce");
     resolve("value");
   });
-  promise.subscribe((value) => {
-    log("handleValue 1", value);
-  });
+  expect(
+    promise.subscribe((value) => {
+      log("handleValue 1", value);
+    }),
+  ).toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -113,9 +116,11 @@ test("sync resolve", () => {
       ],
     ]
   `);
-  promise.subscribe((value) => {
-    log("handleValue 2", value);
-  });
+  expect(
+    promise.subscribe((value) => {
+      log("handleValue 2", value);
+    }),
+  ).toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -154,9 +159,11 @@ test("sync reject", () => {
     log("produce");
     reject("oops");
   });
-  promise.subscribe(undefined, (error) => {
-    log("handleError 1", error);
-  });
+  expect(
+    promise.subscribe(undefined, (error) => {
+      log("handleError 1", error);
+    }),
+  ).toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -168,9 +175,11 @@ test("sync reject", () => {
       ],
     ]
   `);
-  promise.subscribe(undefined, (error) => {
-    log("handleError 2", error);
-  });
+  expect(
+    promise.subscribe(undefined, (error) => {
+      log("handleError 2", error);
+    }),
+  ).toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -207,9 +216,11 @@ test("sync fail", () => {
     log("produce");
     fail("oops");
   });
-  promise.subscribe(undefined, undefined, (error) => {
-    log("handleFailure 1", error);
-  });
+  expect(
+    promise.subscribe(undefined, undefined, (error) => {
+      log("handleFailure 1", error);
+    }),
+  ).toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -221,9 +232,11 @@ test("sync fail", () => {
       ],
     ]
   `);
-  promise.subscribe(undefined, undefined, (error) => {
-    log("handleFailure 2", error);
-  });
+  expect(
+    promise.subscribe(undefined, undefined, (error) => {
+      log("handleFailure 2", error);
+    }),
+  ).toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -824,9 +837,11 @@ test("subscribe in teardown function", () => {
 test("resolved", () => {
   const promise = resolved(1);
   expect(isLazyPromise(promise)).toMatchInlineSnapshot(`true`);
-  promise.subscribe((value) => {
-    log("handleValue", value);
-  })();
+  expect(
+    promise.subscribe((value) => {
+      log("handleValue", value);
+    }),
+  ).toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -844,9 +859,11 @@ test("resolved", () => {
 test("rejected", () => {
   const promise = rejected("error");
   expect(isLazyPromise(promise)).toMatchInlineSnapshot(`true`);
-  promise.subscribe(undefined, (error) => {
-    log("handleError", error);
-  })();
+  expect(
+    promise.subscribe(undefined, (error) => {
+      log("handleError", error);
+    }),
+  ).toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -868,9 +885,11 @@ test("rejected", () => {
 test("failed", () => {
   const promise = failed("error");
   expect(isLazyPromise(promise)).toMatchInlineSnapshot(`true`);
-  promise.subscribe(undefined, undefined, (error) => {
-    log("handleFailure", error);
-  })();
+  expect(
+    promise.subscribe(undefined, undefined, (error) => {
+      log("handleFailure", error);
+    }),
+  ).toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -890,17 +909,19 @@ test("failed", () => {
 
 test("never", () => {
   expect(isLazyPromise(never)).toMatchInlineSnapshot(`true`);
-  never.subscribe(
-    () => {
-      log("handleValue");
-    },
-    () => {
-      log("handleError");
-    },
-    () => {
-      log("handleFailure");
-    },
-  )();
+  expect(
+    never.subscribe(
+      () => {
+        log("handleValue");
+      },
+      () => {
+        log("handleError");
+      },
+      () => {
+        log("handleFailure");
+      },
+    ),
+  ).toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 

@@ -10,6 +10,7 @@ export {
   failed,
   isLazyPromise,
   never,
+  noopUnsubscribe,
   rejected,
   resolved,
 } from "./lazyPromise";

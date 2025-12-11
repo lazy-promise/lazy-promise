@@ -14,10 +14,21 @@ const DOMException =
   })();
 
 /**
- * Converts a Promise to a LazyPromise. If the callback returns a rejected
- * Promise or throws, the LazyPromise fails, so if your promise can reject
- * because of something other than a bug, make sure to `catchFailure`. The
- * callback can use an AbortSignal provided as argument.
+ * Converts a Promise to a LazyPromise. If the callback throws or the Promise
+ * it returns rejects, the LazyPromise fails, so if your promise can reject
+ * because of something other than a bug, make sure to `catchFailure`, e.g.
+ *
+ * '''
+ * pipe(
+ *   // Returns a `LazyPromise<..., never>`.
+ *   lazy(...),
+ *   // Redirect failures to the rejection channel, so the resulting lazy
+ *   // promise has type `LazyPromise<..., unknown>`.
+ *   catchFailure(rejected),
+ * );
+ * '''
+ *
+ * The callback can use an AbortSignal provided as argument.
  */
 export const lazy = <Value>(
   callback: (abortSignal: AbortSignal) => PromiseLike<Value>,

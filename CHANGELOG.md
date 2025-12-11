@@ -1,6 +1,12 @@
 # Changelog
 
-## [@lazy-promise/core@0.0.8](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.7)
+## [@lazy-promise/core@0.0.9](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.9)
+
+- `eager` now takes an optional AbortSignal.
+
+- Exposed `noopUnsubscribe`.
+
+## [@lazy-promise/core@0.0.8](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.8)
 
 - Failure channel now passes on the error.
 

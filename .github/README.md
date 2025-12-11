@@ -2,9 +2,9 @@
 
 A LazyPromise is like a Promise, with three differences:
 
-- It has typed errors
-
 - It's lazy and cancelable
+
+- It has typed errors
 
 - It emits synchronously instead of on the microtask queue.
 
@@ -86,6 +86,7 @@ pipe(
   // so again, you can return either a value or a LazyPromise.
   map(value => ...),
 ).subscribe(
+  // This handler is always optional.
   (value) => { ... },
   // The type system will only want you to provide this handler if by now the
   // type of `error` is other than `never`.
@@ -95,11 +96,13 @@ pipe(
 
 ## A few random items to know
 
-- There are utility functions `eager` and `lazy` that convert to and from a regular promise. `eager` takes a LazyPromise and returns a Promise, `lazy` takes a function `async (abortSignal) => ...` and returns a LazyPromise.
+- There are utility functions `eager` and `lazy` that convert to and from a regular promise. `eager` takes a LazyPromise and an optional AbortSignal, and returns a Promise, `lazy` takes a function `async (abortSignal) => ...` and returns a LazyPromise.
 
 - The teardown function will not be called if the promise settles (it's either-or).
 
 - Settling a settled lazy promise or subscribing to a lazy promise in its own teardown function is not allowed (will throw an error).
+
+- An easy way to tell whether a lazy promise has settled synchronously when you subscribed is to check if the unsubscribe handle `=== noopUnsubscribe`.
 
 ## Failure channel
 
