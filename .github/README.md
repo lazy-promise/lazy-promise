@@ -137,3 +137,15 @@ There are `catchFailure` and `failed` utilities analogous to `catchRejection` an
 ## Experimental SolidJS bindings
 
 https://github.com/lazy-promise/lazy-promise/tree/main/packages/solid-js ([article](https://dev.to/ivan7237d/cancelable-async-tasks-and-typed-server-errors-with-solidjs-and-lazypromise-1la))
+
+## Philosophy
+
+The ingredients that went into the cauldron were as follows:
+
+- The good and bad parts of the experience of using RxJS, in particular the understanding that if you try using Observables for what Signals do, you get both the [diamond problem](https://milomg.dev/2022-12-01/reactivity) and the [sync re-entry problem](https://github.com/ReactiveX/rxjs/issues/5174).
+
+- A primitive-based approach: make the simplest possible primitive for the job without attempting to envisage all possible use-cases.
+
+- Desire to avoid mandatory microtasks. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more awaits in it (this breaks modularity).
+
+- Practical need for typed errors.
