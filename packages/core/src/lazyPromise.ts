@@ -293,7 +293,6 @@ export const createLazyPromise = <Value, Error = never>(
             try {
               dispose();
             } catch (error) {
-              // `status` may or may not be `failedSymbol` at this point.
               status = failedSymbol;
               result = error;
               // For GC purposes.
