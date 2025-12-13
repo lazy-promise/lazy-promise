@@ -142,7 +142,7 @@ https://github.com/lazy-promise/lazy-promise/tree/main/packages/solid-js ([artic
 
 The ingredients that went into the cauldron were as follows:
 
-- The good and bad parts of the experience of using RxJS, in particular [sync re-entry issues](https://github.com/ReactiveX/rxjs/issues/5174).
+- The good and bad parts of the experience of using RxJS.
 
 - A primitive-based approach: make the simplest possible primitive for the job without attempting to envisage all possible use-cases.
 
