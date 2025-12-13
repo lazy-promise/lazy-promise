@@ -100,7 +100,7 @@ pipe(
 
 - The teardown function will not be called if the promise settles (it's either-or).
 
-- If you try to do something illegal like settle an already settled lazy promise, it will throw an error rather than silently ignore this.
+- Illegal operations, such as settling an already settled lazy promise, throw an error rather than failing silently.
 
 - An easy way to tell whether a lazy promise has settled synchronously when you subscribed is to check if the unsubscribe handle `=== noopUnsubscribe`.
 
