@@ -46,8 +46,6 @@ Besides being lazy, LazyPromise is cancelable: if the subscriber count goes down
 
 If a lazy promise does fire, then like a regular promise it will remember forever the value or error, and give it to whoever tries to subscribe in the future.
 
-The errors are typed and `.subscribe(...)` function requires that you provide a `handleError` callback unless the type of errors is `never`.
-
 Instead of dot-chaining LazyPromise uses pipes, and there are small naming differences, but that aside, LazyPromise API mirrors that of Promise:
 
 | Promise api                    | LazyPromise equivalent                       |
@@ -69,7 +67,7 @@ Your typical code could look something like this (types of all values and errors
 
 ```ts
 pipe(
-  // Create a LazyPromise.
+  // Create a LazyPromise<Value, Error>.
   callAnApiEndpoint(params),
   // Handle some errors.
   catchRejection(error => {
