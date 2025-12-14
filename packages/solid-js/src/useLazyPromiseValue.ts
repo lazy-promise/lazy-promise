@@ -16,7 +16,7 @@ export const errorSymbol = Symbol("error");
  * run outside of the scope (which among other things means no tracking).
  *
  * ```
- * const data = useLazyPromiseValue(lazyPromiseAccessor, handleValue, handleError);
+ * const data = useLazyPromiseValue(lazyPromiseAccessor, handleError);
  * ```
  *
  * Above, `data` is an accessor that initially returns a Symbol `loadingSymbol`,
@@ -24,8 +24,6 @@ export const errorSymbol = Symbol("error");
  * error type of your lazy promise is other than `never`, the type system will
  * want you to provide an error handler, and `data` will have another possible
  * value `errorSymbol`.
- *
- * If the lazy promise fails, this will error out the scope.
  */
 export const useLazyPromiseValue: <Value, Error>(
   lazyPromiseAccessor: Accessor<LazyPromise<Value, Error>>,
