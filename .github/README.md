@@ -111,7 +111,7 @@ Since the type system doesn't know what errors a function can throw, you don't r
 lazyPromise.subscribe(handleValue, handleError, handleFailure);
 ```
 
-Besides throwing in any of the callbacks, you can also fail a lazy promise using the `fail` handle:
+Besides throwing in the callbacks you pass to `createLazyPromise`, `lazy`, `map`, etc., you can also fail a lazy promise using the `fail` handle:
 
 ```ts
 // `fail` has signature `() => void`.
