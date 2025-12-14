@@ -57,6 +57,7 @@ afterEach(() => {
 });
 
 test("types", () => {
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   const promise1 = createLazyPromise<"value a", "error a">(() => {});
 
   promise1.subscribe(undefined, () => {});
@@ -72,6 +73,14 @@ test("types", () => {
   promise2.subscribe();
 
   promise2.subscribe(() => {}, undefined);
+
+  // $ExpectType LazyPromise<"a", never>
+  const promise3 = resolved("a");
+
+  // $ExpectType LazyPromise<never, "a">
+  const promise4 = rejected("a");
+
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 });
 
 test("async resolve", () => {

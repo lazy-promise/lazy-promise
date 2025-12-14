@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.10](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.10)
+
+- `resolved("a")` is now inferred as `LazyPromise<"a", never>`, not `LazyPromise<string, never>`. Same for `rejected`.
+
 ## [@lazy-promise/core@0.0.9](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.9)
 
 - `eager` now takes an optional AbortSignal.
