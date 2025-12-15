@@ -1,63 +1,24 @@
 import type { LazyPromise } from "@lazy-promise/core";
+import { noopUnsubscribe } from "@lazy-promise/core";
 import { getOwner, onCleanup, runWithOwner } from "solid-js";
 
 /**
- * Subscribes to a lazy promise and unsubscribes when the scope is disposed. All
- * callbacks, whether they're run synchronously or asynchronously, are run
- * outside of the scope (which among other things means no tracking).
- *
- * ```
- * useLazyPromise(lazyPromise, handleValue, handleError);
- * ```
- *
- * If the error type of your lazy promise is other than `never`, the type system
- * will want you to provide an error handler.
+ * Subscribes to a lazy promise and unsubscribes when the scope is disposed. The
+ * error type of the lazy promise must be `never`. To error out the scope, fail
+ * the lazy promise.
  */
-export const useLazyPromise: <Value, Error>(
-  lazyPromise: LazyPromise<Value, Error>,
-  ...args: [Error] extends [never]
-    ? [
-        handleValue?: ((value: Value) => void) | undefined,
-        handleError?: ((error: Error) => void) | undefined,
-      ]
-    : [
-        handleValue: ((value: Value) => void) | undefined,
-        handleError: (error: Error) => void,
-      ]
-) => void = (
-  lazyPromise: LazyPromise<any, any>,
-  handleValue?: any,
-  handleError?: any,
-) => {
+export const useLazyPromise: <Value>(
+  lazyPromise: LazyPromise<Value, never>,
+) => void = (lazyPromise) => {
   const owner = getOwner();
   const unsubscribe = runWithOwner(null, () =>
-    lazyPromise.subscribe(
-      (value) => {
-        try {
-          handleValue(value);
-        } catch (error) {
-          runWithOwner(owner, () => {
-            throw error;
-          });
-        }
-      },
-      (error) => {
-        try {
-          handleError(error);
-        } catch (newError) {
-          runWithOwner(owner, () => {
-            throw newError;
-          });
-        }
-      },
-      (error) => {
-        runWithOwner(owner, () => {
-          throw error;
-        });
-      },
-    ),
+    lazyPromise.subscribe(undefined, undefined, (error) => {
+      runWithOwner(owner, () => {
+        throw error;
+      });
+    }),
   );
-  if (unsubscribe) {
+  if (unsubscribe && unsubscribe !== noopUnsubscribe) {
     onCleanup(unsubscribe);
   }
 };
