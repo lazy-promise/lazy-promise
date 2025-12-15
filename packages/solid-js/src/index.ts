@@ -4,8 +4,4 @@ export {
   type TrackProcessing,
 } from "./createTrackProcessing";
 export { useLazyPromise } from "./useLazyPromise";
-export {
-  errorSymbol,
-  loadingSymbol,
-  useLazyPromiseValue,
-} from "./useLazyPromiseValue";
+export { loadingSymbol, useLazyPromiseValue } from "./useLazyPromiseValue";
