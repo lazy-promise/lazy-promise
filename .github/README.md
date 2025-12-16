@@ -142,7 +142,7 @@ The ingredients that went into the cauldron were as follows:
 
 - The good and bad parts of the experience of using RxJS.
 
-- A primitive-based approach: make the simplest possible primitive for the job without attempting to envisage all possible use-cases.
+- A primitive-based approach: make the simplest possible primitive for the job without attempting to think of all possible use-cases.
 
 - Desire to avoid mandatory microtasks. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more awaits in it (this breaks modularity).
 
