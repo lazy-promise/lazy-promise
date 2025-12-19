@@ -930,7 +930,7 @@ test("never", () => {
         log("handleFailure");
       },
     ),
-  ).toBe(noopUnsubscribe);
+  ).not.toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 

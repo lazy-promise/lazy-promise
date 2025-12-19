@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.11](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.11)
+
+- Fix identity of the disposal handle returned by `never`.
+
 ## [@lazy-promise/core@0.0.10](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.10)
 
 - `resolved("a")` is now inferred as `LazyPromise<"a", never>`, not `LazyPromise<string, never>`. Same for `rejected`.

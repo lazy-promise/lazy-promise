@@ -51,7 +51,7 @@ const noSubscribersErrorMessage = (
 const cannotSubscribeMessage = `You cannot subscribe to a lazy promise while its teardown function is running.`;
 
 /**
- * A LazyPromise returns this no-op function as the disposal handle when it
+ * A LazyPromise returns this no-op function as the disposal handle iff it
  * settles synchronously, so you can do
  *
  * ```
@@ -385,11 +385,23 @@ export const failed = (error: unknown): LazyPromise<never, never> => ({
   [lazyPromiseSymbol]: true,
 });
 
+// This is a tricky point: whether `never` should return `noopUnsubscribe`. At
+// first glance, you'd say yes because the client logic seems to be typically
+// the same as long as the promise is guaranteed to never fire in the future,
+// doesn't matter if it's a lazy promise that settles synchronously or it's
+// `never`. In practice though, this would mean that to get performance
+// benefits, `map` would have to check if its source observable is `never` and
+// in that case return `never`, `all` would have to check if any of its sources
+// is `never`, and most importantly, client-built operators would also have to
+// implement this type of short-circuiting logic. This seems like too much of a
+// burden.
+const neverUnsubscribe = () => {};
+
 /**
- * A LazyPromise which never resolves or rejects.
+ * A LazyPromise which never resolves, rejects or fails.
  */
 export const never: LazyPromise<never, never> = {
-  subscribe: () => noopUnsubscribe,
+  subscribe: () => neverUnsubscribe,
   [lazyPromiseSymbol]: true,
 };
 
