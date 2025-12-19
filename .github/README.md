@@ -8,6 +8,18 @@ A LazyPromise is like a Promise, with three differences:
 
 - It emits synchronously instead of on the microtask queue.
 
+## Philosophy
+
+The ingredients that went into the cauldron were as follows:
+
+- A primitive-based approach: make the simplest possible primitive for the job without attempting to think of all possible use-cases.
+
+- The good and bad parts of the experience of using RxJS. You can't beat Observable for simplicity, but you've got the diamond problem and [undesirable behavior in the case of sync re-entry](https://github.com/ReactiveX/rxjs/issues/5174). In a way LazyPromise is what you get if you take an Observable and make it impossible to misuse it for what the Signals were built to do.
+
+- Desire to avoid mandatory microtasks. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more awaits in it (this breaks modularity).
+
+- Practical need for typed errors.
+
 ## Installation
 
 ```bash
@@ -135,15 +147,3 @@ There are `catchFailure` and `failed` utilities analogous to `catchRejection` an
 ## Experimental SolidJS bindings
 
 https://github.com/lazy-promise/lazy-promise/tree/main/packages/solid-js ([article](https://dev.to/ivan7237d/cancelable-async-tasks-and-typed-server-errors-with-solidjs-and-lazypromise-1la))
-
-## Philosophy
-
-The ingredients that went into the cauldron were as follows:
-
-- A primitive-based approach: make the simplest possible primitive for the job without attempting to think of all possible use-cases.
-
-- The good and bad parts of the experience of using RxJS. You can't beat Observable for simplicity, but you've got the diamond problem and [undesirable behavior in the case of sync re-entry](https://github.com/ReactiveX/rxjs/issues/5174). In a way LazyPromise is what you get if you take an Observable and make it impossible to misuse it for what the Signals were built to do.
-
-- Desire to avoid mandatory microtasks. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more awaits in it (this breaks modularity).
-
-- Practical need for typed errors.
