@@ -391,10 +391,11 @@ export const failed = (error: unknown): LazyPromise<never, never> => ({
 // doesn't matter if it's a lazy promise that settles synchronously or it's
 // `never`. In practice though, this would mean that to get performance
 // benefits, `map` would have to check if its source observable is `never` and
-// in that case return `never`, `all` would have to check if any of its sources
-// is `never`, and most importantly, client-built operators would also have to
-// implement this type of short-circuiting logic. This seems like too much of a
-// burden.
+// in that case return `never`, `all` would have to check if all of its sources
+// are `never` promises, and most importantly, client-built operators would also
+// have to implement this type of short-circuiting logic. Also, when `never`
+// does not return `noopUnsubscribe`, this gives `noopUnsubscribe` an easily
+// defined meaning of "the promise has settled synchronously".
 const neverUnsubscribe = () => {};
 
 /**
