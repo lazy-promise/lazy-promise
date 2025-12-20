@@ -126,7 +126,7 @@ lazyPromise.subscribe(handleValue, handleError, handleFailure);
 Besides throwing in the callbacks you pass to `createLazyPromise`, `lazy`, `map`, etc., you can also fail a lazy promise using the `fail` handle:
 
 ```ts
-// `fail` has signature `() => void`.
+// `fail` has signature `(error: unknown) => void`.
 const lazyPromise = createLazyPromise((resolve, reject, fail) => {
   // Throwing here is the same as calling `fail`.
 
