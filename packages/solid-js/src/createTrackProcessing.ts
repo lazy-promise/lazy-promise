@@ -24,7 +24,8 @@ export type TrackProcessing = <Value, Error>(
  *
  * `processing` is an accessor that will tell you whether any of the wrapped
  * promises are currently active, i.e. subscribed but not yet settled or
- * unsubscribed.
+ * unsubscribed. It only changes its value to `true` when a lazy promise doesn't
+ * settle synchronously.
  */
 export const createTrackProcessing = (): [
   Accessor<boolean>,

@@ -95,6 +95,8 @@ const wrappedLazyPromise = pipe(lazyPromise, trackProcessing);
 </button>
 ```
 
+`processing` only changes its value to `true` when a lazy promise doesn't settle synchronously.
+
 ## ESLint
 
 If you use `eslint-plugin-solid`, add the `pipe` function to `customReactiveFunctions` in ESLint config (it's not a reactive function but `eslint-plugin-solid` doesn't know to correctly interpret what this function does):
