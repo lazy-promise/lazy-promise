@@ -66,6 +66,8 @@ const [accessor] = createResource(
 );
 ```
 
+[Stackblitz example](https://stackblitz.com/edit/github-evfywxxk-qqrcrueo?file=src%2Fmain.tsx)
+
 ### createTrackProcessing
 
 This is a little like Suspense for mutations: a typical use-case is to disable a button (and maybe show a spinner) when the user clicks it and some async action is performed.
