@@ -1,5 +1,9 @@
 import type { LazyPromise } from "@lazy-promise/core";
-import { createLazyPromise, finalize } from "@lazy-promise/core";
+import {
+  createLazyPromise,
+  finalize,
+  noopUnsubscribe,
+} from "@lazy-promise/core";
 import { pipe } from "pipe-function";
 import type { Accessor } from "solid-js";
 import { createMemo, createSignal } from "solid-js";
@@ -32,16 +36,23 @@ export const createTrackProcessing = (): [
     processing,
     <Value, Error>(lazyPromise: LazyPromise<Value, Error>) =>
       createLazyPromise<Value, Error>((resolve, reject, fail) => {
-        setCount((count) => count + 1);
-        const dispose = pipe(
+        let unsubscribe: (() => void) | undefined;
+        // eslint-disable-next-line prefer-const
+        unsubscribe = pipe(
           lazyPromise,
           finalize(() => {
-            setCount((count) => count - 1);
+            if (unsubscribe) {
+              setCount((count) => count - 1);
+            }
           }),
         ).subscribe(resolve, reject, fail);
+        if (unsubscribe === noopUnsubscribe) {
+          return;
+        }
+        setCount((count) => count + 1);
         return () => {
           setCount((count) => count - 1);
-          dispose();
+          unsubscribe();
         };
       }),
   ];
