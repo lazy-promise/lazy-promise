@@ -14,7 +14,7 @@ npm install @lazy-promise/core @lazy-promise/solid-js pipe-function
 
 ### useLazyPromise
 
-Simply subscribes to a lazy promise and unsubscribes when the scope is disposed.
+Simply subscribes to a lazy promise and unsubscribes when the scope is disposed. Used for side effects such as mutations.
 
 ```
 useLazyPromise(yourLazyPromise);
@@ -23,15 +23,17 @@ useLazyPromise(yourLazyPromise);
 Since this function takes a lazy promise with error type `never`, type system will catch any unhandled rejections. All callbacks are run outside the scope and so are untracked:
 
 ```
-useLazyPromise(
-  pipe(
-    yourLazyPromise,
-    map(value => {
-      // Reading a signal here will not create a dependency even
-      // when the callback is run synchronously.
-    })
-  )
-)
+createEffect(() => {
+  useLazyPromise(
+    pipe(
+      yourLazyPromise,
+      map(value => {
+        // Reading a signal here will not create a dependency even
+        // when the callback is run synchronously.
+      })
+    )
+  );
+});
 ```
 
 To error out the scope, fail the lazy promise:
@@ -46,6 +48,38 @@ useLazyPromise(
     })
   )
 )
+```
+
+You don't necessarily need to put a lazy promise subscription in a scope. You could just do
+
+```
+return (
+  <button
+    onClick={() => {
+      yourLazyPromise.subscribe();
+    }}
+  >
+    Click Me
+  </button>
+);
+```
+
+useLazyPromise is helpful when you subscribe to a lazy promise inside a memo or an effect, and as for event handlers, you can use it to interrupt an async task when a component is unmounted by doing the following:
+
+```
+const owner = getOwner();
+
+return (
+  <button
+    onClick={() => {
+      runWithOwner(owner, () => {
+        useLazyPromise(yourLazyPromise);
+      })
+    }}
+  >
+    Click Me
+  </button>
+);
 ```
 
 ### createFetcher
@@ -87,7 +121,7 @@ const wrappedLazyPromise = pipe(lazyPromise, trackProcessing);
 ```
 <button
   onClick={() => {
-    useLazyPromise(wrappedLazyPromise);
+    wrappedLazyPromise.subscribe();
   }}
   disabled={processing()}
 >
