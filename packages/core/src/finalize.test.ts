@@ -170,3 +170,140 @@ test("callback throws", () => {
     ]
   `);
 });
+
+test("unsubscribe in the callback (source resolves)", () => {
+  let resolve: (value: number) => void;
+  const unsubscribe = pipe(
+    createLazyPromise((resolveLocal) => {
+      resolve = resolveLocal;
+    }),
+    finalize(() => {
+      unsubscribe();
+    }),
+  ).subscribe(() => {
+    log("handleValue");
+  });
+  resolve!(1);
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+});
+
+test("unsubscribe in the callback (source rejects)", () => {
+  let reject: (value: number) => void;
+  const unsubscribe = pipe(
+    createLazyPromise<never, number>((resolve, rejectLocal) => {
+      reject = rejectLocal;
+    }),
+    finalize(() => {
+      unsubscribe();
+    }),
+  ).subscribe(
+    () => {
+      log("handleValue");
+    },
+    () => {
+      log("handleError");
+    },
+  );
+  reject!(1);
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+});
+
+test("unsubscribe in the callback (source fails)", () => {
+  let fail: (error: unknown) => void;
+  const unsubscribe = pipe(
+    createLazyPromise<never, number>((resolve, reject, failLocal) => {
+      fail = failLocal;
+    }),
+    finalize(() => {
+      unsubscribe();
+    }),
+  ).subscribe(
+    () => {
+      log("handleValue");
+    },
+    () => {
+      log("handleError");
+    },
+    () => {
+      log("handleFailure");
+    },
+  );
+  fail!(1);
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+});
+
+test("unsubscribe and throw in the callback (source resolves)", () => {
+  let resolve: (value: number) => void;
+  const unsubscribe = pipe(
+    createLazyPromise((resolveLocal) => {
+      resolve = resolveLocal;
+    }),
+    finalize(() => {
+      unsubscribe();
+      throw "oops";
+    }),
+  ).subscribe(
+    () => {
+      log("handleValue");
+    },
+    undefined,
+    () => {
+      log("handleFailure");
+    },
+  );
+  resolve!(1);
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  expect(processMockMicrotaskQueue).toThrow("oops");
+});
+
+test("unsubscribe and throw in the callback (source rejects)", () => {
+  let reject: (error: number) => void;
+  const unsubscribe = pipe(
+    createLazyPromise<never, number>((resolve, rejectLocal) => {
+      reject = rejectLocal;
+    }),
+    finalize(() => {
+      unsubscribe();
+      throw "oops";
+    }),
+  ).subscribe(
+    () => {
+      log("handleValue");
+    },
+    () => {
+      log("handleError");
+    },
+    () => {
+      log("handleFailure");
+    },
+  );
+  reject!(1);
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  expect(processMockMicrotaskQueue).toThrow("oops");
+});
+
+test("unsubscribe and throw in the callback (source fails)", () => {
+  let fail: (error: unknown) => void;
+  const unsubscribe = pipe(
+    createLazyPromise((resolve, reject, failLocal) => {
+      fail = failLocal;
+    }),
+    finalize(() => {
+      unsubscribe();
+      throw "oops";
+    }),
+  ).subscribe(
+    () => {
+      log("handleValue");
+    },
+    () => {
+      log("handleError");
+    },
+    () => {
+      log("handleFailure");
+    },
+  );
+  fail!(1);
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  expect(processMockMicrotaskQueue).toThrow("oops");
+});

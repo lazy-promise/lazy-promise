@@ -90,7 +90,7 @@ Creates a fetcher that you can pass to `createResource`.
 const [accessor] = createResource(createFetcher(() => yourLazyPromise));
 ```
 
-The fetcher will subscribe/unsubscribe to the lazy promise as needed. As with `useLazyPromise`, the lazy promise is required to have error type `never`, the callbacks are untracked, and failing the lazy promise will error out the scope. If you pass the fetcher as the second argument of `createResource`, you'll need to help TypeScript along (but since this is not a type assertion, this will not affect correctness):
+The fetcher will subscribe/unsubscribe to the lazy promise as needed. As with `useLazyPromise`, the lazy promise is required to have error type `never`, the callbacks are run outside the scope, and failing the lazy promise will error out the scope. If you pass the fetcher as the second argument of `createResource`, you'll need to help TypeScript along (but since this is not a type assertion, this will not affect correctness):
 
 ```
 const [accessor] = createResource(

@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.12](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.12)
+
+- Fix handling of unsubscribe in map/catchRejection/catchFailure/finalize callbacks.
+
 ## [@lazy-promise/core@0.0.11](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.11)
 
 - Fix identity of the disposal handle returned by `never`.

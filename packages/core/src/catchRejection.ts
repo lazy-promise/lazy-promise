@@ -12,30 +12,43 @@ export const catchRejection =
   <Value>(
     source: LazyPromise<Value, Error>,
   ): LazyPromise<Value | NewValue, NewError> =>
-    createLazyPromise((resolve, reject, fail) => {
-      let dispose: (() => void) | undefined;
-      const disposeOuter = source.subscribe(
-        resolve,
-        (error) => {
-          let newValueOrPromise;
-          try {
-            newValueOrPromise = callback(error);
-          } catch (newError) {
-            fail(newError);
-            return;
-          }
-          if (isLazyPromise(newValueOrPromise)) {
-            dispose = newValueOrPromise.subscribe(resolve, reject, fail);
-          } else {
-            resolve(newValueOrPromise);
-          }
-        },
+    createLazyPromise(
+      (
+        resolve: ((value: Value | NewValue) => void) | undefined,
+        reject,
         fail,
-      );
-      if (!dispose) {
-        dispose = disposeOuter;
-      }
-      return () => {
-        dispose!();
-      };
-    });
+      ) => {
+        let dispose: (() => void) | undefined;
+        const disposeOuter = source.subscribe(
+          resolve,
+          (error) => {
+            let newValueOrPromise;
+            try {
+              newValueOrPromise = callback(error);
+            } catch (newError) {
+              if (!resolve) {
+                throw newError;
+              }
+              fail(newError);
+              return;
+            }
+            if (!resolve) {
+              return;
+            }
+            if (isLazyPromise(newValueOrPromise)) {
+              dispose = newValueOrPromise.subscribe(resolve, reject, fail);
+            } else {
+              resolve(newValueOrPromise);
+            }
+          },
+          fail,
+        );
+        if (!dispose) {
+          dispose = disposeOuter;
+        }
+        return () => {
+          resolve = undefined;
+          dispose!();
+        };
+      },
+    );

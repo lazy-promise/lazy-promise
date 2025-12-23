@@ -274,3 +274,49 @@ test("cancel inner promise", () => {
     ]
   `);
 });
+
+test("unsubscribe in the callback", () => {
+  let fail: (error: unknown) => void;
+  const unsubscribe = pipe(
+    createLazyPromise((resolve, reject, failLocal) => {
+      fail = failLocal;
+    }),
+    catchFailure(() => {
+      unsubscribe();
+    }),
+  ).subscribe(
+    () => {
+      log("handleValue");
+    },
+    undefined,
+    () => {
+      log("handleFailure");
+    },
+  );
+  fail!("oops");
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+});
+
+test("unsubscribe and throw in the callback", () => {
+  let fail: (error: unknown) => void;
+  const unsubscribe = pipe(
+    createLazyPromise((resolve, reject, failLocal) => {
+      fail = failLocal;
+    }),
+    catchFailure(() => {
+      unsubscribe();
+      throw "oops";
+    }),
+  ).subscribe(
+    () => {
+      log("handleValue");
+    },
+    undefined,
+    () => {
+      log("handleFailure");
+    },
+  );
+  fail!(1);
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  expect(processMockMicrotaskQueue).toThrow("oops");
+});

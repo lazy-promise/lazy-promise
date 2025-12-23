@@ -245,3 +245,43 @@ test("cancel inner promise", () => {
     ]
   `);
 });
+
+test("unsubscribe in the callback", () => {
+  let resolve: (value: number) => void;
+  const unsubscribe = pipe(
+    createLazyPromise((resolveLocal) => {
+      resolve = resolveLocal;
+    }),
+    map(() => {
+      unsubscribe();
+    }),
+  ).subscribe(() => {
+    log("handleValue");
+  });
+  resolve!(1);
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+});
+
+test("unsubscribe and throw in the callback", () => {
+  let resolve: (value: number) => void;
+  const unsubscribe = pipe(
+    createLazyPromise((resolveLocal) => {
+      resolve = resolveLocal;
+    }),
+    map(() => {
+      unsubscribe();
+      throw "oops";
+    }),
+  ).subscribe(
+    () => {
+      log("handleValue");
+    },
+    undefined,
+    () => {
+      log("handleFailure");
+    },
+  );
+  resolve!(1);
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  expect(processMockMicrotaskQueue).toThrow("oops");
+});

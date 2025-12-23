@@ -12,26 +12,39 @@ export const catchFailure =
   <Value>(
     source: LazyPromise<Value, Error>,
   ): LazyPromise<Value | NewValue, Error | NewError> =>
-    createLazyPromise((resolve, reject, fail) => {
-      let dispose: (() => void) | undefined;
-      const disposeOuter = source.subscribe(resolve, reject, (error) => {
-        let newValueOrPromise: NewValue | LazyPromise<NewValue, NewError>;
-        try {
-          newValueOrPromise = callback(error);
-        } catch (callbackError) {
-          fail(callbackError);
-          return;
+    createLazyPromise(
+      (
+        resolve: ((value: NewValue | Value) => void) | undefined,
+        reject,
+        fail,
+      ) => {
+        let dispose: (() => void) | undefined;
+        const disposeOuter = source.subscribe(resolve, reject, (error) => {
+          let newValueOrPromise: NewValue | LazyPromise<NewValue, NewError>;
+          try {
+            newValueOrPromise = callback(error);
+          } catch (callbackError) {
+            if (!resolve) {
+              throw callbackError;
+            }
+            fail(callbackError);
+            return;
+          }
+          if (!resolve) {
+            return;
+          }
+          if (isLazyPromise(newValueOrPromise)) {
+            dispose = newValueOrPromise.subscribe(resolve, reject, fail);
+          } else {
+            resolve(newValueOrPromise);
+          }
+        });
+        if (!dispose) {
+          dispose = disposeOuter;
         }
-        if (isLazyPromise(newValueOrPromise)) {
-          dispose = newValueOrPromise.subscribe(resolve, reject, fail);
-        } else {
-          resolve(newValueOrPromise);
-        }
-      });
-      if (!dispose) {
-        dispose = disposeOuter;
-      }
-      return () => {
-        dispose!();
-      };
-    });
+        return () => {
+          resolve = undefined;
+          dispose!();
+        };
+      },
+    );

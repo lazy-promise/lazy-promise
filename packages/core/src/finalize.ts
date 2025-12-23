@@ -8,34 +8,54 @@ import { createLazyPromise } from "./lazyPromise";
 export const finalize =
   <Value, Error>(callback: () => void) =>
   (source: LazyPromise<Value, Error>): LazyPromise<Value, Error> =>
-    createLazyPromise((resolve, reject, fail) =>
-      source.subscribe(
+    createLazyPromise((resolve, reject, fail) => {
+      let disposed = false;
+      const dispose = source.subscribe(
         (value) => {
           try {
             callback();
           } catch (error) {
+            if (disposed) {
+              throw error;
+            }
             fail(error);
             return;
           }
-          resolve(value);
-        },
-        (error) => {
-          try {
-            callback();
-          } catch (error) {
-            fail(error);
-            return;
+          if (!disposed) {
+            resolve(value);
           }
-          reject(error);
         },
         (error) => {
           try {
             callback();
           } catch (callbackError) {
+            if (disposed) {
+              throw callbackError;
+            }
             fail(callbackError);
             return;
           }
-          fail(error);
+          if (!disposed) {
+            reject(error);
+          }
         },
-      ),
-    );
+        (error) => {
+          try {
+            callback();
+          } catch (callbackError) {
+            if (disposed) {
+              throw callbackError;
+            }
+            fail(callbackError);
+            return;
+          }
+          if (!disposed) {
+            fail(error);
+          }
+        },
+      );
+      return () => {
+        disposed = true;
+        dispose();
+      };
+    });
