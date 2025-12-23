@@ -64,7 +64,7 @@ return (
 );
 ```
 
-useLazyPromise is helpful when you subscribe to a lazy promise inside a memo or an effect, and as for event handlers, you can use it to interrupt an async task when a component is unmounted by doing the following:
+useLazyPromise is helpful when you subscribe to a lazy promise inside a memo or an effect, and as for event handlers, you can use it to abort an async task when a component is unmounted by doing the following:
 
 ```
 const owner = getOwner();
@@ -84,15 +84,16 @@ return (
 
 ### createFetcher
 
-Creates a fetcher that you can pass to `createResource`.
+Creates a fetcher that you can pass to `createResource` instead of the usual async function.
 
 ```
 const [accessor] = createResource(createFetcher(() => yourLazyPromise));
 ```
 
-The fetcher will subscribe/unsubscribe to the lazy promise as needed. As with `useLazyPromise`, the lazy promise is required to have error type `never`, the callbacks are run outside the scope, and failing the lazy promise will error out the scope. If you pass the fetcher as the second argument of `createResource`, you'll need to help TypeScript along (but since this is not a type assertion, this will not affect correctness):
+The fetcher will subscribe/unsubscribe to the lazy promise as needed. As with `useLazyPromise`, the lazy promise is required to have error type `never`, callbacks are run outside the scope, and failing the lazy promise errors out the scope. If you pass the fetcher as the second argument of `createResource`, you'll need to help TypeScript along (but since this is not a type assertion, this will not affect correctness):
 
 ```
+const [count, setCount] = createSignal(0);
 const [accessor] = createResource(
   count,
   // Notice `count: number`.
