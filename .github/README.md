@@ -14,7 +14,7 @@ The ingredients that went into the cauldron were as follows:
 
 - A primitive-based approach: make the simplest possible primitive for the job without attempting to think of all possible use-cases.
 
-- The good and bad parts of the experience of using RxJS. You can't beat Observable for simplicity, but you've got the diamond problem and [undesirable behavior in the case of sync re-entry](https://github.com/ReactiveX/rxjs/issues/5174). LazyPromise is what you get if you take an Observable, make it impossible to misuse it for what the Signals were built to do, and then take advantage of that restriction to handle all sync re-entry gracefully.
+- The good and bad parts of the experience of using RxJS. You can't beat Observable for simplicity, but you've got the diamond problem and [undesirable behavior in the case of sync re-entry](https://github.com/ReactiveX/rxjs/issues/5174). LazyPromise is what you get if you take an Observable, make it impossible to misuse it for what the Signals were built to do, and then take advantage of the reduced scope to gracefully handle re-entry.
 
 - Desire to avoid mandatory microtasks. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it (this breaks modularity). Without microtasks, you're in full control over what runs in what order.
 
