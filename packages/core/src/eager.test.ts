@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "@jest/globals";
 import { eager } from "./eager";
+import type { LazyPromise } from "./lazyPromise";
 import { createLazyPromise, failed, rejected, resolved } from "./lazyPromise";
 
 const logContents: unknown[] = [];
@@ -36,9 +37,20 @@ test("no signal, resolve", async () => {
   expect(await eager(resolved("value"))).toMatchInlineSnapshot(`"value"`);
 });
 
-test("no signal, reject", () => {
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
-  expect(() => eager(rejected("oops"))).rejects.toMatchInlineSnapshot(`"oops"`);
+test("no signal, reject", async () => {
+  let error;
+  try {
+    await eager(rejected("oops") as LazyPromise<never, never>);
+  } catch (errorLocal) {
+    error = errorLocal;
+  }
+  if (!(error instanceof Error)) {
+    throw new Error("fail");
+  }
+  expect(error.message).toMatchInlineSnapshot(
+    `"The lazy promise passed to eager(...) has rejected. The original error has been stored as the .cause property."`,
+  );
+  expect(error.cause).toMatchInlineSnapshot(`"oops"`);
 });
 
 test("no signal, fail", () => {
@@ -76,22 +88,41 @@ test("signal, async resolve", async () => {
   `);
 });
 
-test("signal, sync reject", () => {
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
-  expect(() =>
-    eager(rejected("oops"), new AbortController().signal),
-  ).rejects.toMatchInlineSnapshot(`"oops"`);
+test("signal, sync reject", async () => {
+  let error;
+  try {
+    await eager(
+      rejected("oops") as LazyPromise<never, never>,
+      new AbortController().signal,
+    );
+  } catch (errorLocal) {
+    error = errorLocal;
+  }
+  if (!(error instanceof Error)) {
+    throw new Error("fail");
+  }
+  expect(error.message).toMatchInlineSnapshot(
+    `"The lazy promise passed to eager(...) has rejected. The original error has been stored as the .cause property."`,
+  );
+  expect(error.cause).toMatchInlineSnapshot(`"oops"`);
 });
 
 test("signal, async reject", async () => {
   let reject: (error: "oops") => void;
   eager(
-    createLazyPromise((resolve, rejectLocal) => {
+    createLazyPromise<never, "oops">((resolve, rejectLocal) => {
       reject = rejectLocal;
-    }),
+    }) as LazyPromise<never, never>,
     new AbortController().signal,
   ).catch((error) => {
-    log("rejected", error);
+    log("rejected");
+    if (!(error instanceof Error)) {
+      throw new Error("fail");
+    }
+    expect(error.message).toMatchInlineSnapshot(
+      `"The lazy promise passed to eager(...) has rejected. The original error has been stored as the .cause property."`,
+    );
+    expect(error.cause).toMatchInlineSnapshot(`"oops"`);
   });
   reject!("oops");
   expect(readLog()).toMatchInlineSnapshot(`[]`);
@@ -100,7 +131,6 @@ test("signal, async reject", async () => {
     [
       [
         "rejected",
-        "oops",
       ],
     ]
   `);

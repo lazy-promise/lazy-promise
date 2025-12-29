@@ -12,11 +12,23 @@ export const useLazyPromise: <Value>(
 ) => void = (lazyPromise) => {
   const owner = getOwner();
   const unsubscribe = runWithOwner(null, () =>
-    lazyPromise.subscribe(undefined, undefined, (error) => {
-      runWithOwner(owner, () => {
-        throw error;
-      });
-    }),
+    lazyPromise.subscribe(
+      undefined,
+      (error: unknown) => {
+        const newError = new Error(
+          `The lazy promise passed to useLazyPromise(...) has rejected. The original error has been stored as the .cause property.`,
+          { cause: error },
+        );
+        runWithOwner(owner, () => {
+          throw newError;
+        });
+      },
+      (error) => {
+        runWithOwner(owner, () => {
+          throw error;
+        });
+      },
+    ),
   );
   if (unsubscribe && unsubscribe !== noopUnsubscribe) {
     onCleanup(unsubscribe);

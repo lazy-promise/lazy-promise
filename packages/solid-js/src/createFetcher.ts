@@ -22,7 +22,18 @@ export const createFetcher =
           }
           result = value;
         },
-        undefined,
+        (error: unknown) => {
+          const newError = new Error(
+            `The lazy promise returned by createFetcher(...) callback has rejected. The original error has been stored as the .cause property.`,
+            { cause: error },
+          );
+          if (reject) {
+            reject(newError);
+            return;
+          }
+          result = newError;
+          errored = true;
+        },
         (error) => {
           if (reject) {
             reject(error);
