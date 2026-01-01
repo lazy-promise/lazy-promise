@@ -613,12 +613,36 @@ test("unhandled rejection", () => {
 
   expect(mockMicrotaskQueue.length).toMatchInlineSnapshot(`0`);
   jest.runAllTimers();
-  expect(processMockMicrotaskQueue).toThrow("oops");
+  let error;
+  try {
+    processMockMicrotaskQueue();
+  } catch (errorLocal) {
+    error = errorLocal;
+  }
+  if (!(error instanceof Error)) {
+    throw new Error("fail");
+  }
+  expect(error.message).toMatchInlineSnapshot(
+    `"Unhandled rejection. The original error has been stored as the .cause property."`,
+  );
+  expect(error.cause).toMatchInlineSnapshot(`"oops"`);
   // Only one error is thrown.
   processMockMicrotaskQueue();
   // @ts-expect-error
   promise.subscribe();
-  expect(processMockMicrotaskQueue).toThrow("oops");
+  error = undefined;
+  try {
+    processMockMicrotaskQueue();
+  } catch (errorLocal) {
+    error = errorLocal;
+  }
+  if (!(error instanceof Error)) {
+    throw new Error("fail");
+  }
+  expect(error.message).toMatchInlineSnapshot(
+    `"Unhandled rejection. The original error has been stored as the .cause property."`,
+  );
+  expect(error.cause).toMatchInlineSnapshot(`"oops"`);
 });
 
 test("unhandled failure", () => {

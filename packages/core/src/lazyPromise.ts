@@ -50,6 +50,16 @@ const noSubscribersErrorMessage = (
 
 const cannotSubscribeMessage = `You cannot subscribe to a lazy promise while its teardown function is running.`;
 
+// We throw failure errors as they are, but when there is an unhandled
+// rejection, we wrap it before throwing because (1) failure to handle a
+// rejection is itself an error and (2) it's normal for rejection errors to be
+// something other than Error instances, and so to not have a stack trace.
+const wrapRejectionError = (error: unknown) =>
+  new Error(
+    `Unhandled rejection. The original error has been stored as the .cause property.`,
+    { cause: error },
+  );
+
 /**
  * A LazyPromise returns this no-op function as the disposal handle iff it
  * settles synchronously, so you can do
@@ -157,7 +167,7 @@ export const createLazyPromise = <Value, Error = never>(
       delete subscribers[i]!.handleFailure;
     }
     if (unhandledRejection) {
-      throwInMicrotask(result);
+      throwInMicrotask(wrapRejectionError(result));
     }
     subscribers = undefined;
   };
@@ -227,7 +237,7 @@ export const createLazyPromise = <Value, Error = never>(
             throwInMicrotask(error);
           }
         } else {
-          throwInMicrotask(result);
+          throwInMicrotask(wrapRejectionError(result));
         }
         return noopUnsubscribe;
       }

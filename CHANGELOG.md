@@ -1,5 +1,11 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.13](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.13)
+
+- `eager` now expects a lazy promise that doesn't reject.
+
+- Better error handling when a lazy promise rejects despite having errors typed as `never`.
+
 ## [@lazy-promise/core@0.0.12](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.12)
 
 - Fix handling of unsubscribe in map/catchRejection/catchFailure/finalize callbacks.
