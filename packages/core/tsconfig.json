@@ -4,7 +4,7 @@
     "module": "Preserve",
     "verbatimModuleSyntax": true,
     "target": "ES2022",
-    "lib": ["es2022"],
+    "lib": ["dom", "es2022"],
     "rootDir": "src",
     "outDir": "build/module",
     "declaration": true,

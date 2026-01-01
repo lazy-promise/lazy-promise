@@ -7,7 +7,7 @@ For details on LazyPromise, please see [root readme](https://github.com/lazy-pro
 ## Installation
 
 ```bash
-npm install @lazy-promise/core @lazy-promise/solid-js pipe-function
+npm install @lazy-promise/core @lazy-promise/solid-js
 ```
 
 ## Usage

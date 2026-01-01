@@ -1,5 +1,15 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.14](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.14)
+
+- Wrappers for browser/Node deferral APIs.
+
+- Handling of a promise returned by a `finalize` callback is now consistent with native promise.
+
+- `log` utility.
+
+- `pipe` added to core to save the hassle of installing an extra package.
+
 ## [@lazy-promise/core@0.0.13](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.13)
 
 - `eager` now expects a lazy promise that doesn't reject.

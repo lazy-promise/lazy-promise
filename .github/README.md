@@ -4,7 +4,7 @@ A LazyPromise is like a Promise, with three differences:
 
 - It's lazy and cancelable
 
-- It has typed errors
+- It has optional typed errors
 
 - It emits synchronously instead of on the microtask queue.
 
@@ -14,7 +14,7 @@ The ingredients that went into the cauldron were as follows:
 
 - A primitive-based approach: make the simplest possible primitive for the job without attempting to think of all possible use-cases.
 
-- The good and bad parts of the experience of using RxJS. You can't beat Observable for simplicity, but you've got the diamond problem and [undesirable behavior in the case of sync re-entry](https://github.com/ReactiveX/rxjs/issues/5174). LazyPromise is what you get if you take an Observable, make it impossible to misuse it for what the Signals were built to do, and then take advantage of the reduced scope to gracefully handle re-entry.
+- The good and bad parts of the experience of using RxJS. You can't beat Observable for simplicity, but you've got the diamond problem (see 5th section "Reactive Algorithms" in [this article](https://milomg.dev/2022-12-01/reactivity)) and [undesirable behavior in the case of sync re-entry](https://github.com/ReactiveX/rxjs/issues/5174). LazyPromise is what you get if you take an Observable, make it impossible to misuse it for what the Signals were built to do, and then take advantage of the reduced scope to gracefully handle re-entry.
 
 - Desire to avoid mandatory microtasks. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it (this breaks modularity). Without microtasks, you're in full control over what runs in what order.
 
@@ -23,10 +23,8 @@ The ingredients that went into the cauldron were as follows:
 ## Installation
 
 ```bash
-npm install @lazy-promise/core pipe-function
+npm install @lazy-promise/core
 ```
-
-In the above snippet, `pipe-function` [package](https://github.com/ivan7237d/pipe-function) provides the `pipe` function, but there is nothing special about it and you can use the same function from another library. `pipe(x, foo, bar)` is `bar(foo(x))`.
 
 ## Usage
 
@@ -58,7 +56,7 @@ Besides being lazy, LazyPromise is cancelable: if the subscriber count goes down
 
 If a lazy promise does fire, then like a regular promise it will remember forever the value or error, and give it to whoever tries to subscribe in the future.
 
-Instead of dot-chaining LazyPromise uses pipes, and there are small naming differences, but that aside, LazyPromise API mirrors that of Promise:
+Instead of dot-chaining LazyPromise uses pipes (`pipe(x, foo, bar)` is `bar(foo(x))`), and there are small naming differences, but that aside, LazyPromise API mirrors that of Promise:
 
 | Promise api                    | LazyPromise equivalent                       |
 | :----------------------------- | :------------------------------------------- |
@@ -104,15 +102,21 @@ pipe(
 );
 ```
 
-## A few random items to know
-
-- There are utility functions `eager` and `lazy` that convert to and from a regular promise. `eager` takes a LazyPromise and an optional AbortSignal, and returns a Promise, `lazy` takes a function `async (abortSignal) => ...` and returns a LazyPromise.
+## A few things to know
 
 - The teardown function will not be called if the promise settles (it's either-or).
 
 - Illegal operations, such as settling an already settled lazy promise, throw an error rather than failing silently.
 
 - An easy way to tell whether a lazy promise has settled synchronously when you subscribed is to check if the unsubscribe handle `=== noopUnsubscribe`.
+
+## Utilities
+
+- Functions `eager` and `lazy` convert to and from a regular promise. `eager` takes a LazyPromise and an optional AbortSignal, and returns a Promise, `lazy` takes a function `async (abortSignal) => ...` and returns a LazyPromise.
+
+- There are convenience wrappers for browser/Node deferral APIs: `timeout`, `microtask`, `animationFrame`, `idleCallback`, `immediate`, `nextTick`. Each of these is a function returning a lazy promise that fires in respectively `setTimeout`, `queueMicrotask` etc. Since like the native `.finally`, `finalize` waits for the promise if its callback returns one, you can delay a lazy promise by piping it through `finalize(() => timeout(ms))`, or make it settle in a microtask with `finalize(microtask)`.
+
+- `log` function wraps a lazy promise without changing its behavior, and console.logs everything that happens to it: `pipe(lazyPromise, log("your label"))`.
 
 ## Failure channel
 

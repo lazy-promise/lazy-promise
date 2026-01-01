@@ -1,0 +1,32 @@
+import type { LazyPromise } from "./lazyPromise";
+import { createLazyPromise } from "./lazyPromise";
+
+/**
+ * Returns a lazy promise that resolves in a microtask with a value of type
+ * `void`.
+ *
+ * To make an existing lazy promise settle (resolve, reject or fail) in a
+ * microtask, pipe it though
+ *
+ * ```
+ * finalize(microtask)
+ * ```
+ *
+ * To limit this to only when the promise resolves, use
+ *
+ * ```
+ * map((value) => pipe(microtask(), map(() => value)))
+ * ```
+ */
+export const microtask = (): LazyPromise<void, never> =>
+  createLazyPromise((resolve) => {
+    let disposed = false;
+    queueMicrotask(() => {
+      if (!disposed) {
+        resolve();
+      }
+    });
+    return () => {
+      disposed = true;
+    };
+  });

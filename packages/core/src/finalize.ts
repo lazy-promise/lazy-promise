@@ -1,19 +1,35 @@
 import type { LazyPromise } from "./lazyPromise";
-import { createLazyPromise } from "./lazyPromise";
+import { createLazyPromise, isLazyPromise } from "./lazyPromise";
+
+const wrapRejectionError = (error: unknown) =>
+  new Error(
+    `The lazy promise returned by finalize(...) callback has rejected. The original error has been stored as the .cause property.`,
+    { cause: error },
+  );
 
 /**
  * The LazyPromise equivalent of `promise.finally(...)`. The callback is called
- * if the source promise resolves, rejects, or fails.
+ * if the source promise resolves, rejects, or fails. If the callback returns
+ * a lazy promise, that promise is expected to never reject.
  */
 export const finalize =
-  <Value, Error>(callback: () => void) =>
-  (source: LazyPromise<Value, Error>): LazyPromise<Value, Error> =>
+  <CallbackReturn>(
+    callback: () => CallbackReturn extends LazyPromise<unknown, unknown>
+      ? LazyPromise<unknown, never>
+      : CallbackReturn,
+  ) =>
+  <Value, Error>(
+    source: LazyPromise<Value, Error>,
+  ): LazyPromise<Value, Error> =>
     createLazyPromise((resolve, reject, fail) => {
       let disposed = false;
-      const dispose = source.subscribe(
-        (value) => {
+      let dispose: (() => void) | undefined;
+      const handleSettle =
+        <Arg>(settle: (arg: Arg) => void) =>
+        (arg: Arg) => {
+          let valueOrPromise;
           try {
-            callback();
+            valueOrPromise = callback();
           } catch (error) {
             if (disposed) {
               throw error;
@@ -21,41 +37,33 @@ export const finalize =
             fail(error);
             return;
           }
-          if (!disposed) {
-            resolve(value);
-          }
-        },
-        (error) => {
-          try {
-            callback();
-          } catch (callbackError) {
-            if (disposed) {
-              throw callbackError;
-            }
-            fail(callbackError);
+          if (disposed) {
             return;
           }
-          if (!disposed) {
-            reject(error);
+          if (isLazyPromise(valueOrPromise)) {
+            dispose = valueOrPromise.subscribe(
+              () => {
+                settle(arg);
+              },
+              (error) => {
+                fail(wrapRejectionError(error));
+              },
+              fail,
+            );
+          } else {
+            settle(arg);
           }
-        },
-        (error) => {
-          try {
-            callback();
-          } catch (callbackError) {
-            if (disposed) {
-              throw callbackError;
-            }
-            fail(callbackError);
-            return;
-          }
-          if (!disposed) {
-            fail(error);
-          }
-        },
+        };
+      const disposeOuter = source.subscribe(
+        handleSettle(resolve),
+        handleSettle(reject),
+        handleSettle(fail),
       );
+      if (!dispose) {
+        dispose = disposeOuter;
+      }
       return () => {
         disposed = true;
-        dispose();
+        dispose!();
       };
     });

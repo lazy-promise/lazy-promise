@@ -1,0 +1,64 @@
+import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
+import { animationFrame } from "./animationFrame";
+
+const logContents: unknown[] = [];
+
+const log = (...args: unknown[]) => {
+  logContents.push(args);
+};
+
+const readLog = () => {
+  try {
+    return [...logContents];
+  } finally {
+    logContents.length = 0;
+  }
+};
+
+beforeEach(() => {
+  jest.useFakeTimers();
+  global.requestAnimationFrame = (callback) =>
+    setTimeout(() => {
+      callback(42);
+    }) as unknown as number;
+  global.cancelAnimationFrame = (id) => {
+    clearTimeout(id as unknown as NodeJS.Timeout);
+  };
+});
+
+afterEach(() => {
+  jest.useRealTimers();
+  delete (global as any).requestAnimationFrame;
+  delete (global as any).cancelAnimationFrame;
+  try {
+    if (logContents.length) {
+      throw new Error("Log expected to be empty at the end of each test.");
+    }
+  } finally {
+    logContents.length = 0;
+  }
+});
+
+test("resolve", () => {
+  animationFrame().subscribe((value) => {
+    log("handleValue", value);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  jest.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleValue",
+        42,
+      ],
+    ]
+  `);
+});
+
+test("cancel", () => {
+  animationFrame().subscribe(() => {
+    log("handleValue");
+  })();
+  jest.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+});

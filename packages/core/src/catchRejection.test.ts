@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
-import { pipe } from "pipe-function";
 import { catchRejection } from "./catchRejection";
 import { createLazyPromise, rejected, resolved } from "./lazyPromise";
+import { pipe } from "./pipe";
 
 const mockMicrotaskQueue: (() => void)[] = [];
 const originalQueueMicrotask = queueMicrotask;

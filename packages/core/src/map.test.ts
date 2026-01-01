@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
-import { pipe } from "pipe-function";
 import { createLazyPromise, rejected, resolved } from "./lazyPromise";
 import { map } from "./map";
+import { pipe } from "./pipe";
 
 const mockMicrotaskQueue: (() => void)[] = [];
 const originalQueueMicrotask = queueMicrotask;
@@ -127,7 +127,7 @@ test("outer promise fails", () => {
 test("inner promise resolves", () => {
   const promise = pipe(
     resolved(1),
-    map(() => resolved(1)),
+    map(() => resolved(2)),
   );
   promise.subscribe((value) => {
     log("handleValue", value);
@@ -136,7 +136,7 @@ test("inner promise resolves", () => {
     [
       [
         "handleValue",
-        1,
+        2,
       ],
     ]
   `);

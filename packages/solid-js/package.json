@@ -1,6 +1,6 @@
 {
   "name": "@lazy-promise/solid-js",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "description": "SolidJS bindings for LazyPromise",
   "repository": "https://github.com/lazy-promise/lazy-promise.git",
   "license": "MIT",
@@ -34,7 +34,6 @@
     "babel-jest": "^29.7.0",
     "eslint": "^8.57.0",
     "jest": "^29.7.0",
-    "pipe-function": "^1.0.3",
     "typescript": "^5.5.3"
   },
   "peerDependencies": {

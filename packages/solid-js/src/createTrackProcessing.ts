@@ -3,8 +3,8 @@ import {
   createLazyPromise,
   finalize,
   noopUnsubscribe,
+  pipe,
 } from "@lazy-promise/core";
-import { pipe } from "pipe-function";
 import type { Accessor } from "solid-js";
 import { createMemo, createSignal } from "solid-js";
 
