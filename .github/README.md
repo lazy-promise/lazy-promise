@@ -148,7 +148,7 @@ const lazyPromise = createLazyPromise((resolve, reject, fail) => {
 
 There are `catchFailure` and `failed` utilities analogous to `catchRejection` and `rejected`.
 
-The failure channel also makes typed errors an optional feature: you can easily use the library with all your promises typed as `LazyPromise<Value, never>`.
+The failure channel makes typed errors an optional feature: you can easily use the library with all your promises typed as `LazyPromise<Value, never>`.
 
 ## Experimental SolidJS bindings
 
