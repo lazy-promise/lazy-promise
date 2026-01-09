@@ -334,10 +334,11 @@ export const createLazyPromise = <Value, Error = never>(
 /**
  * Returns a LazyPromise which is already resolved.
  */
-export const resolved = <const Value>(
-  value: Value,
-): LazyPromise<Value, never> => ({
-  subscribe: (resolve?: (value: Value) => void) => {
+export const resolved: {
+  <const Value>(value: Value): LazyPromise<Value, never>;
+  (): LazyPromise<void, never>;
+} = (value?: any): LazyPromise<any, never> => ({
+  subscribe: (resolve?: (value: any) => void) => {
     try {
       resolve?.(value);
     } catch (error) {
@@ -351,12 +352,13 @@ export const resolved = <const Value>(
 /**
  * Returns a LazyPromise which is already rejected.
  */
-export const rejected = <const Error>(
-  error: Error,
-): LazyPromise<never, Error> => ({
+export const rejected: {
+  <const Error>(error: Error): LazyPromise<never, Error>;
+  (): LazyPromise<never, void>;
+} = (error?: any): LazyPromise<never, any> => ({
   subscribe: (
     resolve?: (value: never) => void,
-    reject?: (error: Error) => void,
+    reject?: (error: any) => void,
   ) => {
     if (reject) {
       try {
@@ -375,7 +377,7 @@ export const rejected = <const Error>(
 /**
  * Returns a LazyPromise which is already failed.
  */
-export const failed = (error: unknown): LazyPromise<never, never> => ({
+export const failed = (error?: unknown): LazyPromise<never, never> => ({
   subscribe: (
     resolve?: (value: never) => void,
     reject?: (error: never) => void,

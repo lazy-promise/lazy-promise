@@ -77,8 +77,14 @@ test("types", () => {
   // $ExpectType LazyPromise<"a", never>
   const promise3 = resolved("a");
 
+  // $ExpectType LazyPromise<void, never>
+  const promise4 = resolved();
+
   // $ExpectType LazyPromise<never, "a">
-  const promise4 = rejected("a");
+  const promise5 = rejected("a");
+
+  // $ExpectType LazyPromise<never, void>
+  const promise6 = rejected();
 
   /* eslint-enable @typescript-eslint/no-unused-vars */
 });
