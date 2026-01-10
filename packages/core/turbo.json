@@ -17,10 +17,10 @@
       "outputs": ["build/main/**"]
     },
     "test": {
-      "dependsOn": ["test:eslint", "test:jest", "build"]
+      "dependsOn": ["test:eslint", "test:vitest", "build"]
     },
     "test:eslint": { "dependsOn": ["^build"] },
     "test:typescript": { "dependsOn": ["^build"] },
-    "test:jest": { "dependsOn": ["^build"] }
+    "test:vitest": { "dependsOn": ["^build"] }
   }
 }

@@ -5,7 +5,6 @@ module.exports = {
   ignorePatterns: ["*.js", "*.jsx", "*.mjs", "*.cjs"],
   plugins: [
     "prefer-arrow",
-    "jest",
     "eslint-plugin-only-warn",
     "eslint-plugin-import",
     "eslint-plugin-expect-type",
@@ -50,8 +49,6 @@ module.exports = {
     ],
     "@typescript-eslint/await-thenable": "error",
     "@typescript-eslint/no-unnecessary-type-assertion": "error",
-    "jest/no-disabled-tests": "error",
-    "jest/no-focused-tests": "error",
 
     //
     // Consistency rules

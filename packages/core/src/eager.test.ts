@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "@jest/globals";
+import { afterEach, expect, test } from "vitest";
 import { eager } from "./eager";
 import type { LazyPromise } from "./lazyPromise";
 import { createLazyPromise, failed, rejected, resolved } from "./lazyPromise";
@@ -53,9 +53,10 @@ test("no signal, reject", async () => {
   expect(error.cause).toMatchInlineSnapshot(`"oops"`);
 });
 
-test("no signal, fail", () => {
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
-  expect(() => eager(failed("oops"))).rejects.toMatchInlineSnapshot(`"oops"`);
+test("no signal, fail", async () => {
+  await expect(() => eager(failed("oops"))).rejects.toMatchInlineSnapshot(
+    `"oops"`,
+  );
 });
 
 test("signal, sync resolve", async () => {
@@ -136,9 +137,8 @@ test("signal, async reject", async () => {
   `);
 });
 
-test("signal, sync fail", () => {
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
-  expect(() =>
+test("signal, sync fail", async () => {
+  await expect(() =>
     eager(failed("oops"), new AbortController().signal),
   ).rejects.toMatchInlineSnapshot(`"oops"`);
 });
@@ -166,11 +166,10 @@ test("signal, async fail", async () => {
   `);
 });
 
-test("already aborted signal", () => {
+test("already aborted signal", async () => {
   const abortController = new AbortController();
   abortController.abort("reason");
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
-  expect(() =>
+  await expect(() =>
     eager(
       createLazyPromise<never, never>(() => {
         log("subscribe");
@@ -181,7 +180,7 @@ test("already aborted signal", () => {
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
-test("signal aborted while subscribing", () => {
+test("signal aborted while subscribing", async () => {
   const abortController = new AbortController();
   const promise = eager(
     createLazyPromise<never, never>(() => {
@@ -203,8 +202,7 @@ test("signal aborted while subscribing", () => {
       ],
     ]
   `);
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
-  expect(() => promise).rejects.toMatchInlineSnapshot(`"reason"`);
+  await expect(() => promise).rejects.toMatchInlineSnapshot(`"reason"`);
 });
 
 test("signal aborted after subscribing", async () => {

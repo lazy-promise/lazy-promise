@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { idleCallback } from "./idleCallback";
 
 const logContents: unknown[] = [];
@@ -16,7 +16,7 @@ const readLog = () => {
 };
 
 beforeEach(() => {
-  jest.useFakeTimers();
+  vi.useFakeTimers();
   global.requestIdleCallback = (callback, options) => {
     log("requestIdleCallback", options);
     return setTimeout(() => {
@@ -32,7 +32,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  jest.useRealTimers();
+  vi.useRealTimers();
   delete (global as any).requestIdleCallback;
   delete (global as any).cancelIdleCallback;
   try {
@@ -58,7 +58,7 @@ test("resolve", () => {
       ],
     ]
   `);
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -84,6 +84,6 @@ test("cancel", () => {
       ],
     ]
   `);
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });

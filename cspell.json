@@ -6,6 +6,7 @@
     "microtask",
     "npmjs",
     "Stackblitz",
-    "subpackages"
+    "subpackages",
+    "vitest"
   ]
 }

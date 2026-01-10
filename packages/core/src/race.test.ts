@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createLazyPromise, rejected, resolved } from "./lazyPromise";
 import { race } from "./race";
 
@@ -31,7 +31,7 @@ const processMockMicrotaskQueue = () => {
 };
 
 beforeEach(() => {
-  jest.useFakeTimers();
+  vi.useFakeTimers();
   logTime = Date.now();
   global.queueMicrotask = (task) => mockMicrotaskQueue.push(task);
 });
@@ -39,7 +39,7 @@ beforeEach(() => {
 afterEach(() => {
   processMockMicrotaskQueue();
   global.queueMicrotask = originalQueueMicrotask;
-  jest.useRealTimers();
+  vi.useRealTimers();
   try {
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
@@ -139,7 +139,7 @@ test("async resolve", () => {
   promise.subscribe((value) => {
     log("handleValue", value);
   });
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -213,7 +213,7 @@ test("async error", () => {
   promise.subscribe(undefined, (error) => {
     log("handleError", error);
   });
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -285,7 +285,7 @@ test("internally disposed when a source resolves, a source resolve is ignored wh
     log("resolve a");
     resolveA("a");
   });
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -321,7 +321,7 @@ test("internally disposed when a source rejects, a source resolve is ignored whe
     log("resolve a");
     resolveA("a");
   });
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -357,7 +357,7 @@ test("internally disposed when a source fails, a source resolve is ignored when 
     log("resolve a");
     resolveA("a");
   });
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -396,7 +396,7 @@ test("internally disposed when a source resolves, a source reject is ignored whe
     },
     () => {},
   );
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -432,7 +432,7 @@ test("internally disposed when a source resolves, a source failure is ignored wh
     log("fail a");
     failA("oops");
   });
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",

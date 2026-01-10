@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { nextTick } from "./nextTick";
 
 const logContents: unknown[] = [];
@@ -16,15 +16,15 @@ const readLog = () => {
 };
 
 beforeEach(() => {
-  jest.useFakeTimers();
-  jest.spyOn(process, "nextTick").mockImplementation((callback, ...args) => {
+  vi.useFakeTimers();
+  vi.spyOn(process, "nextTick").mockImplementation((callback, ...args) => {
     setTimeout(() => callback(...args));
   });
 });
 
 afterEach(() => {
-  jest.useRealTimers();
-  jest.restoreAllMocks();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
   try {
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
@@ -39,7 +39,7 @@ test("resolve", () => {
     log("handleValue", value);
   });
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -54,6 +54,6 @@ test("cancel", () => {
   nextTick().subscribe(() => {
     log("handleValue");
   })();
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });

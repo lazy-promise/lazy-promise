@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { timeout } from "./timeout";
 
 const logContents: unknown[] = [];
@@ -22,12 +22,12 @@ const readLog = () => {
 };
 
 beforeEach(() => {
-  jest.useFakeTimers();
+  vi.useFakeTimers();
   logTime = Date.now();
 });
 
 afterEach(() => {
-  jest.useRealTimers();
+  vi.useRealTimers();
   try {
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
@@ -42,7 +42,7 @@ test("resolve", () => {
     log("handleValue", value);
   });
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -58,6 +58,6 @@ test("cancel", () => {
   timeout().subscribe(() => {
     log("handleValue");
   })();
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });

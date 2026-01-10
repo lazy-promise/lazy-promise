@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createLazyPromise, rejected, resolved } from "./lazyPromise";
 import { map } from "./map";
 import { pipe } from "./pipe";
@@ -32,7 +32,7 @@ const processMockMicrotaskQueue = () => {
 };
 
 beforeEach(() => {
-  jest.useFakeTimers();
+  vi.useFakeTimers();
   logTime = Date.now();
   global.queueMicrotask = (task) => mockMicrotaskQueue.push(task);
 });
@@ -40,7 +40,7 @@ beforeEach(() => {
 afterEach(() => {
   processMockMicrotaskQueue();
   global.queueMicrotask = originalQueueMicrotask;
-  jest.useRealTimers();
+  vi.useRealTimers();
   try {
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
@@ -210,7 +210,7 @@ test("cancel outer promise", () => {
     map(() => undefined),
   );
   const dispose = promise.subscribe();
-  jest.advanceTimersByTime(500);
+  vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   dispose();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -233,7 +233,7 @@ test("cancel inner promise", () => {
     ),
   );
   const dispose = promise.subscribe();
-  jest.advanceTimersByTime(500);
+  vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   dispose();
   expect(readLog()).toMatchInlineSnapshot(`

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { finalize } from "./finalize";
 import type { LazyPromise } from "./lazyPromise";
 import { createLazyPromise, failed, rejected, resolved } from "./lazyPromise";
@@ -33,7 +33,7 @@ const processMockMicrotaskQueue = () => {
 };
 
 beforeEach(() => {
-  jest.useFakeTimers();
+  vi.useFakeTimers();
   logTime = Date.now();
   global.queueMicrotask = (task) => mockMicrotaskQueue.push(task);
 });
@@ -41,7 +41,7 @@ beforeEach(() => {
 afterEach(() => {
   processMockMicrotaskQueue();
   global.queueMicrotask = originalQueueMicrotask;
-  jest.useRealTimers();
+  vi.useRealTimers();
   try {
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
@@ -333,7 +333,7 @@ test("inner promise resolves", () => {
     log("handleValue", value);
   });
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -411,7 +411,7 @@ test("cancel outer promise", () => {
     finalize(() => undefined),
   );
   const dispose = promise.subscribe();
-  jest.advanceTimersByTime(500);
+  vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   dispose();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -434,7 +434,7 @@ test("cancel inner promise", () => {
     ),
   );
   const dispose = promise.subscribe();
-  jest.advanceTimersByTime(500);
+  vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   dispose();
   expect(readLog()).toMatchInlineSnapshot(`

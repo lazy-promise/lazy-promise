@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "@jest/globals";
+import { afterEach, expect, test } from "vitest";
 import { lazy } from "./lazy";
 
 const logContents: unknown[] = [];
@@ -81,7 +81,8 @@ test("source rejects", async () => {
 test("source rejects with DOMException", async () => {
   const promise = lazy(() => Promise.reject(new DOMException()));
   promise.subscribe(undefined, undefined, (error) => {
-    log("handleFailure", error);
+    log("handleFailure");
+    expect(error).toBeInstanceOf(DOMException);
   });
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   await flushMicrotasks();
@@ -89,7 +90,6 @@ test("source rejects with DOMException", async () => {
     [
       [
         "handleFailure",
-        DOMException {},
       ],
     ]
   `);

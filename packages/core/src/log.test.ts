@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import { afterEach, expect, jest, test } from "@jest/globals";
+import { afterEach, expect, test, vi } from "vitest";
 import { createLazyPromise, failed, rejected, resolved } from "./lazyPromise";
 import { log } from "./log";
 import { pipe } from "./pipe";
@@ -16,7 +16,7 @@ const readLog = () => {
 };
 
 afterEach(() => {
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
   try {
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
@@ -27,11 +27,9 @@ afterEach(() => {
 });
 
 test("base case", () => {
-  jest
-    .spyOn(console, "log")
-    .mockImplementation((...args) =>
-      logContents.push(args.map(String).join(" ")),
-    );
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
 
   pipe(
     createLazyPromise((resolve) => {
@@ -53,11 +51,9 @@ test("base case", () => {
 });
 
 test("rejection", () => {
-  jest
-    .spyOn(console, "log")
-    .mockImplementation((...args) =>
-      logContents.push(args.map(String).join(" ")),
-    );
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
 
   pipe(rejected(1), log("rejection case")).subscribe(undefined, (error) => {
     console.log("handleRejection", error);
@@ -72,11 +68,9 @@ test("rejection", () => {
 });
 
 test("failure", () => {
-  jest
-    .spyOn(console, "log")
-    .mockImplementation((...args) =>
-      logContents.push(args.map(String).join(" ")),
-    );
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
 
   pipe(failed(1), log("failure case")).subscribe(
     undefined,
@@ -95,11 +89,9 @@ test("failure", () => {
 });
 
 test("unsubscribe", () => {
-  jest
-    .spyOn(console, "log")
-    .mockImplementation((...args) =>
-      logContents.push(args.map(String).join(" ")),
-    );
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
 
   pipe(
     createLazyPromise(() => () => {
@@ -117,11 +109,9 @@ test("unsubscribe", () => {
 });
 
 test("counter", () => {
-  jest
-    .spyOn(console, "log")
-    .mockImplementation((...args) =>
-      logContents.push(args.map(String).join(" ")),
-    );
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
 
   const getPromise = () => pipe(resolved(1), log("counter case"));
   getPromise().subscribe();
@@ -137,11 +127,9 @@ test("counter", () => {
 });
 
 test("no label", () => {
-  jest
-    .spyOn(console, "log")
-    .mockImplementation((...args) =>
-      logContents.push(args.map(String).join(" ")),
-    );
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
 
   const getPromise = () => pipe(resolved(1), log());
   getPromise().subscribe();
@@ -157,11 +145,9 @@ test("no label", () => {
 });
 
 test("number as label", () => {
-  jest
-    .spyOn(console, "log")
-    .mockImplementation((...args) =>
-      logContents.push(args.map(String).join(" ")),
-    );
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
 
   const getPromise = () => pipe(resolved(1), log(42));
   getPromise().subscribe();
@@ -177,11 +163,9 @@ test("number as label", () => {
 });
 
 test("patched console.log", () => {
-  jest
-    .spyOn(console, "log")
-    .mockImplementation((...args) =>
-      logContents.push(args.map(String).join(" ")),
-    );
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
 
   pipe(resolved(), log("label")).subscribe(() => {
     console.log("a", "b");

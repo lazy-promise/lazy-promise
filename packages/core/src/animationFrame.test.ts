@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { animationFrame } from "./animationFrame";
 
 const logContents: unknown[] = [];
@@ -16,7 +16,7 @@ const readLog = () => {
 };
 
 beforeEach(() => {
-  jest.useFakeTimers();
+  vi.useFakeTimers();
   global.requestAnimationFrame = (callback) =>
     setTimeout(() => {
       callback(42);
@@ -27,7 +27,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  jest.useRealTimers();
+  vi.useRealTimers();
   delete (global as any).requestAnimationFrame;
   delete (global as any).cancelAnimationFrame;
   try {
@@ -44,7 +44,7 @@ test("resolve", () => {
     log("handleValue", value);
   });
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -59,6 +59,6 @@ test("cancel", () => {
   animationFrame().subscribe(() => {
     log("handleValue");
   })();
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, jest, test } from "@jest/globals";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
   createLazyPromise,
   failed,
@@ -38,7 +38,7 @@ const processMockMicrotaskQueue = () => {
 };
 
 beforeEach(() => {
-  jest.useFakeTimers();
+  vi.useFakeTimers();
   logTime = Date.now();
   global.queueMicrotask = (task) => mockMicrotaskQueue.push(task);
 });
@@ -46,7 +46,7 @@ beforeEach(() => {
 afterEach(() => {
   processMockMicrotaskQueue();
   global.queueMicrotask = originalQueueMicrotask;
-  jest.useRealTimers();
+  vi.useRealTimers();
   try {
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
@@ -98,7 +98,7 @@ test("async resolve", () => {
   promise.subscribe((value) => {
     log("handleValue", value);
   });
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -157,7 +157,7 @@ test("async reject", () => {
   promise.subscribe(undefined, (error) => {
     log("handleError", error);
   });
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -214,7 +214,7 @@ test("async fail", () => {
   promise.subscribe(undefined, undefined, (error) => {
     log("handleFailure", error);
   });
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -324,7 +324,7 @@ test("teardown function is not called if the lazy promise resolves", () => {
     };
   });
   const dispose = promise.subscribe();
-  jest.runAllTimers();
+  vi.runAllTimers();
   dispose();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
@@ -339,7 +339,7 @@ test("teardown function is not called if the lazy promise rejects", () => {
     };
   });
   const dispose = promise.subscribe(undefined, () => {});
-  jest.runAllTimers();
+  vi.runAllTimers();
   dispose();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
@@ -354,7 +354,7 @@ test("teardown function is not called if the lazy promise fails", () => {
     };
   });
   const dispose = promise.subscribe(undefined, undefined, () => {});
-  jest.runAllTimers();
+  vi.runAllTimers();
   dispose();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
@@ -372,7 +372,7 @@ test("teardown function called by consumer", () => {
     dispose();
     log("handleValue");
   });
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -497,7 +497,7 @@ test("error in value handler function", () => {
       log("handleFailure");
     },
   );
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -538,7 +538,7 @@ test("error in error handler function", () => {
       log("handleFailure");
     },
   );
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -568,7 +568,7 @@ test("error in failure handler function", () => {
   promise.subscribe(undefined, undefined, (error) => {
     log("handleFailure 2", error);
   });
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -618,7 +618,7 @@ test("unhandled rejection", () => {
   promise.subscribe(() => {}, undefined);
 
   expect(mockMicrotaskQueue.length).toMatchInlineSnapshot(`0`);
-  jest.runAllTimers();
+  vi.runAllTimers();
   let error;
   try {
     processMockMicrotaskQueue();
@@ -673,7 +673,7 @@ test("unhandled failure", () => {
   promise.subscribe(() => {}, undefined);
 
   expect(mockMicrotaskQueue.length).toMatchInlineSnapshot(`0`);
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(processMockMicrotaskQueue).toThrow("oops");
   // Only one error is thrown.
   processMockMicrotaskQueue();
@@ -832,7 +832,7 @@ test("no subscribers", () => {
       log("handleFailure 1", error);
     },
   )();
-  jest.runAllTimers();
+  vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
