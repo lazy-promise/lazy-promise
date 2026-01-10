@@ -29,7 +29,9 @@ afterEach(() => {
 test("base case", () => {
   jest
     .spyOn(console, "log")
-    .mockImplementation((...args) => logContents.push(args.join(" ")));
+    .mockImplementation((...args) =>
+      logContents.push(args.map(String).join(" ")),
+    );
 
   pipe(
     createLazyPromise((resolve) => {
@@ -53,7 +55,9 @@ test("base case", () => {
 test("rejection", () => {
   jest
     .spyOn(console, "log")
-    .mockImplementation((...args) => logContents.push(args.join(" ")));
+    .mockImplementation((...args) =>
+      logContents.push(args.map(String).join(" ")),
+    );
 
   pipe(rejected(1), log("rejection case")).subscribe(undefined, (error) => {
     console.log("handleRejection", error);
@@ -70,7 +74,9 @@ test("rejection", () => {
 test("failure", () => {
   jest
     .spyOn(console, "log")
-    .mockImplementation((...args) => logContents.push(args.join(" ")));
+    .mockImplementation((...args) =>
+      logContents.push(args.map(String).join(" ")),
+    );
 
   pipe(failed(1), log("failure case")).subscribe(
     undefined,
@@ -91,7 +97,9 @@ test("failure", () => {
 test("unsubscribe", () => {
   jest
     .spyOn(console, "log")
-    .mockImplementation((...args) => logContents.push(args.join(" ")));
+    .mockImplementation((...args) =>
+      logContents.push(args.map(String).join(" ")),
+    );
 
   pipe(
     createLazyPromise(() => () => {
@@ -111,7 +119,9 @@ test("unsubscribe", () => {
 test("counter", () => {
   jest
     .spyOn(console, "log")
-    .mockImplementation((...args) => logContents.push(args.join(" ")));
+    .mockImplementation((...args) =>
+      logContents.push(args.map(String).join(" ")),
+    );
 
   const getPromise = () => pipe(resolved(1), log("counter case"));
   getPromise().subscribe();
@@ -129,7 +139,9 @@ test("counter", () => {
 test("no label", () => {
   jest
     .spyOn(console, "log")
-    .mockImplementation((...args) => logContents.push(args.join(" ")));
+    .mockImplementation((...args) =>
+      logContents.push(args.map(String).join(" ")),
+    );
 
   const getPromise = () => pipe(resolved(1), log());
   getPromise().subscribe();
@@ -147,7 +159,9 @@ test("no label", () => {
 test("number as label", () => {
   jest
     .spyOn(console, "log")
-    .mockImplementation((...args) => logContents.push(args.join(" ")));
+    .mockImplementation((...args) =>
+      logContents.push(args.map(String).join(" ")),
+    );
 
   const getPromise = () => pipe(resolved(1), log(42));
   getPromise().subscribe();
@@ -158,6 +172,30 @@ test("number as label", () => {
       "· [42] [1] [resolve] 1",
       "[42] [2] [subscribe]",
       "· [42] [2] [resolve] 1",
+    ]
+  `);
+});
+
+test("patched console.log", () => {
+  jest
+    .spyOn(console, "log")
+    .mockImplementation((...args) =>
+      logContents.push(args.map(String).join(" ")),
+    );
+
+  pipe(resolved(), log("label")).subscribe(() => {
+    console.log("a", "b");
+    console.log(1, "a");
+    console.log();
+  });
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "[label] [1] [subscribe]",
+      "· [label] [1] [resolve] undefined",
+      "· · a b",
+      "· · 1 a",
+      "· ·",
     ]
   `);
 });

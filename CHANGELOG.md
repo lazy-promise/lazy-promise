@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.16](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.16)
+
+- Make `log` play well with string substitutions.
+
 ## [@lazy-promise/core@0.0.15](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.15)
 
 - Allow passing no argument to `resolved`/`rejected`/`failed`.

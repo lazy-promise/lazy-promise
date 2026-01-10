@@ -6,6 +6,10 @@ const instanceCountMap = new Map<string | number | undefined, number>();
 const wrapLog =
   (fn: typeof console.log): typeof console.log =>
   (...args) => {
+    if (typeof args[0] === "string") {
+      fn("\u00B7 " + args[0], ...args.slice(1));
+      return;
+    }
     fn("\u00B7", ...args);
   };
 
@@ -55,8 +59,6 @@ const bumpStackLevel = <T>(callback: () => T) => {
  * · [a] [1] [resolve] 1
  * · · mapping
  * ```
- *
- * (careful: the stack depth indicator breaks string substitution).
  */
 export const log =
   (label?: string | number) =>
