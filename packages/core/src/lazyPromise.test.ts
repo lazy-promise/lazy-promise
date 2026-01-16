@@ -1,13 +1,12 @@
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
-  createLazyPromise,
   failed,
-  isLazyPromise,
+  LazyPromise,
   never,
   noopUnsubscribe,
   rejected,
   resolved,
-} from "./lazyPromise";
+} from "@lazy-promise/core";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
 const originalQueueMicrotask = queueMicrotask;
@@ -58,7 +57,7 @@ afterEach(() => {
 
 test("types", () => {
   /* eslint-disable @typescript-eslint/no-unused-vars */
-  const promise1 = createLazyPromise<"value a", "error a">(() => {});
+  const promise1 = new LazyPromise<"value a", "error a">(() => {});
 
   promise1.subscribe(undefined, () => {});
 
@@ -68,7 +67,7 @@ test("types", () => {
   /** @ts-expect-error */
   promise1.subscribe(() => {}, undefined);
 
-  const promise2 = createLazyPromise<"value a", never>(() => {});
+  const promise2 = new LazyPromise<"value a", never>(() => {});
 
   promise2.subscribe();
 
@@ -90,7 +89,7 @@ test("types", () => {
 });
 
 test("async resolve", () => {
-  const promise = createLazyPromise<string>((resolve) => {
+  const promise = new LazyPromise<string>((resolve) => {
     setTimeout(() => {
       resolve("value");
     }, 1000);
@@ -111,7 +110,7 @@ test("async resolve", () => {
 });
 
 test("sync resolve", () => {
-  const promise = createLazyPromise<string>((resolve) => {
+  const promise = new LazyPromise<string>((resolve) => {
     log("produce");
     resolve("value");
   });
@@ -149,7 +148,7 @@ test("sync resolve", () => {
 });
 
 test("async reject", () => {
-  const promise = createLazyPromise<unknown, string>((resolve, reject) => {
+  const promise = new LazyPromise<unknown, string>((resolve, reject) => {
     setTimeout(() => {
       reject("oops");
     }, 1000);
@@ -170,7 +169,7 @@ test("async reject", () => {
 });
 
 test("sync reject", () => {
-  const promise = createLazyPromise<unknown, string>((resolve, reject) => {
+  const promise = new LazyPromise<unknown, string>((resolve, reject) => {
     log("produce");
     reject("oops");
   });
@@ -206,7 +205,7 @@ test("sync reject", () => {
 });
 
 test("async fail", () => {
-  const promise = createLazyPromise<unknown, never>((resolve, reject, fail) => {
+  const promise = new LazyPromise<unknown, never>((resolve, reject, fail) => {
     setTimeout(() => {
       fail("oops");
     }, 1000);
@@ -227,7 +226,7 @@ test("async fail", () => {
 });
 
 test("sync fail", () => {
-  const promise = createLazyPromise<unknown, never>((resolve, reject, fail) => {
+  const promise = new LazyPromise<unknown, never>((resolve, reject, fail) => {
     log("produce");
     fail("oops");
   });
@@ -263,7 +262,7 @@ test("sync fail", () => {
 });
 
 test("cancellation", () => {
-  const promise = createLazyPromise<string>(() => {
+  const promise = new LazyPromise<string>(() => {
     log("produce");
     return () => {
       log("dispose");
@@ -315,7 +314,7 @@ test("cancellation", () => {
 });
 
 test("teardown function is not called if the lazy promise resolves", () => {
-  const promise = createLazyPromise<number>((resolve) => {
+  const promise = new LazyPromise<number>((resolve) => {
     setTimeout(() => {
       resolve(1);
     }, 1000);
@@ -330,7 +329,7 @@ test("teardown function is not called if the lazy promise resolves", () => {
 });
 
 test("teardown function is not called if the lazy promise rejects", () => {
-  const promise = createLazyPromise<number, number>((resolve, reject) => {
+  const promise = new LazyPromise<number, number>((resolve, reject) => {
     setTimeout(() => {
       reject(1);
     }, 1000);
@@ -345,7 +344,7 @@ test("teardown function is not called if the lazy promise rejects", () => {
 });
 
 test("teardown function is not called if the lazy promise fails", () => {
-  const promise = createLazyPromise<number, never>((resolve, reject, fail) => {
+  const promise = new LazyPromise<number, never>((resolve, reject, fail) => {
     setTimeout(() => {
       fail(1);
     }, 1000);
@@ -360,7 +359,7 @@ test("teardown function is not called if the lazy promise fails", () => {
 });
 
 test("teardown function called by consumer", () => {
-  const promise = createLazyPromise<"a">((resolve) => {
+  const promise = new LazyPromise<"a">((resolve) => {
     setTimeout(() => {
       resolve("a");
     }, 1000);
@@ -384,7 +383,7 @@ test("teardown function called by consumer", () => {
 });
 
 test("error in produce function before settling", () => {
-  const promise = createLazyPromise(() => {
+  const promise = new LazyPromise(() => {
     throw "oops";
   });
   promise.subscribe(undefined, undefined, (error) => {
@@ -401,7 +400,7 @@ test("error in produce function before settling", () => {
 });
 
 test("error in produce function after settling", () => {
-  const promise = createLazyPromise<number>((resolve) => {
+  const promise = new LazyPromise<number>((resolve) => {
     resolve(1);
     throw "oops";
   });
@@ -443,7 +442,7 @@ test("error in produce function after settling", () => {
 });
 
 test("error in teardown function", () => {
-  const promise = createLazyPromise(() => {
+  const promise = new LazyPromise(() => {
     log("produce");
     return () => {
       throw "oops";
@@ -474,7 +473,7 @@ test("error in teardown function", () => {
 });
 
 test("error in value handler function", () => {
-  const promise = createLazyPromise<string>((resolve) => {
+  const promise = new LazyPromise<string>((resolve) => {
     setTimeout(() => {
       resolve("value");
     }, 1000);
@@ -515,7 +514,7 @@ test("error in value handler function", () => {
 });
 
 test("error in error handler function", () => {
-  const promise = createLazyPromise<string, string>((resolve, reject) => {
+  const promise = new LazyPromise<string, string>((resolve, reject) => {
     setTimeout(() => {
       reject("error");
     }, 1000);
@@ -556,7 +555,7 @@ test("error in error handler function", () => {
 });
 
 test("error in failure handler function", () => {
-  const promise = createLazyPromise<string, never>((resolve, reject, fail) => {
+  const promise = new LazyPromise<string, never>((resolve, reject, fail) => {
     setTimeout(() => {
       fail("error");
     }, 1000);
@@ -599,7 +598,7 @@ test("error in failure handler function", () => {
 });
 
 test("unhandled rejection", () => {
-  const promise = createLazyPromise<unknown, string>((resolve, reject) => {
+  const promise = new LazyPromise<unknown, string>((resolve, reject) => {
     setTimeout(() => {
       reject("oops");
     }, 1000);
@@ -652,13 +651,11 @@ test("unhandled rejection", () => {
 });
 
 test("unhandled failure", () => {
-  const promise = createLazyPromise<unknown, string>(
-    (resolve, reject, fail) => {
-      setTimeout(() => {
-        fail("oops");
-      }, 1000);
-    },
-  );
+  const promise = new LazyPromise<unknown, string>((resolve, reject, fail) => {
+    setTimeout(() => {
+      fail("oops");
+    }, 1000);
+  });
   // @ts-expect-error
   promise.subscribe();
 
@@ -683,7 +680,7 @@ test("unhandled failure", () => {
 });
 
 test("already resolved", () => {
-  const promise = createLazyPromise<number, number>((resolve, reject, fail) => {
+  const promise = new LazyPromise<number, number>((resolve, reject, fail) => {
     resolve(1);
     try {
       resolve(2);
@@ -721,7 +718,7 @@ test("already resolved", () => {
 });
 
 test("already rejected", () => {
-  const promise = createLazyPromise<number, number>((resolve, reject, fail) => {
+  const promise = new LazyPromise<number, number>((resolve, reject, fail) => {
     reject(1);
     try {
       resolve(1);
@@ -759,7 +756,7 @@ test("already rejected", () => {
 });
 
 test("already failed", () => {
-  const promise = createLazyPromise<number, number>((resolve, reject, fail) => {
+  const promise = new LazyPromise<number, number>((resolve, reject, fail) => {
     fail(1);
     try {
       resolve(1);
@@ -801,7 +798,7 @@ test("already failed", () => {
 });
 
 test("no subscribers", () => {
-  const promise = createLazyPromise<number, number>((resolve, reject, fail) => {
+  const promise = new LazyPromise<number, number>((resolve, reject, fail) => {
     log("produce");
     setTimeout(() => {
       try {
@@ -840,22 +837,22 @@ test("no subscribers", () => {
       ],
       [
         "resolve error",
-        [Error: You cannot resolve a lazy promise that no longer has any subscribers. Make sure that the callback you're passing to createLazyPromise returns a working teardown function.],
+        [Error: You cannot resolve a lazy promise that no longer has any subscribers. This error indicates that the lazy promise has not been fully torn down. Make sure that the callback you're passing to the LazyPromise constructor returns a working teardown function.],
       ],
       [
         "reject error",
-        [Error: You cannot reject a lazy promise that no longer has any subscribers. Make sure that the callback you're passing to createLazyPromise returns a working teardown function.],
+        [Error: You cannot reject a lazy promise that no longer has any subscribers. This error indicates that the lazy promise has not been fully torn down. Make sure that the callback you're passing to the LazyPromise constructor returns a working teardown function.],
       ],
       [
         "fail error",
-        [Error: You cannot fail a lazy promise that no longer has any subscribers. Make sure that the callback you're passing to createLazyPromise returns a working teardown function.],
+        [Error: You cannot fail a lazy promise that no longer has any subscribers. This error indicates that the lazy promise has not been fully torn down. Make sure that the callback you're passing to the LazyPromise constructor returns a working teardown function.],
       ],
     ]
   `);
 });
 
 test("subscribe in teardown function", () => {
-  const promise = createLazyPromise(() => () => {
+  const promise = new LazyPromise(() => () => {
     try {
       promise.subscribe();
     } catch (error) {
@@ -875,7 +872,7 @@ test("subscribe in teardown function", () => {
 
 test("resolved", () => {
   const promise = resolved(1);
-  expect(isLazyPromise(promise)).toMatchInlineSnapshot(`true`);
+  expect(promise instanceof LazyPromise).toMatchInlineSnapshot(`true`);
   expect(
     promise.subscribe((value) => {
       log("handleValue", value);
@@ -897,7 +894,7 @@ test("resolved", () => {
 
 test("rejected", () => {
   const promise = rejected("error");
-  expect(isLazyPromise(promise)).toMatchInlineSnapshot(`true`);
+  expect(promise instanceof LazyPromise).toMatchInlineSnapshot(`true`);
   expect(
     promise.subscribe(undefined, (error) => {
       log("handleError", error);
@@ -923,7 +920,7 @@ test("rejected", () => {
 
 test("failed", () => {
   const promise = failed("error");
-  expect(isLazyPromise(promise)).toMatchInlineSnapshot(`true`);
+  expect(promise instanceof LazyPromise).toMatchInlineSnapshot(`true`);
   expect(
     promise.subscribe(undefined, undefined, (error) => {
       log("handleFailure", error);
@@ -947,7 +944,7 @@ test("failed", () => {
 });
 
 test("never", () => {
-  expect(isLazyPromise(never)).toMatchInlineSnapshot(`true`);
+  expect(never instanceof LazyPromise).toMatchInlineSnapshot(`true`);
   expect(
     never.subscribe(
       () => {
@@ -962,13 +959,4 @@ test("never", () => {
     ),
   ).not.toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-});
-
-test("isLazyPromise", () => {
-  expect(isLazyPromise(undefined)).toMatchInlineSnapshot(`false`);
-  expect(isLazyPromise(null)).toMatchInlineSnapshot(`false`);
-  expect(isLazyPromise(() => {})).toMatchInlineSnapshot(`false`);
-  expect(isLazyPromise(createLazyPromise(() => {}))).toMatchInlineSnapshot(
-    `true`,
-  );
 });

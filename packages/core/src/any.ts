@@ -1,9 +1,5 @@
-import type {
-  LazyPromise,
-  LazyPromiseError,
-  LazyPromiseValue,
-} from "./lazyPromise";
-import { createLazyPromise } from "./lazyPromise";
+import type { LazyPromiseError, LazyPromiseValue } from "./lazyPromise";
+import { LazyPromise } from "./lazyPromise";
 import type { NeverIfContainsNever } from "./utils";
 
 /**
@@ -25,7 +21,7 @@ export const any: {
 } = <Value, Error>(
   sources: Iterable<LazyPromise<Value, Error>>,
 ): LazyPromise<Value, Error[]> =>
-  createLazyPromise<Value, Error[]>((resolve, reject, fail) => {
+  new LazyPromise<Value, Error[]>((resolve, reject, fail) => {
     // false means we haven't subscribed to all sources.
     let initialized = false;
     // A sparse array. undefined if the subscription was cancelled or the

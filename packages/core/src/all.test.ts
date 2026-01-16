@@ -1,6 +1,5 @@
+import { all, LazyPromise, rejected, resolved } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { all } from "./all";
-import { createLazyPromise, rejected, resolved } from "./lazyPromise";
 
 const mockMicrotaskQueue: (() => void)[] = [];
 const originalQueueMicrotask = queueMicrotask;
@@ -57,19 +56,19 @@ test("types", () => {
 
   // $ExpectType LazyPromise<["value a", "value b"], "error a" | "error b">
   const promise2 = all([
-    createLazyPromise<"value a", "error a">(() => {}),
-    createLazyPromise<"value b", "error b">(() => {}),
+    new LazyPromise<"value a", "error a">(() => {}),
+    new LazyPromise<"value b", "error b">(() => {}),
   ]);
 
   // $ExpectType LazyPromise<never, "error a">
   const promise3 = all([
-    createLazyPromise<"value a", "error a">(() => {}),
-    createLazyPromise<never, never>(() => {}),
+    new LazyPromise<"value a", "error a">(() => {}),
+    new LazyPromise<never, never>(() => {}),
   ]);
 
   // $ExpectType LazyPromise<"value a"[], "error a">
   const promise4 = all(
-    new Set([createLazyPromise<"value a", "error a">(() => {})]),
+    new Set([new LazyPromise<"value a", "error a">(() => {})]),
   );
 
   /* eslint-enable @typescript-eslint/no-unused-vars */
@@ -127,12 +126,12 @@ test("non-array iterable", () => {
 
 test("async resolve", () => {
   const promise = all([
-    createLazyPromise<"a">((resolve) => {
+    new LazyPromise<"a">((resolve) => {
       setTimeout(() => {
         resolve("a");
       }, 2000);
     }),
-    createLazyPromise<"b">((resolve) => {
+    new LazyPromise<"b">((resolve) => {
       setTimeout(() => {
         resolve("b");
       }, 1000);
@@ -160,10 +159,10 @@ test("async resolve", () => {
 
 test("rejection of one of the sources should reject result", () => {
   const promise = all([
-    createLazyPromise<"a">(() => () => {
+    new LazyPromise<"a">(() => () => {
       log("dispose a");
     }),
-    createLazyPromise<"b", "oops">((resolve, reject) => {
+    new LazyPromise<"b", "oops">((resolve, reject) => {
       setTimeout(() => {
         reject("oops");
       }, 1000);
@@ -189,10 +188,10 @@ test("rejection of one of the sources should reject result", () => {
 
 test("failure of one of the sources should fail result", () => {
   const promise = all([
-    createLazyPromise<"a">(() => () => {
+    new LazyPromise<"a">(() => () => {
       log("dispose a");
     }),
-    createLazyPromise<"b", "oops">((resolve, reject, fail) => {
+    new LazyPromise<"b", "oops">((resolve, reject, fail) => {
       setTimeout(() => {
         fail("oops");
       }, 1000);
@@ -222,7 +221,7 @@ test("failure of one of the sources should fail result", () => {
 
 test("internally disposed when a source rejects, internal disposal should prevent further subscriptions to sources", () => {
   const promise = all([
-    createLazyPromise<string>((resolve) => {
+    new LazyPromise<string>((resolve) => {
       log("produce a");
       setTimeout(() => {
         resolve("a");
@@ -232,7 +231,7 @@ test("internally disposed when a source rejects, internal disposal should preven
       };
     }),
     rejected("b"),
-    createLazyPromise<string>((resolve) => {
+    new LazyPromise<string>((resolve) => {
       log("produce c");
       setTimeout(() => {
         resolve("c");
@@ -263,7 +262,7 @@ test("internally disposed when a source rejects, internal disposal should preven
 
 test("unsubscribe", () => {
   const promise = all([
-    createLazyPromise<"a">(() => {
+    new LazyPromise<"a">(() => {
       log("produce a");
       return () => {
         log("dispose a");
@@ -294,11 +293,11 @@ test("unsubscribe", () => {
 test("internally disposed when a source rejects, a source resolve is ignored when internally disposed", () => {
   let resolveA: (value: "a") => void;
   const promise = all([
-    createLazyPromise<"a">((resolve) => {
+    new LazyPromise<"a">((resolve) => {
       log("produce a");
       resolveA = resolve;
     }),
-    createLazyPromise<never, "b">((resolve, reject) => {
+    new LazyPromise<never, "b">((resolve, reject) => {
       setTimeout(() => {
         log("call reject b");
         reject("b");
@@ -329,11 +328,11 @@ test("internally disposed when a source rejects, a source resolve is ignored whe
 test("internally disposed when a source rejects, a source reject is ignored when internally disposed", () => {
   let rejectA: (error: "a") => void;
   const promise = all([
-    createLazyPromise<never, "a">((resolve, reject) => {
+    new LazyPromise<never, "a">((resolve, reject) => {
       log("produce a");
       rejectA = reject;
     }),
-    createLazyPromise<never, "b">((resolve, reject) => {
+    new LazyPromise<never, "b">((resolve, reject) => {
       setTimeout(() => {
         log("call reject b");
         reject("b");
@@ -364,11 +363,11 @@ test("internally disposed when a source rejects, a source reject is ignored when
 test("internally disposed when a source rejects, a source failure is ignored when internally disposed", () => {
   let failA: (error: unknown) => void;
   const promise = all([
-    createLazyPromise<never, "a">((resolve, reject, fail) => {
+    new LazyPromise<never, "a">((resolve, reject, fail) => {
       log("produce a");
       failA = fail;
     }),
-    createLazyPromise<never, "b">((resolve, reject) => {
+    new LazyPromise<never, "b">((resolve, reject) => {
       setTimeout(() => {
         log("call reject b");
         reject("b");
@@ -399,10 +398,10 @@ test("internally disposed when a source rejects, a source failure is ignored whe
 test("internally disposed when a source fails, a source reject is ignored when internally disposed", () => {
   let rejectA: (error: "oops 1") => void;
   const promise = all([
-    createLazyPromise<never, "oops 1">((resolve, reject) => {
+    new LazyPromise<never, "oops 1">((resolve, reject) => {
       rejectA = reject;
     }),
-    createLazyPromise<never>((resolve, reject, fail) => {
+    new LazyPromise<never>((resolve, reject, fail) => {
       setTimeout(() => {
         log("call fail b");
         fail("oops 2");
@@ -435,7 +434,7 @@ test("internally disposed when unsubscribed, a source reject is ignored when int
   let rejectA: ((error: "a") => void) | undefined;
   let rejectB: ((error: "b") => void) | undefined;
   const promise = all([
-    createLazyPromise<never, "a">((resolve, reject) => {
+    new LazyPromise<never, "a">((resolve, reject) => {
       log("produce a");
       rejectA = reject;
       return () => {
@@ -443,7 +442,7 @@ test("internally disposed when unsubscribed, a source reject is ignored when int
         rejectB?.("b");
       };
     }),
-    createLazyPromise<never, "b">((resolve, reject) => {
+    new LazyPromise<never, "b">((resolve, reject) => {
       log("produce b");
       rejectB = reject;
       return () => {

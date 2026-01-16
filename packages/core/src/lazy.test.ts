@@ -1,5 +1,5 @@
+import { lazy } from "@lazy-promise/core";
 import { afterEach, expect, test } from "vitest";
-import { lazy } from "./lazy";
 
 const logContents: unknown[] = [];
 

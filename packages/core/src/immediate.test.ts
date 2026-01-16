@@ -1,5 +1,5 @@
+import { immediate } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { immediate } from "./immediate";
 
 const logContents: unknown[] = [];
 

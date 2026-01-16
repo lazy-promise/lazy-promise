@@ -9,19 +9,14 @@ export { idleCallback } from "./idleCallback";
 export { immediate } from "./immediate";
 export { lazy } from "./lazy";
 export {
-  createLazyPromise,
   failed,
-  isLazyPromise,
+  LazyPromise,
   never,
   noopUnsubscribe,
   rejected,
   resolved,
 } from "./lazyPromise";
-export type {
-  LazyPromise,
-  LazyPromiseError,
-  LazyPromiseValue,
-} from "./lazyPromise";
+export type { LazyPromiseError, LazyPromiseValue } from "./lazyPromise";
 export { log } from "./log";
 export { map } from "./map";
 export { microtask } from "./microtask";

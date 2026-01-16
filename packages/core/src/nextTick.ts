@@ -1,5 +1,4 @@
-import type { LazyPromise } from "./lazyPromise";
-import { createLazyPromise } from "./lazyPromise";
+import { LazyPromise } from "./lazyPromise";
 
 /**
  * Returns a lazy promise that resolves with a value of type `void` in
@@ -19,7 +18,7 @@ import { createLazyPromise } from "./lazyPromise";
  * ```
  */
 export const nextTick = (): LazyPromise<void, never> =>
-  createLazyPromise((resolve) => {
+  new LazyPromise((resolve) => {
     let disposed = false;
     process.nextTick(() => {
       if (!disposed) {

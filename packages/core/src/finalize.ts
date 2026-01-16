@@ -1,5 +1,4 @@
-import type { LazyPromise } from "./lazyPromise";
-import { createLazyPromise, isLazyPromise } from "./lazyPromise";
+import { LazyPromise } from "./lazyPromise";
 
 const wrapRejectionError = (error: unknown) =>
   new Error(
@@ -21,7 +20,7 @@ export const finalize =
   <Value, Error>(
     source: LazyPromise<Value, Error>,
   ): LazyPromise<Value, Error> =>
-    createLazyPromise((resolve, reject, fail) => {
+    new LazyPromise((resolve, reject, fail) => {
       let disposed = false;
       let dispose: (() => void) | undefined;
       const handleSettle =
@@ -40,7 +39,7 @@ export const finalize =
           if (disposed) {
             return;
           }
-          if (isLazyPromise(valueOrPromise)) {
+          if (valueOrPromise instanceof LazyPromise) {
             dispose = valueOrPromise.subscribe(
               () => {
                 settle(arg);

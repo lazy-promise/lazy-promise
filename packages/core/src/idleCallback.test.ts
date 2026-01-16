@@ -1,5 +1,5 @@
+import { idleCallback } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { idleCallback } from "./idleCallback";
 
 const logContents: unknown[] = [];
 

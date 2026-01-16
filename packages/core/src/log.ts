@@ -1,5 +1,4 @@
-import type { LazyPromise } from "./lazyPromise";
-import { createLazyPromise } from "./lazyPromise";
+import { LazyPromise } from "./lazyPromise";
 
 const instanceCountMap = new Map<string | number | undefined, number>();
 
@@ -71,7 +70,7 @@ export const log =
     const id = counter + 1;
     instanceCountMap.set(label, id);
     const prefix = [...(label === undefined ? [] : [`[${label}]`]), `[${id}]`];
-    return createLazyPromise((resolve, reject, fail) => {
+    return new LazyPromise((resolve, reject, fail) => {
       console.log(...prefix, `[subscribe]`);
       const unsubscribe = bumpStackLevel(() =>
         lazyPromise.subscribe(

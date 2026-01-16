@@ -1,5 +1,4 @@
-import type { LazyPromise } from "./lazyPromise";
-import { createLazyPromise, isLazyPromise } from "./lazyPromise";
+import { LazyPromise } from "./lazyPromise";
 
 /**
  * Lets you recover from a failure of the source promise. To make the resulting
@@ -12,7 +11,7 @@ export const catchFailure =
   <Value>(
     source: LazyPromise<Value, Error>,
   ): LazyPromise<Value | NewValue, Error | NewError> =>
-    createLazyPromise(
+    new LazyPromise(
       (
         resolve: ((value: NewValue | Value) => void) | undefined,
         reject,
@@ -33,7 +32,7 @@ export const catchFailure =
           if (!resolve) {
             return;
           }
-          if (isLazyPromise(newValueOrPromise)) {
+          if (newValueOrPromise instanceof LazyPromise) {
             dispose = newValueOrPromise.subscribe(resolve, reject, fail);
           } else {
             resolve(newValueOrPromise);

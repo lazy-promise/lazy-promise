@@ -1,5 +1,5 @@
+import { animationFrame } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { animationFrame } from "./animationFrame";
 
 const logContents: unknown[] = [];
 

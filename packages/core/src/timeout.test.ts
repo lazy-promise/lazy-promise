@@ -1,5 +1,5 @@
+import { timeout } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { timeout } from "./timeout";
 
 const logContents: unknown[] = [];
 let logTime: number;

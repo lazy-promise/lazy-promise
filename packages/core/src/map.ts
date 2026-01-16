@@ -1,5 +1,4 @@
-import type { LazyPromise } from "./lazyPromise";
-import { createLazyPromise, isLazyPromise } from "./lazyPromise";
+import { LazyPromise } from "./lazyPromise";
 
 /**
  * The LazyPromise equivalent of `promise.then(...)`. To make the resulting
@@ -12,7 +11,7 @@ export const map =
   <Error>(
     source: LazyPromise<Value, Error>,
   ): LazyPromise<NewValue, Error | NewError> =>
-    createLazyPromise(
+    new LazyPromise(
       (resolve: ((value: NewValue) => void) | undefined, reject, fail) => {
         let dispose: (() => void) | undefined;
         const disposeOuter = source.subscribe(
@@ -30,7 +29,7 @@ export const map =
             if (!resolve) {
               return;
             }
-            if (isLazyPromise(newValueOrPromise)) {
+            if (newValueOrPromise instanceof LazyPromise) {
               dispose = newValueOrPromise.subscribe(resolve, reject, fail);
             } else {
               resolve(newValueOrPromise);

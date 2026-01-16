@@ -1,9 +1,8 @@
-import type { LazyPromise } from "./lazyPromise";
-import { createLazyPromise } from "./lazyPromise";
+import { LazyPromise } from "./lazyPromise";
 
 /**
- * Takes optional duration in ms, and returns a lazy promise that resolve with a
- * value of type `void` when setTimeout fires.
+ * Takes optional duration in ms, and returns a lazy promise that resolves with
+ * a value of type `void` when setTimeout fires.
  *
  * To make a lazy promise settle (resolve, reject or fail) with a delay, pipe it
  * though
@@ -19,7 +18,7 @@ import { createLazyPromise } from "./lazyPromise";
  * ```
  */
 export const timeout = (ms?: number): LazyPromise<void, never> =>
-  createLazyPromise((resolve) => {
+  new LazyPromise((resolve) => {
     const id = setTimeout(resolve, ms);
     return () => {
       clearTimeout(id);

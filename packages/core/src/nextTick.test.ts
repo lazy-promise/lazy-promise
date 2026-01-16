@@ -1,5 +1,5 @@
+import { nextTick } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { nextTick } from "./nextTick";
 
 const logContents: unknown[] = [];
 

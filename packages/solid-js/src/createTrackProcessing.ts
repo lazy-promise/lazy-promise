@@ -1,7 +1,6 @@
-import type { LazyPromise } from "@lazy-promise/core";
 import {
-  createLazyPromise,
   finalize,
+  LazyPromise,
   noopUnsubscribe,
   pipe,
 } from "@lazy-promise/core";
@@ -36,7 +35,7 @@ export const createTrackProcessing = (): [
   return [
     processing,
     <Value, Error>(lazyPromise: LazyPromise<Value, Error>) =>
-      createLazyPromise<Value, Error>((resolve, reject, fail) => {
+      new LazyPromise<Value, Error>((resolve, reject, fail) => {
         let unsubscribe: (() => void) | undefined;
         // eslint-disable-next-line prefer-const
         unsubscribe = pipe(

@@ -1,9 +1,14 @@
 /* eslint-disable no-console */
 
+import {
+  failed,
+  LazyPromise,
+  log,
+  pipe,
+  rejected,
+  resolved,
+} from "@lazy-promise/core";
 import { afterEach, expect, test, vi } from "vitest";
-import { createLazyPromise, failed, rejected, resolved } from "./lazyPromise";
-import { log } from "./log";
-import { pipe } from "./pipe";
 
 const logContents: unknown[] = [];
 
@@ -32,7 +37,7 @@ test("base case", () => {
   );
 
   pipe(
-    createLazyPromise((resolve) => {
+    new LazyPromise((resolve) => {
       console.log("subscribing");
       resolve(1);
     }),
@@ -94,7 +99,7 @@ test("unsubscribe", () => {
   );
 
   pipe(
-    createLazyPromise(() => () => {
+    new LazyPromise(() => () => {
       console.log("unsubscribing");
     }),
     log("unsubscribe case"),

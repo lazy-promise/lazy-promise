@@ -1,5 +1,5 @@
+import { microtask } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { microtask } from "./microtask";
 
 const logContents: unknown[] = [];
 

@@ -1,6 +1,5 @@
+import { LazyPromise, race, rejected, resolved } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { createLazyPromise, rejected, resolved } from "./lazyPromise";
-import { race } from "./race";
 
 const mockMicrotaskQueue: (() => void)[] = [];
 const originalQueueMicrotask = queueMicrotask;
@@ -67,14 +66,14 @@ test("empty iterable", () => {
 
 test("sync resolve", () => {
   const promise = race([
-    createLazyPromise<never>(() => {
+    new LazyPromise<never>(() => {
       log("produce a");
       return () => {
         log("dispose a");
       };
     }),
     resolved("b" as const),
-    createLazyPromise<never>(() => {
+    new LazyPromise<never>(() => {
       log("produce c");
       return () => {
         log("dispose c");
@@ -117,7 +116,7 @@ test("non-array iterable", () => {
 
 test("async resolve", () => {
   const promise = race([
-    createLazyPromise<"a">((resolve) => {
+    new LazyPromise<"a">((resolve) => {
       const timeoutId = setTimeout(() => {
         resolve("a");
       }, 1000);
@@ -126,7 +125,7 @@ test("async resolve", () => {
         clearTimeout(timeoutId);
       };
     }),
-    createLazyPromise<"b">((resolve) => {
+    new LazyPromise<"b">((resolve) => {
       const timeoutId = setTimeout(() => {
         resolve("b");
       }, 2000);
@@ -156,14 +155,14 @@ test("async resolve", () => {
 
 test("sync error", () => {
   const promise = race([
-    createLazyPromise<never>(() => {
+    new LazyPromise<never>(() => {
       log("produce a");
       return () => {
         log("dispose a");
       };
     }),
     rejected("b" as const),
-    createLazyPromise<never>(() => {
+    new LazyPromise<never>(() => {
       log("produce c");
       return () => {
         log("dispose c");
@@ -191,7 +190,7 @@ test("sync error", () => {
 
 test("async error", () => {
   const promise = race([
-    createLazyPromise<never, "a">((resolve, reject) => {
+    new LazyPromise<never, "a">((resolve, reject) => {
       const timeoutId = setTimeout(() => {
         reject("a");
       }, 1000);
@@ -200,7 +199,7 @@ test("async error", () => {
         clearTimeout(timeoutId);
       };
     }),
-    createLazyPromise<"b">((resolve) => {
+    new LazyPromise<"b">((resolve) => {
       const timeoutId = setTimeout(() => {
         resolve("b");
       }, 2000);
@@ -230,13 +229,13 @@ test("async error", () => {
 
 test("unsubscribe", () => {
   const promise = race([
-    createLazyPromise(() => {
+    new LazyPromise(() => {
       log("produce a");
       return () => {
         log("dispose a");
       };
     }),
-    createLazyPromise(() => {
+    new LazyPromise(() => {
       log("produce b");
       return () => {
         log("dispose b");
@@ -270,10 +269,10 @@ test("unsubscribe", () => {
 test("internally disposed when a source resolves, a source resolve is ignored when internally disposed", () => {
   let resolveA: (value: "a") => void;
   const promise = race([
-    createLazyPromise<"a">((resolve) => {
+    new LazyPromise<"a">((resolve) => {
       resolveA = resolve;
     }),
-    createLazyPromise<"b">((resolve) => {
+    new LazyPromise<"b">((resolve) => {
       setTimeout(() => {
         log("resolve b");
         resolve("b");
@@ -306,10 +305,10 @@ test("internally disposed when a source resolves, a source resolve is ignored wh
 test("internally disposed when a source rejects, a source resolve is ignored when internally disposed", () => {
   let resolveA: (value: "a") => void;
   const promise = race([
-    createLazyPromise<"a">((resolve) => {
+    new LazyPromise<"a">((resolve) => {
       resolveA = resolve;
     }),
-    createLazyPromise<never, "b">((resolve, reject) => {
+    new LazyPromise<never, "b">((resolve, reject) => {
       setTimeout(() => {
         log("reject b");
         reject("b");
@@ -342,10 +341,10 @@ test("internally disposed when a source rejects, a source resolve is ignored whe
 test("internally disposed when a source fails, a source resolve is ignored when internally disposed", () => {
   let resolveA: (value: "a") => void;
   const promise = race([
-    createLazyPromise<"a">((resolve) => {
+    new LazyPromise<"a">((resolve) => {
       resolveA = resolve;
     }),
-    createLazyPromise<never>((resolve, reject, fail) => {
+    new LazyPromise<never>((resolve, reject, fail) => {
       setTimeout(() => {
         log("fail b");
         fail("oops");
@@ -378,10 +377,10 @@ test("internally disposed when a source fails, a source resolve is ignored when 
 test("internally disposed when a source resolves, a source reject is ignored when internally disposed", () => {
   let rejectA: (error: "a") => void;
   const promise = race([
-    createLazyPromise<never, "a">((resolve, reject) => {
+    new LazyPromise<never, "a">((resolve, reject) => {
       rejectA = reject;
     }),
-    createLazyPromise<"b">((resolve) => {
+    new LazyPromise<"b">((resolve) => {
       setTimeout(() => {
         log("resolve b");
         resolve("b");
@@ -417,10 +416,10 @@ test("internally disposed when a source resolves, a source reject is ignored whe
 test("internally disposed when a source resolves, a source failure is ignored when internally disposed", () => {
   let failA: (error: unknown) => void;
   const promise = race([
-    createLazyPromise<never>((resolve, reject, fail) => {
+    new LazyPromise<never>((resolve, reject, fail) => {
       failA = fail;
     }),
-    createLazyPromise<"b">((resolve) => {
+    new LazyPromise<"b">((resolve) => {
       setTimeout(() => {
         log("resolve b");
         resolve("b");
@@ -454,7 +453,7 @@ test("internally disposed by the teardown function, a source resolve is ignored 
   let resolveA: ((value: "a") => void) | undefined;
   let resolveB: ((value: "b") => void) | undefined;
   const promise = race([
-    createLazyPromise<"a">((resolve) => {
+    new LazyPromise<"a">((resolve) => {
       log("produce a");
       resolveA = resolve;
       return () => {
@@ -463,7 +462,7 @@ test("internally disposed by the teardown function, a source resolve is ignored 
         resolveB?.("b");
       };
     }),
-    createLazyPromise<"b">((resolve) => {
+    new LazyPromise<"b">((resolve) => {
       log("produce b");
       resolveB = resolve;
       return () => {

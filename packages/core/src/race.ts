@@ -1,5 +1,4 @@
-import type { LazyPromise } from "./lazyPromise";
-import { createLazyPromise } from "./lazyPromise";
+import { LazyPromise } from "./lazyPromise";
 
 /**
  * The LazyPromise equivalent of `Promise.race`.
@@ -7,7 +6,7 @@ import { createLazyPromise } from "./lazyPromise";
 export const race = <Value, Error>(
   sources: Iterable<LazyPromise<Value, Error>>,
 ): LazyPromise<Value, Error> =>
-  createLazyPromise<Value, Error>((resolve, reject, fail) => {
+  new LazyPromise<Value, Error>((resolve, reject, fail) => {
     let abort = false;
     const disposables: (() => void)[] = [];
 

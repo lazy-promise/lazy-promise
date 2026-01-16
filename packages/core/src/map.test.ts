@@ -1,7 +1,5 @@
+import { LazyPromise, map, pipe, rejected, resolved } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { createLazyPromise, rejected, resolved } from "./lazyPromise";
-import { map } from "./map";
-import { pipe } from "./pipe";
 
 const mockMicrotaskQueue: (() => void)[] = [];
 const originalQueueMicrotask = queueMicrotask;
@@ -55,14 +53,14 @@ test("types", () => {
 
   // $ExpectType LazyPromise<"value b", "error a">
   const promise1 = pipe(
-    createLazyPromise<"value a", "error a">(() => {}),
+    new LazyPromise<"value a", "error a">(() => {}),
     map(() => "value b" as const),
   );
 
   // $ExpectType LazyPromise<"value b", "error a" | "error b">
   const promise2 = pipe(
-    createLazyPromise<"value a", "error a">(() => {}),
-    map(() => createLazyPromise<"value b", "error b">(() => {})),
+    new LazyPromise<"value a", "error a">(() => {}),
+    map(() => new LazyPromise<"value b", "error b">(() => {})),
   );
 
   /* eslint-enable @typescript-eslint/no-unused-vars */
@@ -106,7 +104,7 @@ test("outer promise rejects", () => {
 
 test("outer promise fails", () => {
   const promise = pipe(
-    createLazyPromise((resolve, reject, fail) => {
+    new LazyPromise((resolve, reject, fail) => {
       fail("oops");
     }),
     map(() => undefined),
@@ -163,10 +161,11 @@ test("inner promise rejects", () => {
 test("inner promise fails", () => {
   const promise = pipe(
     resolved(1),
-    map(() =>
-      createLazyPromise((resolve, reject, fail) => {
-        fail("oops");
-      }),
+    map(
+      () =>
+        new LazyPromise((resolve, reject, fail) => {
+          fail("oops");
+        }),
     ),
   );
   promise.subscribe(undefined, undefined, (error) => {
@@ -204,7 +203,7 @@ test("callback throws", () => {
 
 test("cancel outer promise", () => {
   const promise = pipe(
-    createLazyPromise(() => () => {
+    new LazyPromise(() => () => {
       log("dispose");
     }),
     map(() => undefined),
@@ -226,10 +225,11 @@ test("cancel outer promise", () => {
 test("cancel inner promise", () => {
   const promise = pipe(
     resolved(1),
-    map(() =>
-      createLazyPromise(() => () => {
-        log("dispose");
-      }),
+    map(
+      () =>
+        new LazyPromise(() => () => {
+          log("dispose");
+        }),
     ),
   );
   const dispose = promise.subscribe();
@@ -249,7 +249,7 @@ test("cancel inner promise", () => {
 test("unsubscribe in the callback", () => {
   let resolve: (value: number) => void;
   const unsubscribe = pipe(
-    createLazyPromise((resolveLocal) => {
+    new LazyPromise((resolveLocal) => {
       resolve = resolveLocal;
     }),
     map(() => {
@@ -265,7 +265,7 @@ test("unsubscribe in the callback", () => {
 test("unsubscribe and throw in the callback", () => {
   let resolve: (value: number) => void;
   const unsubscribe = pipe(
-    createLazyPromise((resolveLocal) => {
+    new LazyPromise((resolveLocal) => {
       resolve = resolveLocal;
     }),
     map(() => {

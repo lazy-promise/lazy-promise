@@ -1,5 +1,4 @@
-import type { LazyPromise } from "./lazyPromise";
-import { createLazyPromise } from "./lazyPromise";
+import { LazyPromise } from "./lazyPromise";
 
 /**
  * Returns a lazy promise that resolves in a microtask with a value of type
@@ -19,7 +18,7 @@ import { createLazyPromise } from "./lazyPromise";
  * ```
  */
 export const microtask = (): LazyPromise<void, never> =>
-  createLazyPromise((resolve) => {
+  new LazyPromise((resolve) => {
     let disposed = false;
     queueMicrotask(() => {
       if (!disposed) {

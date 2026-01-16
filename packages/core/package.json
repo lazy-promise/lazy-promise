@@ -18,7 +18,7 @@
     "build:main": "babel build/module --out-dir build/main",
     "build:module": "tsc --build tsconfig.build.json",
     "test:eslint": "eslint . --max-warnings=0",
-    "test:typescript": "tsc --noEmit",
+    "test:typescript": "tsc",
     "test:vitest": "vitest run"
   },
   "devDependencies": {

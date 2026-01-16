@@ -1,5 +1,4 @@
-import type { LazyPromise } from "./lazyPromise";
-import { createLazyPromise } from "./lazyPromise";
+import { LazyPromise } from "./lazyPromise";
 
 /**
  * Takes optional IdleRequestOptions, and returns a lazy promise that resolves
@@ -8,7 +7,7 @@ import { createLazyPromise } from "./lazyPromise";
 export const idleCallback = (
   options?: IdleRequestOptions,
 ): LazyPromise<IdleDeadline, never> =>
-  createLazyPromise((resolve) => {
+  new LazyPromise((resolve) => {
     const id = requestIdleCallback(resolve, options);
     return () => {
       cancelIdleCallback(id);

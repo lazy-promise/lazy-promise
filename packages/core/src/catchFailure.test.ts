@@ -1,7 +1,11 @@
+import {
+  catchFailure,
+  LazyPromise,
+  pipe,
+  rejected,
+  resolved,
+} from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { catchFailure } from "./catchFailure";
-import { createLazyPromise, rejected, resolved } from "./lazyPromise";
-import { pipe } from "./pipe";
 
 const mockMicrotaskQueue: (() => void)[] = [];
 const originalQueueMicrotask = queueMicrotask;
@@ -55,14 +59,14 @@ test("types", () => {
 
   // $ExpectType LazyPromise<"value a" | "value b", "error a">
   const promise1 = pipe(
-    createLazyPromise<"value a", "error a">(() => {}),
+    new LazyPromise<"value a", "error a">(() => {}),
     catchFailure(() => "value b" as const),
   );
 
   // $ExpectType LazyPromise<"value a" | "value b", "error a" | "error b">
   const promise2 = pipe(
-    createLazyPromise<"value a", "error a">(() => {}),
-    catchFailure(() => createLazyPromise<"value b", "error b">(() => {})),
+    new LazyPromise<"value a", "error a">(() => {}),
+    catchFailure(() => new LazyPromise<"value b", "error b">(() => {})),
   );
 
   /* eslint-enable @typescript-eslint/no-unused-vars */
@@ -70,7 +74,7 @@ test("types", () => {
 
 test("falling back to a value", () => {
   const promise = pipe(
-    createLazyPromise((resolve, reject, fail) => {
+    new LazyPromise((resolve, reject, fail) => {
       fail("oops");
     }),
     catchFailure((error) => error),
@@ -126,7 +130,7 @@ test("outer promise rejects", () => {
 
 test("inner promise resolves", () => {
   const promise = pipe(
-    createLazyPromise((resolve, reject, fail) => {
+    new LazyPromise((resolve, reject, fail) => {
       fail("oops");
     }),
     catchFailure((error) => {
@@ -153,7 +157,7 @@ test("inner promise resolves", () => {
 
 test("inner promise rejects", () => {
   const promise = pipe(
-    createLazyPromise((resolve, reject, fail) => {
+    new LazyPromise((resolve, reject, fail) => {
       fail("oops");
     }),
     catchFailure((error) => {
@@ -180,12 +184,12 @@ test("inner promise rejects", () => {
 
 test("inner promise fails", () => {
   const promise = pipe(
-    createLazyPromise((resolve, reject, fail) => {
+    new LazyPromise((resolve, reject, fail) => {
       fail("oops 1");
     }),
     catchFailure((error) => {
       log("caught", error);
-      return createLazyPromise((resolve, reject, fail) => {
+      return new LazyPromise((resolve, reject, fail) => {
         fail("oops 2");
       });
     }),
@@ -209,7 +213,7 @@ test("inner promise fails", () => {
 
 test("callback throws", () => {
   const promise = pipe(
-    createLazyPromise((resolve, reject, fail) => {
+    new LazyPromise((resolve, reject, fail) => {
       fail("oops 1");
     }),
     catchFailure(() => {
@@ -231,7 +235,7 @@ test("callback throws", () => {
 
 test("cancel outer promise", () => {
   const promise = pipe(
-    createLazyPromise(() => () => {
+    new LazyPromise(() => () => {
       log("dispose");
     }),
     catchFailure(() => undefined),
@@ -252,13 +256,14 @@ test("cancel outer promise", () => {
 
 test("cancel inner promise", () => {
   const promise = pipe(
-    createLazyPromise((resolve, reject, fail) => {
+    new LazyPromise((resolve, reject, fail) => {
       fail("oops");
     }),
-    catchFailure(() =>
-      createLazyPromise(() => () => {
-        log("dispose");
-      }),
+    catchFailure(
+      () =>
+        new LazyPromise(() => () => {
+          log("dispose");
+        }),
     ),
   );
   const dispose = promise.subscribe();
@@ -278,7 +283,7 @@ test("cancel inner promise", () => {
 test("unsubscribe in the callback", () => {
   let fail: (error: unknown) => void;
   const unsubscribe = pipe(
-    createLazyPromise((resolve, reject, failLocal) => {
+    new LazyPromise((resolve, reject, failLocal) => {
       fail = failLocal;
     }),
     catchFailure(() => {
@@ -300,7 +305,7 @@ test("unsubscribe in the callback", () => {
 test("unsubscribe and throw in the callback", () => {
   let fail: (error: unknown) => void;
   const unsubscribe = pipe(
-    createLazyPromise((resolve, reject, failLocal) => {
+    new LazyPromise((resolve, reject, failLocal) => {
       fail = failLocal;
     }),
     catchFailure(() => {

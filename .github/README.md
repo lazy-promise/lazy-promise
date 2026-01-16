@@ -28,10 +28,10 @@ npm install @lazy-promise/core
 
 ## Usage
 
-You create a LazyPromise much like you call the Promise constructor, except you can optionally return a teardown function, for example:
+You create a LazyPromise like you create a Promise, except you can optionally return a teardown function, for example:
 
 ```ts
-const lazyPromise = createLazyPromise<0, "oops">((resolve, reject) => {
+const lazyPromise = new LazyPromise<0, "oops">((resolve, reject) => {
   const timeoutId = setTimeout(() => {
     if (Math.random() > 0.5) {
       resolve(0);
@@ -69,7 +69,6 @@ Instead of dot-chaining LazyPromise uses pipes (`pipe(x, foo, bar)` is `bar(foo(
 | `Promise.all(...)`             | `all(...)`                                   |
 | `Promise.any(...)`             | `any(...)`                                   |
 | `Promise.race(...)`            | `race(...)`                                  |
-| `x instanceof Promise`         | `isLazyPromise(x)`                           |
 | `Promise<Value>`               | `LazyPromise<Value, Error>`                  |
 | `Awaited<T>`                   | `LazyPromiseValue<T>`, `LazyPromiseError<T>` |
 
@@ -127,11 +126,11 @@ Since the type system doesn't know what errors a function can throw, you don't r
 lazyPromise.subscribe(handleValue, handleError, handleFailure);
 ```
 
-Besides throwing in the callbacks you pass to `createLazyPromise`, `lazy`, `map`, etc., you can also fail a lazy promise using the `fail` handle:
+Besides throwing in the callbacks you pass to LazyPromise constructor, `lazy`, `map`, etc., you can also fail a lazy promise using the `fail` handle:
 
 ```ts
 // `fail` has signature `(error: unknown) => void`.
-const lazyPromise = createLazyPromise((resolve, reject, fail) => {
+const lazyPromise = new LazyPromise((resolve, reject, fail) => {
   // Throwing here is the same as calling `fail`.
 
   // If you throw in setTimeout, LazyPromise will have no way of

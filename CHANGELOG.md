@@ -1,5 +1,11 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.17](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.17)
+
+- `createLazyPromise(...)` becomes `new LazyPromise(...)`.
+
+- `isLazyPromise(x)` becomes `x instanceof LazyPromise`.
+
 ## [@lazy-promise/core@0.0.16](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.16)
 
 - Make `log` play well with string substitutions.

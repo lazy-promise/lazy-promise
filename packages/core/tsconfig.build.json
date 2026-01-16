@@ -1,4 +1,12 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "stripInternal": true,
+    "outDir": "build/module",
+    "declaration": true,
+    "declarationDir": "build/types",
+    "paths": {}
+  },
   "exclude": ["**/*.test.ts"]
 }

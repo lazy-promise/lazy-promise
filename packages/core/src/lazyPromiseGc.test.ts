@@ -1,5 +1,5 @@
+import { LazyPromise } from "@lazy-promise/core";
 import { test } from "vitest";
-import { createLazyPromise } from "./lazyPromise";
 
 const gc = () =>
   new Promise((resolve, reject) => {
@@ -40,7 +40,7 @@ const expectNotCollected = async (ref: WeakRef<object>) => {
 
 test("garbage collect teardown function when unsubscribed", async () => {
   const ref = new WeakRef(() => {});
-  const promise = createLazyPromise<undefined>(() => ref.deref());
+  const promise = new LazyPromise<undefined>(() => ref.deref());
   const dispose = promise.subscribe();
   await expectNotCollected(ref);
   dispose();
@@ -50,7 +50,7 @@ test("garbage collect teardown function when unsubscribed", async () => {
 test("garbage collect teardown function when resolved", async () => {
   const ref = new WeakRef(() => {});
   let resolve: (value: undefined) => void;
-  const promise = createLazyPromise<undefined>((resolveLocal) => {
+  const promise = new LazyPromise<undefined>((resolveLocal) => {
     resolve = resolveLocal;
     return ref.deref();
   });
@@ -63,7 +63,7 @@ test("garbage collect teardown function when resolved", async () => {
 test("garbage collect teardown function when rejected", async () => {
   const ref = new WeakRef(() => {});
   let reject: (error: undefined) => void;
-  const promise = createLazyPromise<undefined, undefined>(
+  const promise = new LazyPromise<undefined, undefined>(
     (resolve, rejectLocal) => {
       reject = rejectLocal;
       return ref.deref();
@@ -78,7 +78,7 @@ test("garbage collect teardown function when rejected", async () => {
 test("garbage collect teardown function when failed", async () => {
   const ref = new WeakRef(() => {});
   let fail: (error: unknown) => void;
-  const promise = createLazyPromise<undefined, never>(
+  const promise = new LazyPromise<undefined, never>(
     (resolve, reject, failLocal) => {
       fail = failLocal;
       return ref.deref();
@@ -95,7 +95,7 @@ test("garbage collect produce function when resolved", async () => {
   const ref = new WeakRef((resolveLocal: (value: undefined) => void) => {
     resolve = resolveLocal;
   });
-  const promise = createLazyPromise<undefined>(ref.deref()!);
+  const promise = new LazyPromise<undefined>(ref.deref()!);
   promise.subscribe();
   await expectNotCollected(ref);
   resolve!(undefined);
@@ -109,7 +109,7 @@ test("garbage collect produce function when rejected", async () => {
       reject = rejectLocal;
     },
   );
-  const promise = createLazyPromise<undefined, undefined>(ref.deref()!);
+  const promise = new LazyPromise<undefined, undefined>(ref.deref()!);
   promise.subscribe(undefined, () => {});
   await expectNotCollected(ref);
   reject!(undefined);
@@ -127,7 +127,7 @@ test("garbage collect produce function when failed", async () => {
       fail = failLocal;
     },
   );
-  const promise = createLazyPromise<undefined, never>(ref.deref()!);
+  const promise = new LazyPromise<undefined, never>(ref.deref()!);
   promise.subscribe(undefined, undefined, () => {});
   await expectNotCollected(ref);
   fail!(undefined);
@@ -141,7 +141,7 @@ test("garbage collect subscriber callbacks when unsubscribed", async () => {
   const handleValue2 = new WeakRef(() => {});
   const handleError2 = new WeakRef(() => {});
   const handleFailure2 = new WeakRef(() => {});
-  const promise = createLazyPromise(() => {});
+  const promise = new LazyPromise(() => {});
   const dispose1 = promise.subscribe(
     handleValue1.deref(),
     handleError1.deref(),
@@ -176,7 +176,7 @@ test("garbage collect subscriber callbacks when resolved", async () => {
   const handleError = new WeakRef(() => {});
   const handleFailure = new WeakRef(() => {});
   let resolve: (value: undefined) => void;
-  const promise = createLazyPromise((resolveLocal) => {
+  const promise = new LazyPromise((resolveLocal) => {
     resolve = resolveLocal;
   });
   // It's necessary to hold on to the teardown function.
@@ -200,7 +200,7 @@ test("garbage collect subscriber callbacks when rejected", async () => {
   const handleError = new WeakRef(() => {});
   const handleFailure = new WeakRef(() => {});
   let reject: (error: undefined) => void;
-  const promise = createLazyPromise<undefined, undefined>(
+  const promise = new LazyPromise<undefined, undefined>(
     (resolve, rejectLocal) => {
       reject = rejectLocal;
     },
@@ -226,7 +226,7 @@ test("garbage collect subscriber callbacks when failed", async () => {
   const handleError = new WeakRef(() => {});
   const handleFailure = new WeakRef(() => {});
   let fail: (error: unknown) => void;
-  const promise = createLazyPromise<undefined, never>(
+  const promise = new LazyPromise<undefined, never>(
     (resolve, reject, failLocal) => {
       fail = failLocal;
     },

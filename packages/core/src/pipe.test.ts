@@ -1,5 +1,5 @@
+import { pipe } from "@lazy-promise/core";
 import { expect, test } from "vitest";
-import { pipe } from "./pipe";
 
 const addSuffix =
   <Suffix extends string>(suffix: Suffix) =>

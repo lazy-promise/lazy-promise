@@ -1,7 +1,11 @@
+import {
+  eager,
+  failed,
+  LazyPromise,
+  rejected,
+  resolved,
+} from "@lazy-promise/core";
 import { afterEach, expect, test } from "vitest";
-import { eager } from "./eager";
-import type { LazyPromise } from "./lazyPromise";
-import { createLazyPromise, failed, rejected, resolved } from "./lazyPromise";
 
 const logContents: unknown[] = [];
 
@@ -69,7 +73,7 @@ test("signal, async resolve", async () => {
   let resolve: (value: "value") => void;
   // eslint-disable-next-line @typescript-eslint/no-floating-promises
   eager(
-    createLazyPromise((resolveLocal) => {
+    new LazyPromise((resolveLocal) => {
       resolve = resolveLocal;
     }),
     new AbortController().signal,
@@ -111,7 +115,7 @@ test("signal, sync reject", async () => {
 test("signal, async reject", async () => {
   let reject: (error: "oops") => void;
   eager(
-    createLazyPromise<never, "oops">((resolve, rejectLocal) => {
+    new LazyPromise<never, "oops">((resolve, rejectLocal) => {
       reject = rejectLocal;
     }) as LazyPromise<never, never>,
     new AbortController().signal,
@@ -146,7 +150,7 @@ test("signal, sync fail", async () => {
 test("signal, async fail", async () => {
   let fail: (error: "oops") => void;
   eager(
-    createLazyPromise((resolve, reject, failLocal) => {
+    new LazyPromise((resolve, reject, failLocal) => {
       fail = failLocal;
     }),
     new AbortController().signal,
@@ -171,7 +175,7 @@ test("already aborted signal", async () => {
   abortController.abort("reason");
   await expect(() =>
     eager(
-      createLazyPromise<never, never>(() => {
+      new LazyPromise<never, never>(() => {
         log("subscribe");
       }),
       abortController.signal,
@@ -183,7 +187,7 @@ test("already aborted signal", async () => {
 test("signal aborted while subscribing", async () => {
   const abortController = new AbortController();
   const promise = eager(
-    createLazyPromise<never, never>(() => {
+    new LazyPromise<never, never>(() => {
       log("subscribe");
       abortController.abort("reason");
       return () => {
@@ -208,7 +212,7 @@ test("signal aborted while subscribing", async () => {
 test("signal aborted after subscribing", async () => {
   const abortController = new AbortController();
   eager(
-    createLazyPromise<never, never>(() => {
+    new LazyPromise<never, never>(() => {
       log("subscribe");
       return () => {
         log("unsubscribe");

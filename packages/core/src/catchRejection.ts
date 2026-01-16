@@ -1,5 +1,4 @@
-import type { LazyPromise } from "./lazyPromise";
-import { createLazyPromise, isLazyPromise } from "./lazyPromise";
+import { LazyPromise } from "./lazyPromise";
 
 /**
  * The LazyPromise equivalent of `promise.catch(...)`. To make the resulting
@@ -12,7 +11,7 @@ export const catchRejection =
   <Value>(
     source: LazyPromise<Value, Error>,
   ): LazyPromise<Value | NewValue, NewError> =>
-    createLazyPromise(
+    new LazyPromise(
       (
         resolve: ((value: Value | NewValue) => void) | undefined,
         reject,
@@ -35,7 +34,7 @@ export const catchRejection =
             if (!resolve) {
               return;
             }
-            if (isLazyPromise(newValueOrPromise)) {
+            if (newValueOrPromise instanceof LazyPromise) {
               dispose = newValueOrPromise.subscribe(resolve, reject, fail);
             } else {
               resolve(newValueOrPromise);

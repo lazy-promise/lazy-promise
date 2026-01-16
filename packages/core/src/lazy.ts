@@ -1,5 +1,4 @@
-import type { LazyPromise } from "./lazyPromise";
-import { createLazyPromise } from "./lazyPromise";
+import { LazyPromise } from "./lazyPromise";
 
 // DOMException was only made a global in Node v17.0.0. We use this constant to
 // support Node 16.
@@ -33,7 +32,7 @@ const DOMException =
 export const lazy = <Value>(
   callback: (abortSignal: AbortSignal) => PromiseLike<Value>,
 ): LazyPromise<Value, never> =>
-  createLazyPromise((resolve, reject, fail) => {
+  new LazyPromise((resolve, reject, fail) => {
     const abortController = new AbortController();
     let promise: PromiseLike<Value>;
     try {
