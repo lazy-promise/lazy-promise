@@ -19,8 +19,8 @@
     "test": {
       "dependsOn": ["test:eslint", "test:vitest", "build"]
     },
-    "test:eslint": { "dependsOn": ["^build"] },
-    "test:typescript": { "dependsOn": ["^build"] },
+    "test:eslint": { "dependsOn": ["build", "^build"] },
+    "test:typescript": { "dependsOn": ["build", "^build"] },
     "test:vitest": { "dependsOn": ["build", "^build"] }
   }
 }
