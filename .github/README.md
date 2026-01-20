@@ -56,7 +56,7 @@ Besides being lazy, LazyPromise is cancelable: if the subscriber count goes down
 
 If a lazy promise does fire, then like a regular promise it will remember forever the value or error, and give it to whoever tries to subscribe in the future.
 
-Instead of dot-chaining LazyPromise uses pipes (`pipe(x, foo, bar)` is `bar(foo(x))`), and there are small naming differences, but that aside, LazyPromise API mirrors that of Promise:
+Aside from some small naming differences, LazyPromise API mirrors that of Promise:
 
 | Promise api                    | LazyPromise equivalent                       |
 | :----------------------------- | :------------------------------------------- |
@@ -78,26 +78,24 @@ Your typical code could look something like this (types of all values and errors
 pipe(
   // Create a LazyPromise<Value, Error>.
   callAnApiEndpoint(params),
-  // Handle some errors.
-  catchRejection(error => {
+  // Mirrors the behavior of promise.catch(...).
+  catchRejection((error) => {
     // To turn the error into a value, return that value.
-
-    // To turn the error into another error, return `rejected(newError)`, which
-    // will have type LazyPromise<never, NewError>.
-
+    //
+    // To turn the error into another error, return `rejected(newError)`.
+    //
     // To perform some side effect and have the resulting promise never fire,
-    // return `never` which has type LazyPromise<never, never>.
+    // return `never`.
     ...
   }),
-  // The return value of the callback is treated the same way as for `catchRejection`,
-  // so again, you can return either a value or a LazyPromise.
-  map(value => ...),
+  // Mirrors the behavior of promise.then(...).
+  map((value) => ...),
 ).subscribe(
   // This handler is always optional.
-  (value) => { ... },
-  // The type system will only want you to provide this handler if by now the
-  // type of `error` is other than `never`.
-  (error) => { ... },
+  (value) => ...,
+  // TypeScript will only want you to provide this handler if by now the type
+  // of `error` is other than `never`.
+  (error) => ...,
 );
 ```
 
@@ -108,14 +106,6 @@ pipe(
 - Illegal operations, such as settling an already settled lazy promise, throw an error rather than failing silently.
 
 - An easy way to tell whether a lazy promise has settled synchronously when you subscribed is to check if the unsubscribe handle `=== noopUnsubscribe`.
-
-## Utilities
-
-- Functions `eager` and `lazy` convert to and from a regular promise. `eager` takes a LazyPromise and an optional AbortSignal, and returns a Promise, `lazy` takes a function `async (abortSignal) => ...` and returns a LazyPromise.
-
-- There are convenience wrappers for browser/Node deferral APIs: `timeout`, `microtask`, `animationFrame`, `idleCallback`, `immediate`, `nextTick`. Each of these is a function returning a lazy promise that fires in respectively `setTimeout`, `queueMicrotask` etc. Since like the native `.finally`, `finalize` waits for the promise if its callback returns one (think `try { ... } finally { await ... }`), you can delay a lazy promise by piping it through `finalize(() => timeout(ms))`, or make it settle in a microtask with `finalize(microtask)`.
-
-- `log` function wraps a lazy promise without changing its behavior, and console.logs everything that happens to it: `pipe(lazyPromise, log("your label"))`.
 
 ## Failure channel
 
@@ -149,6 +139,28 @@ There are `catchFailure` and `failed` utilities analogous to `catchRejection` an
 
 The failure channel makes typed errors an optional feature: you can easily use the library with all your promises typed as `LazyPromise<Value, never>`.
 
-## Experimental SolidJS bindings
+## Utilities
 
-https://github.com/lazy-promise/lazy-promise/tree/main/packages/solid-js
+- Functions `eager` and `lazy` convert to and from a regular promise. `eager` takes a LazyPromise and an optional AbortSignal, and returns a Promise, `lazy` takes a function `async (abortSignal) => ...` and returns a LazyPromise.
+
+- There are convenience wrappers for browser/Node deferral APIs: `timeout`, `microtask`, `animationFrame`, `idleCallback`, `immediate`, `nextTick`. Each of these is a function returning a lazy promise that fires in respectively `setTimeout`, `queueMicrotask` etc. Since like the native `.finally`, `finalize` waits for the promise if its callback returns one (think `try { ... } finally { await ... }`), you can delay a lazy promise by piping it through `finalize(() => timeout(ms))`, or make it settle in a microtask with `finalize(microtask)`.
+
+- `log` function wraps a lazy promise without changing its behavior, and console.logs everything that happens to it: `pipe(lazyPromise, log("your label"))`.
+
+## Generator syntax
+
+This is the LazyPromise equivalent of async-await. Just use generator functions instead of async functions, and `yield*` instead of `await`:
+
+```ts
+// Type inferred as LazyPromise<"b", "error1" | "error2">
+const lazyPromise = fromGenerator(function* () {
+  // Type inferred as "a" | "b"
+  const value = yield* new LazyPromise<"a" | "b", "error1">(() => {});
+  if (value === "a") {
+    // `yield*` would have worked too, but `return` tells TypeScript that the
+    // execution stops so it can narrow down the type of `value`.
+    return rejected("error2");
+  }
+  return value;
+});
+```

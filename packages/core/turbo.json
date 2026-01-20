@@ -17,7 +17,7 @@
       "outputs": ["build/main/**"]
     },
     "test": {
-      "dependsOn": ["test:eslint", "test:vitest", "build"]
+      "dependsOn": ["test:eslint", "test:typescript", "test:vitest", "build"]
     },
     "test:eslint": { "dependsOn": ["build", "^build"] },
     "test:typescript": { "dependsOn": ["build", "^build"] },

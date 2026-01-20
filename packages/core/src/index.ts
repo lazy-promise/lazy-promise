@@ -5,6 +5,7 @@ export { catchFailure } from "./catchFailure";
 export { catchRejection } from "./catchRejection";
 export { eager } from "./eager";
 export { finalize } from "./finalize";
+export { fromGenerator } from "./fromGenerator";
 export { idleCallback } from "./idleCallback";
 export { immediate } from "./immediate";
 export { lazy } from "./lazy";

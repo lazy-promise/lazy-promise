@@ -65,11 +65,18 @@ test("types", () => {
   promise1.subscribe();
 
   /** @ts-expect-error */
+  promise1.subscribe(() => {});
+
+  /** @ts-expect-error */
   promise1.subscribe(() => {}, undefined);
 
   const promise2 = new LazyPromise<"value a", never>(() => {});
 
   promise2.subscribe();
+
+  promise2.subscribe(undefined);
+
+  promise2.subscribe(() => {});
 
   promise2.subscribe(() => {}, undefined);
 

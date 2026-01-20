@@ -29,6 +29,7 @@ module.exports = {
 
     // Not sold on original justification.
     "no-ex-assign": "off",
+    "require-yield": "off",
 
     //
     // Rules that prevent unused code

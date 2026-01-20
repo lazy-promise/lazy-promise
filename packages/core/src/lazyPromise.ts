@@ -1,6 +1,8 @@
 const resolvedSymbol = Symbol("resolved");
 const rejectedSymbol = Symbol("rejected");
 const failedSymbol = Symbol("failed");
+declare const yieldableSymbol: unique symbol;
+declare const stabilizerSymbol: unique symbol;
 
 interface Subscriber<Value, Error> {
   handleValue?: (value: Value) => void;
@@ -56,6 +58,30 @@ const throwInMicrotask = (error: unknown) => {
     throw error;
   });
 };
+
+export type Yieldable<T> = T & {
+  [yieldableSymbol]: `Did you forget a star (*) after yield?`;
+};
+
+class LazyPromiseIterator<T, TReturn> {
+  private done = false;
+
+  constructor(private yieldable: T) {}
+
+  next(value: TReturn): IteratorResult<T, TReturn> {
+    if (this.done) {
+      return {
+        value,
+        done: true,
+      };
+    }
+    this.done = true;
+    return {
+      value: this.yieldable,
+      done: false,
+    };
+  }
+}
 
 /**
  * A Promise-like primitive which is lazy/cancelable, has typed errors, and
@@ -233,22 +259,11 @@ export class LazyPromise<Value, Error = never> {
   }
 
   subscribe(
-    ...args: [Error] extends [never]
-      ? [
-          handleValue?: ((value: Value) => void) | undefined,
-          handleError?: ((error: Error) => void) | undefined,
-          handleFailure?: (error: unknown) => void,
-        ]
-      : [
-          handleValue: ((value: Value) => void) | undefined,
-          handleError: (error: Error) => void,
-          handleFailure?: (error: unknown) => void,
-        ]
-  ): () => void;
-  subscribe(
-    handleValue?: (value: Value) => void,
-    handleError?: (error: Error) => void,
-    handleFailure?: (error: unknown) => void,
+    handleValue: ((value: Value) => void) | void,
+    handleError: [Error] extends [never]
+      ? ((error: Error) => void) | void
+      : (error: Error) => void,
+    handleFailure: ((error: unknown) => void) | void,
   ) {
     if (this.status === resolvedSymbol) {
       if (handleValue) {
@@ -334,6 +349,32 @@ export class LazyPromise<Value, Error = never> {
       this.unsubscribe(subscriber);
     };
   }
+
+  [Symbol.iterator](): {
+    next(
+      ...args: ReadonlyArray<any>
+    ): IteratorResult<Yieldable<LazyPromise<Value, Error>>, Value>;
+  } {
+    return new LazyPromiseIterator(this as Yieldable<typeof this>);
+  }
+
+  /**
+   * Fixes TS union inference. TS was confused by `[Error] extends [never]`
+   * check in the `subscribe` signature, and as a result the type of a generator
+   * function like
+   *
+   * ```
+   * function* () {
+   *   if (...) {
+   *     return rejected(1);
+   *   }
+   *   return resolved(2);
+   * }
+   * ```
+   *
+   * ignored the second return statement.
+   */
+  declare readonly [stabilizerSymbol]: Error;
 }
 
 interface SettledLazyPromise {
@@ -343,7 +384,7 @@ interface SettledLazyPromise {
 
 function resolvedSubscribe(
   this: SettledLazyPromise,
-  resolve?: (value: any) => void,
+  resolve: ((value: any) => void) | void,
 ) {
   try {
     resolve?.(this.result);
@@ -368,8 +409,8 @@ export const resolved: {
 
 function rejectedSubscribe(
   this: SettledLazyPromise,
-  resolve?: (value: never) => void,
-  reject?: (error: any) => void,
+  resolve: ((value: never) => void) | void,
+  reject: ((error: any) => void) | void,
 ) {
   if (reject) {
     try {
@@ -398,9 +439,9 @@ export const rejected: {
 
 function failedSubscribe(
   this: SettledLazyPromise,
-  resolve?: (value: never) => void,
-  reject?: (error: never) => void,
-  fail?: (error: unknown) => void,
+  resolve: ((value: never) => void) | void,
+  reject: ((error: never) => void) | void,
+  fail: ((error: unknown) => void) | void,
 ) {
   if (fail) {
     try {
