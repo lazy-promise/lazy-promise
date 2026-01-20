@@ -10,6 +10,8 @@
 
 - `pipe(lazyPromise, a, b)` becomes a slightly more ergonomic `lazyPromise.pipe(a, b)`.
 
+- `lazy` and `eager` renamed to `fromEager` and `toEager`.
+
 ## [@lazy-promise/core@0.0.16](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.16)
 
 - Make `log` play well with string substitutions.

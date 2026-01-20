@@ -18,8 +18,8 @@ const DOMException =
  * because of something other than a bug, make sure to `catchFailure`, e.g.
  *
  * '''
- * // `lazy` returns a `LazyPromise<..., never>`.
- * lazy(...).pipe(
+ * // `fromEager` returns a `LazyPromise<..., never>`.
+ * fromEager(...).pipe(
  *   // Redirect failures to the rejection channel, so the resulting lazy
  *   // promise has type `LazyPromise<..., unknown>`.
  *   catchFailure(rejected),
@@ -28,7 +28,7 @@ const DOMException =
  *
  * The callback can use an AbortSignal provided as argument.
  */
-export const lazy = <Value>(
+export const fromEager = <Value>(
   callback: (abortSignal: AbortSignal) => PromiseLike<Value>,
 ): LazyPromise<Value, never> =>
   new LazyPromise((resolve, reject, fail) => {

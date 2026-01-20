@@ -4,10 +4,10 @@ export { any } from "./any";
 export { catchFailure } from "./catchFailure";
 export { catchRejection } from "./catchRejection";
 export { finalize } from "./finalize";
+export { fromEager } from "./fromEager";
 export { fromGenerator } from "./fromGenerator";
 export { idleCallback } from "./idleCallback";
 export { immediate } from "./immediate";
-export { lazy } from "./lazy";
 export {
   failed,
   LazyPromise,

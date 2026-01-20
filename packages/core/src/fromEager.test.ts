@@ -1,4 +1,4 @@
-import { lazy } from "@lazy-promise/core";
+import { fromEager } from "@lazy-promise/core";
 import { afterEach, expect, test } from "vitest";
 
 const logContents: unknown[] = [];
@@ -42,7 +42,7 @@ const DOMException =
   })();
 
 test("source resolves", async () => {
-  const promise = lazy(() => Promise.resolve("value"));
+  const promise = fromEager(() => Promise.resolve("value"));
   promise.subscribe(
     (value) => {
       log("handleValue", value);
@@ -62,7 +62,7 @@ test("source resolves", async () => {
 });
 
 test("source rejects", async () => {
-  const promise = lazy(() => Promise.reject("oops"));
+  const promise = fromEager(() => Promise.reject("oops"));
   promise.subscribe(undefined, undefined, (error) => {
     log("handleFailure", error);
   });
@@ -79,7 +79,7 @@ test("source rejects", async () => {
 });
 
 test("source rejects with DOMException", async () => {
-  const promise = lazy(() => Promise.reject(new DOMException()));
+  const promise = fromEager(() => Promise.reject(new DOMException()));
   promise.subscribe(undefined, undefined, (error) => {
     log("handleFailure");
     expect(error).toBeInstanceOf(DOMException);
@@ -96,7 +96,7 @@ test("source rejects with DOMException", async () => {
 });
 
 test("callback throws", async () => {
-  const promise = lazy(() => {
+  const promise = fromEager(() => {
     throw "oops";
   });
   promise.subscribe(undefined, undefined, (error) => {
@@ -115,7 +115,7 @@ test("callback throws", async () => {
 });
 
 test("cancelation", () => {
-  const promise = lazy(
+  const promise = fromEager(
     (signal) =>
       new Promise((resolve, reject) => {
         log("produce");
@@ -148,14 +148,14 @@ test("cancelation", () => {
 });
 
 test("un-aborted promise resolves", async () => {
-  const promise = lazy(() => Promise.resolve(1));
+  const promise = fromEager(() => Promise.resolve(1));
   promise.subscribe()();
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
 test("un-aborted promise rejects", async () => {
-  const promise = lazy(() => Promise.reject(1));
+  const promise = fromEager(() => Promise.reject(1));
   promise.subscribe()();
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
