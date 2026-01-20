@@ -78,7 +78,7 @@ Your typical code could look something like this (types of all values and errors
 pipe(
   // Create a LazyPromise<Value, Error>.
   callAnApiEndpoint(params),
-  // Mirrors the behavior of promise.catch(...).
+  // Mirrors the behavior of `promise.catch(...)`.
   catchRejection((error) => {
     // To turn the error into a value, return that value.
     //
@@ -88,7 +88,7 @@ pipe(
     // return `never`.
     ...
   }),
-  // Mirrors the behavior of promise.then(...).
+  // Mirrors the behavior of `promise.then(...)`.
   map((value) => ...),
 ).subscribe(
   // This handler is always optional.
