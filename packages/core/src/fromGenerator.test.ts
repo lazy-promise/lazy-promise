@@ -368,6 +368,72 @@ test("yield async", () => {
   `);
 });
 
+test("multiple yields", () => {
+  const getAsyncPromise = <T>(value: T) =>
+    new LazyPromise<T>((resolve) => {
+      const timeoutId = setTimeout(() => {
+        resolve(value);
+      }, 1000);
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    });
+
+  fromGenerator(function* () {
+    log(yield* resolved(1));
+    log(yield* resolved(2));
+  }).subscribe();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        1,
+      ],
+      [
+        2,
+      ],
+    ]
+  `);
+
+  fromGenerator(function* () {
+    log(yield* getAsyncPromise(1));
+    log(yield* getAsyncPromise(2));
+  }).subscribe();
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        1,
+      ],
+      "1000 ms passed",
+      [
+        2,
+      ],
+    ]
+  `);
+
+  fromGenerator(function* () {
+    log(yield* resolved(1));
+    log(yield* getAsyncPromise(2));
+    log(yield* resolved(3));
+  }).subscribe();
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        1,
+      ],
+      "1000 ms passed",
+      [
+        2,
+      ],
+      [
+        3,
+      ],
+    ]
+  `);
+});
+
 test("throw in callback", () => {
   const promise = fromGenerator(() => {
     throw "oops";

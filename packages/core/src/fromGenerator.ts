@@ -41,6 +41,7 @@ export const fromGenerator = <
           fail(error);
           return;
         }
+        lastValue = emptySymbol;
       }
     };
 
