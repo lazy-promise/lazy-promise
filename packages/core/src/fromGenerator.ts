@@ -1,6 +1,8 @@
 import type { Yieldable } from "./lazyPromise";
 import { LazyPromise } from "./lazyPromise";
 
+const emptySymbol = Symbol("empty");
+
 export const fromGenerator = <
   T extends Yieldable<LazyPromise<any, any>>,
   TReturn,
@@ -14,25 +16,43 @@ export const fromGenerator = <
   new LazyPromise((resolve, reject, fail) => {
     const generator = generatorFunction();
     let unsubscribe: (() => void) | undefined;
+    let lastValue: any = emptySymbol;
 
     const handleResult = (result: IteratorResult<T, TReturn>) => {
-      if (result.done) {
-        if (result.value instanceof LazyPromise) {
-          unsubscribe = result.value.subscribe(resolve, reject, fail);
+      while (true) {
+        if (result.done) {
+          if (result.value instanceof LazyPromise) {
+            unsubscribe = result.value.subscribe(resolve, reject, fail);
+            return;
+          }
+          resolve(result.value as any);
           return;
         }
-        resolve(result.value as any);
-        return;
+        const source = result.value;
+        // eslint-disable-next-line no-use-before-define
+        unsubscribe = source.subscribe(handleValue, reject, fail);
+        if (lastValue === emptySymbol) {
+          return;
+        }
+        unsubscribe = undefined;
+        try {
+          result = generator.next(lastValue);
+        } catch (error) {
+          fail(error);
+          return;
+        }
       }
-      const source = result.value;
-      // eslint-disable-next-line no-use-before-define
-      unsubscribe = source.subscribe(handleValue, reject, fail);
     };
 
     const handleValue = (value: any) => {
+      // When possible, use the while loop to avoid increasing stack depth.
+      if (!unsubscribe) {
+        lastValue = value;
+        return;
+      }
       let result;
       try {
-        result = generator.next(value as never);
+        result = generator.next(value);
       } catch (error) {
         fail(error);
         return;

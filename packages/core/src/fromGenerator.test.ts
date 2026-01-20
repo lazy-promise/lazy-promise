@@ -405,7 +405,7 @@ test("throw at the start of the generator", () => {
   `);
 });
 
-test("throw in the middle of the generator", () => {
+test("throw in the middle of a sync generator", () => {
   fromGenerator(function* () {
     yield* resolved();
     throw "oops";
@@ -414,6 +414,29 @@ test("throw in the middle of the generator", () => {
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
+      [
+        "handleFailure",
+        "oops",
+      ],
+    ]
+  `);
+});
+
+test("throw in the middle of an async generator", () => {
+  fromGenerator(function* () {
+    yield* new LazyPromise<void>((resolve) => {
+      setTimeout(() => {
+        resolve();
+      }, 1000);
+    });
+    throw "oops";
+  }).subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
+  });
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
       [
         "handleFailure",
         "oops",
@@ -439,6 +462,62 @@ test("empty iterator", () => {
       [
         "handleValue",
         "a",
+      ],
+    ]
+  `);
+});
+
+test("stack overflow", () => {
+  const getMaxStackDepth = (depth = 1) => {
+    try {
+      return getMaxStackDepth(depth + 1);
+    } catch (e) {
+      return depth;
+    }
+  };
+  const maxStackDepth = getMaxStackDepth();
+  fromGenerator(function* () {
+    for (let i = 0; i < maxStackDepth + 10; i++) {
+      yield* resolved();
+    }
+  }).subscribe();
+
+  const getInner = (index: number) =>
+    new LazyPromise<void>((resolve) => {
+      log("start", index);
+      resolve();
+      log("end", index);
+    });
+  fromGenerator(function* () {
+    yield* getInner(1);
+    yield* getInner(2);
+    yield* getInner(3);
+  }).subscribe();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "start",
+        1,
+      ],
+      [
+        "end",
+        1,
+      ],
+      [
+        "start",
+        2,
+      ],
+      [
+        "end",
+        2,
+      ],
+      [
+        "start",
+        3,
+      ],
+      [
+        "end",
+        3,
       ],
     ]
   `);
