@@ -1,9 +1,9 @@
 import {
-  eager,
   failed,
   LazyPromise,
   rejected,
   resolved,
+  toEager,
 } from "@lazy-promise/core";
 import { afterEach, expect, test } from "vitest";
 
@@ -38,13 +38,13 @@ const flushMicrotasks = async () => {
 };
 
 test("no signal, resolve", async () => {
-  expect(await eager(resolved("value"))).toMatchInlineSnapshot(`"value"`);
+  expect(await toEager(resolved("value"))).toMatchInlineSnapshot(`"value"`);
 });
 
 test("no signal, reject", async () => {
   let error;
   try {
-    await eager(rejected("oops") as LazyPromise<never, never>);
+    await toEager(rejected("oops") as LazyPromise<never, never>);
   } catch (errorLocal) {
     error = errorLocal;
   }
@@ -52,27 +52,27 @@ test("no signal, reject", async () => {
     throw new Error("fail");
   }
   expect(error.message).toMatchInlineSnapshot(
-    `"The lazy promise passed to eager(...) has rejected. The original error has been stored as the .cause property."`,
+    `"The lazy promise passed to toEager(...) has rejected. The original error has been stored as the .cause property."`,
   );
   expect(error.cause).toMatchInlineSnapshot(`"oops"`);
 });
 
 test("no signal, fail", async () => {
-  await expect(() => eager(failed("oops"))).rejects.toMatchInlineSnapshot(
+  await expect(() => toEager(failed("oops"))).rejects.toMatchInlineSnapshot(
     `"oops"`,
   );
 });
 
 test("signal, sync resolve", async () => {
   expect(
-    await eager(resolved("value"), new AbortController().signal),
+    await toEager(resolved("value"), new AbortController().signal),
   ).toMatchInlineSnapshot(`"value"`);
 });
 
 test("signal, async resolve", async () => {
   let resolve: (value: "value") => void;
   // eslint-disable-next-line @typescript-eslint/no-floating-promises
-  eager(
+  toEager(
     new LazyPromise((resolveLocal) => {
       resolve = resolveLocal;
     }),
@@ -96,7 +96,7 @@ test("signal, async resolve", async () => {
 test("signal, sync reject", async () => {
   let error;
   try {
-    await eager(
+    await toEager(
       rejected("oops") as LazyPromise<never, never>,
       new AbortController().signal,
     );
@@ -107,14 +107,14 @@ test("signal, sync reject", async () => {
     throw new Error("fail");
   }
   expect(error.message).toMatchInlineSnapshot(
-    `"The lazy promise passed to eager(...) has rejected. The original error has been stored as the .cause property."`,
+    `"The lazy promise passed to toEager(...) has rejected. The original error has been stored as the .cause property."`,
   );
   expect(error.cause).toMatchInlineSnapshot(`"oops"`);
 });
 
 test("signal, async reject", async () => {
   let reject: (error: "oops") => void;
-  eager(
+  toEager(
     new LazyPromise<never, "oops">((resolve, rejectLocal) => {
       reject = rejectLocal;
     }) as LazyPromise<never, never>,
@@ -125,7 +125,7 @@ test("signal, async reject", async () => {
       throw new Error("fail");
     }
     expect(error.message).toMatchInlineSnapshot(
-      `"The lazy promise passed to eager(...) has rejected. The original error has been stored as the .cause property."`,
+      `"The lazy promise passed to toEager(...) has rejected. The original error has been stored as the .cause property."`,
     );
     expect(error.cause).toMatchInlineSnapshot(`"oops"`);
   });
@@ -143,13 +143,13 @@ test("signal, async reject", async () => {
 
 test("signal, sync fail", async () => {
   await expect(() =>
-    eager(failed("oops"), new AbortController().signal),
+    toEager(failed("oops"), new AbortController().signal),
   ).rejects.toMatchInlineSnapshot(`"oops"`);
 });
 
 test("signal, async fail", async () => {
   let fail: (error: "oops") => void;
-  eager(
+  toEager(
     new LazyPromise((resolve, reject, failLocal) => {
       fail = failLocal;
     }),
@@ -174,7 +174,7 @@ test("already aborted signal", async () => {
   const abortController = new AbortController();
   abortController.abort("reason");
   await expect(() =>
-    eager(
+    toEager(
       new LazyPromise<never, never>(() => {
         log("subscribe");
       }),
@@ -186,7 +186,7 @@ test("already aborted signal", async () => {
 
 test("signal aborted while subscribing", async () => {
   const abortController = new AbortController();
-  const promise = eager(
+  const promise = toEager(
     new LazyPromise<never, never>(() => {
       log("subscribe");
       abortController.abort("reason");
@@ -211,7 +211,7 @@ test("signal aborted while subscribing", async () => {
 
 test("signal aborted after subscribing", async () => {
   const abortController = new AbortController();
-  eager(
+  toEager(
     new LazyPromise<never, never>(() => {
       log("subscribe");
       return () => {

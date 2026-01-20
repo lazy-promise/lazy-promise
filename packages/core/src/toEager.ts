@@ -3,7 +3,7 @@ import { noopUnsubscribe } from "./lazyPromise";
 
 const wrapRejectionError = (error: unknown) =>
   new Error(
-    `The lazy promise passed to eager(...) has rejected. The original error has been stored as the .cause property.`,
+    `The lazy promise passed to toEager(...) has rejected. The original error has been stored as the .cause property.`,
     { cause: error },
   );
 
@@ -13,7 +13,7 @@ const wrapRejectionError = (error: unknown) =>
  * LazyPromise rejections to also be passed on as Promise rejections, pipe the
  * LazyPromise through `catchRejection(failed)`.
  */
-export const eager = <Value>(
+export const toEager = <Value>(
   lazyPromise: LazyPromise<Value, never>,
   abortSignal?: AbortSignal,
 ): Promise<Value> =>

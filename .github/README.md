@@ -139,7 +139,7 @@ The failure channel makes typed errors an optional feature: you can easily use t
 
 ## Utilities
 
-- Functions `eager` and `lazy` convert to and from a regular promise. `eager` takes a LazyPromise and an optional AbortSignal, and returns a Promise, `lazy` takes a function `async (abortSignal) => ...` and returns a LazyPromise.
+- Functions `toEager` and `lazy` convert to and from a regular promise. `toEager` takes a LazyPromise and an optional AbortSignal, and returns a Promise, `lazy` takes a function `async (abortSignal) => ...` and returns a LazyPromise.
 
 - There are convenience wrappers for browser/Node deferral APIs: `timeout`, `microtask`, `animationFrame`, `idleCallback`, `immediate`, `nextTick`. Each of these is a function returning a lazy promise that fires in respectively `setTimeout`, `queueMicrotask` etc. Since like the native `.finally`, `finalize` waits for the promise if its callback returns one (think `try { ... } finally { await ... }`), you can delay a lazy promise by piping it through `finalize(() => timeout(ms))`, or make it settle in a microtask with `finalize(microtask)`.
 
