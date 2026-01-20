@@ -32,7 +32,7 @@ const bumpStackLevel = <T>(callback: () => T) => {
  * everything that happens to it.
  *
  * ```
- * pipe(lazyPromise, log("optional label"))
+ * lazyPromise.pipe(log("optional label"))
  * ```
  *
  * Each log record includes the label and a 1-based index that lets you tell
@@ -42,8 +42,7 @@ const bumpStackLevel = <T>(callback: () => T) => {
  * prefixed with dots indicating sync stack depth, so
  *
  * ```
- * pipe(
- *   resolved(1),
+ * resolved(1).pipe(
  *   log("a"),
  *   map(() => {
  *     console.log("mapping");

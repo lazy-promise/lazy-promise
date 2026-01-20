@@ -60,9 +60,9 @@ Aside from some small naming differences, LazyPromise API mirrors that of Promis
 
 | Promise api                    | LazyPromise equivalent                       |
 | :----------------------------- | :------------------------------------------- |
-| `promise.then(foo)`            | `pipe(lazyPromise, map(foo))`                |
-| `promise.catch(foo)`           | `pipe(lazyPromise, catchRejection(foo))`     |
-| `promise.finally(foo)`         | `pipe(lazyPromise, finalize(foo))`           |
+| `promise.then(foo)`            | `lazyPromise.pipe(map(foo))`                 |
+| `promise.catch(foo)`           | `lazyPromise.pipe(catchRejection(foo))`      |
+| `promise.finally(foo)`         | `lazyPromise.pipe(finalize(foo))`            |
 | `Promise.resolve(value)`       | `resolved(value)`                            |
 | `Promise.reject(error)`        | `rejected(error)`                            |
 | `new Promise<never>(() => {})` | `never`                                      |
@@ -75,9 +75,7 @@ Aside from some small naming differences, LazyPromise API mirrors that of Promis
 Your typical code could look something like this (types of all values and errors will be inferred, and callbacks are guaranteed to not be called once you unsubscribe):
 
 ```ts
-pipe(
-  // Create a LazyPromise<Value, Error>.
-  callAnApiEndpoint(params),
+lazyPromise.pipe(
   // Mirrors the behavior of `promise.catch(...)`.
   catchRejection((error) => {
     // To turn the error into a value, return that value.
@@ -145,7 +143,7 @@ The failure channel makes typed errors an optional feature: you can easily use t
 
 - There are convenience wrappers for browser/Node deferral APIs: `timeout`, `microtask`, `animationFrame`, `idleCallback`, `immediate`, `nextTick`. Each of these is a function returning a lazy promise that fires in respectively `setTimeout`, `queueMicrotask` etc. Since like the native `.finally`, `finalize` waits for the promise if its callback returns one (think `try { ... } finally { await ... }`), you can delay a lazy promise by piping it through `finalize(() => timeout(ms))`, or make it settle in a microtask with `finalize(microtask)`.
 
-- `log` function wraps a lazy promise without changing its behavior, and console.logs everything that happens to it: `pipe(lazyPromise, log("your label"))`.
+- `log` function wraps a lazy promise without changing its behavior, and console.logs everything that happens to it: `lazyPromise.pipe(log("your label"))`.
 
 ## Generator syntax
 

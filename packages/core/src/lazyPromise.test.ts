@@ -967,3 +967,107 @@ test("never", () => {
   ).not.toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
+
+test("pipe", () => {
+  const promise = new LazyPromise<"value", "error">(() => {});
+
+  const getA = (promiseLocal: LazyPromise<"value", "error">) => {
+    if (promiseLocal !== promise) {
+      throw new Error();
+    }
+    return "a" as const;
+  };
+
+  const addSuffix =
+    <Suffix extends string>(suffix: Suffix) =>
+    <Base extends string>(base: Base): `${Base}-${Suffix}` =>
+      `${base}-${suffix}`;
+
+  expect(promise.pipe()).toBe(promise);
+  expect(promise.pipe(getA)).toMatchInlineSnapshot(`"a"`);
+  expect(promise.pipe(getA, addSuffix("b"))).toMatchInlineSnapshot(`"a-b"`);
+
+  // $ExpectType LazyPromise<"value", "error">
+  promise.pipe();
+
+  // $ExpectType "a"
+  promise.pipe(getA);
+
+  // $ExpectType "a-b"
+  promise.pipe(getA, addSuffix("b"));
+
+  // $ExpectType "a-b-c"
+  promise.pipe(getA, addSuffix("b"), addSuffix("c"));
+
+  // $ExpectType "a-b-c-d"
+  promise.pipe(getA, addSuffix("b"), addSuffix("c"), addSuffix("d"));
+
+  // $ExpectType "a-b-c-d-e"
+  promise.pipe(
+    getA,
+    addSuffix("b"),
+    addSuffix("c"),
+    addSuffix("d"),
+    addSuffix("e"),
+  );
+
+  // $ExpectType "a-b-c-d-e-f"
+  promise.pipe(
+    getA,
+    addSuffix("b"),
+    addSuffix("c"),
+    addSuffix("d"),
+    addSuffix("e"),
+    addSuffix("f"),
+  );
+
+  // $ExpectType "a-b-c-d-e-f-g"
+  promise.pipe(
+    getA,
+    addSuffix("b"),
+    addSuffix("c"),
+    addSuffix("d"),
+    addSuffix("e"),
+    addSuffix("f"),
+    addSuffix("g"),
+  );
+
+  // $ExpectType "a-b-c-d-e-f-g-h"
+  promise.pipe(
+    getA,
+    addSuffix("b"),
+    addSuffix("c"),
+    addSuffix("d"),
+    addSuffix("e"),
+    addSuffix("f"),
+    addSuffix("g"),
+    addSuffix("h"),
+  );
+
+  // $ExpectType "a-b-c-d-e-f-g-h-i"
+  promise.pipe(
+    getA,
+    addSuffix("b"),
+    addSuffix("c"),
+    addSuffix("d"),
+    addSuffix("e"),
+    addSuffix("f"),
+    addSuffix("g"),
+    addSuffix("h"),
+    addSuffix("i"),
+  );
+
+  // $ExpectType "a-b-c-d-e-f-g-h-i-j"
+  promise.pipe(
+    getA,
+    addSuffix("b"),
+    addSuffix("c"),
+    addSuffix("d"),
+    addSuffix("e"),
+    addSuffix("f"),
+    addSuffix("g"),
+    addSuffix("h"),
+    addSuffix("i"),
+    addSuffix("j"),
+  );
+});

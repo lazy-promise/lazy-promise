@@ -22,6 +22,5 @@ export { log } from "./log";
 export { map } from "./map";
 export { microtask } from "./microtask";
 export { nextTick } from "./nextTick";
-export { pipe } from "./pipe";
 export { race } from "./race";
 export { timeout } from "./timeout";

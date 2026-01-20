@@ -14,7 +14,7 @@ import { LazyPromise } from "./lazyPromise";
  * To limit this to only when the promise resolves, use
  *
  * ```
- * map((value) => pipe(microtask(), map(() => value)))
+ * map((value) => microtask().pipe(map(() => value)))
  * ```
  */
 export const microtask = (): LazyPromise<void, never> =>

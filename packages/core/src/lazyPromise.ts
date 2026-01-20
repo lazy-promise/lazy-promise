@@ -59,6 +59,8 @@ const throwInMicrotask = (error: unknown) => {
   });
 };
 
+const pipeReducer = (prev: any, fn: (value: any) => any) => fn(prev);
+
 export type Yieldable<T> = T & {
   [yieldableSymbol]: `Did you forget a star (*) after yield?`;
 };
@@ -348,6 +350,81 @@ export class LazyPromise<Value, Error = never> {
     return () => {
       this.unsubscribe(subscriber);
     };
+  }
+
+  pipe(): LazyPromise<Value, Error>;
+  pipe<A>(a: (value: LazyPromise<Value, Error>) => A): A;
+  pipe<A, B>(a: (value: LazyPromise<Value, Error>) => A, b: (value: A) => B): B;
+  pipe<A, B, C>(
+    a: (value: LazyPromise<Value, Error>) => A,
+    b: (value: A) => B,
+    c: (value: B) => C,
+  ): C;
+  pipe<A, B, C, D>(
+    a: (value: LazyPromise<Value, Error>) => A,
+    b: (value: A) => B,
+    c: (value: B) => C,
+    d: (value: C) => D,
+  ): D;
+  pipe<A, B, C, D, E>(
+    a: (value: LazyPromise<Value, Error>) => A,
+    b: (value: A) => B,
+    c: (value: B) => C,
+    d: (value: C) => D,
+    e: (value: D) => E,
+  ): E;
+  pipe<A, B, C, D, E, F>(
+    a: (value: LazyPromise<Value, Error>) => A,
+    b: (value: A) => B,
+    c: (value: B) => C,
+    d: (value: C) => D,
+    e: (value: D) => E,
+    f: (value: E) => F,
+  ): F;
+  pipe<A, B, C, D, E, F, G>(
+    a: (value: LazyPromise<Value, Error>) => A,
+    b: (value: A) => B,
+    c: (value: B) => C,
+    d: (value: C) => D,
+    e: (value: D) => E,
+    f: (value: E) => F,
+    g: (value: F) => G,
+  ): G;
+  pipe<A, B, C, D, E, F, G, H>(
+    a: (value: LazyPromise<Value, Error>) => A,
+    b: (value: A) => B,
+    c: (value: B) => C,
+    d: (value: C) => D,
+    e: (value: D) => E,
+    f: (value: E) => F,
+    g: (value: F) => G,
+    h: (value: G) => H,
+  ): H;
+  pipe<A, B, C, D, E, F, G, H, I>(
+    a: (value: LazyPromise<Value, Error>) => A,
+    b: (value: A) => B,
+    c: (value: B) => C,
+    d: (value: C) => D,
+    e: (value: D) => E,
+    f: (value: E) => F,
+    g: (value: F) => G,
+    h: (value: G) => H,
+    i: (value: H) => I,
+  ): I;
+  pipe<A, B, C, D, E, F, G, H, I, J>(
+    a: (value: LazyPromise<Value, Error>) => A,
+    b: (value: A) => B,
+    c: (value: B) => C,
+    d: (value: C) => D,
+    e: (value: D) => E,
+    f: (value: E) => F,
+    g: (value: F) => G,
+    h: (value: G) => H,
+    i: (value: H) => I,
+    j: (value: I) => J,
+  ): J;
+  pipe(...fns: ((value: any) => any)[]): any {
+    return fns.reduce(pipeReducer, this);
   }
 
   [Symbol.iterator](): {

@@ -18,9 +18,8 @@ const DOMException =
  * because of something other than a bug, make sure to `catchFailure`, e.g.
  *
  * '''
- * pipe(
- *   // Returns a `LazyPromise<..., never>`.
- *   lazy(...),
+ * // `lazy` returns a `LazyPromise<..., never>`.
+ * lazy(...).pipe(
  *   // Redirect failures to the rejection channel, so the resulting lazy
  *   // promise has type `LazyPromise<..., unknown>`.
  *   catchFailure(rejected),

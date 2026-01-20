@@ -14,7 +14,7 @@ import { LazyPromise } from "./lazyPromise";
  * To limit this to only when the promise resolves, use
  *
  * ```
- * map((value) => pipe(immediate(), map(() => value)))
+ * map((value) => immediate().pipe(map(() => value)))
  * ```
  */
 export const immediate = (): LazyPromise<void, never> =>

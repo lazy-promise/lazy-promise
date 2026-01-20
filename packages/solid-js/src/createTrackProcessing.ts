@@ -1,9 +1,4 @@
-import {
-  finalize,
-  LazyPromise,
-  noopUnsubscribe,
-  pipe,
-} from "@lazy-promise/core";
+import { finalize, LazyPromise, noopUnsubscribe } from "@lazy-promise/core";
 import type { Accessor } from "solid-js";
 import { createMemo, createSignal } from "solid-js";
 
@@ -18,7 +13,7 @@ export type TrackProcessing = <Value, Error>(
  *
  * ```
  * const [processing, trackProcessing] = createTrackProcessing();
- * const wrappedLazyPromise = pipe(lazyPromise, trackProcessing);
+ * const wrappedLazyPromise = lazyPromise.pipe(trackProcessing);
  * ```
  *
  * `processing` is an accessor that will tell you whether any of the wrapped
@@ -38,14 +33,15 @@ export const createTrackProcessing = (): [
       new LazyPromise<Value, Error>((resolve, reject, fail) => {
         let unsubscribe: (() => void) | undefined;
         // eslint-disable-next-line prefer-const
-        unsubscribe = pipe(
-          lazyPromise,
-          finalize(() => {
-            if (unsubscribe) {
-              setCount((count) => count - 1);
-            }
-          }),
-        ).subscribe(resolve, reject, fail);
+        unsubscribe = lazyPromise
+          .pipe(
+            finalize(() => {
+              if (unsubscribe) {
+                setCount((count) => count - 1);
+              }
+            }),
+          )
+          .subscribe(resolve, reject, fail);
         if (unsubscribe === noopUnsubscribe) {
           return;
         }

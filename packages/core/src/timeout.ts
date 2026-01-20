@@ -14,7 +14,7 @@ import { LazyPromise } from "./lazyPromise";
  * To delay a promise only when it resolves, use
  *
  * ```
- * map((value) => pipe(timeout(ms), map(() => value)))
+ * map((value) => timeout(ms).pipe(map(() => value)))
  * ```
  */
 export const timeout = (ms?: number): LazyPromise<void, never> =>

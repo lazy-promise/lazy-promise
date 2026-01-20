@@ -1,7 +1,6 @@
 import {
   catchRejection,
   LazyPromise,
-  pipe,
   rejected,
   resolved,
 } from "@lazy-promise/core";
@@ -58,14 +57,12 @@ test("types", () => {
   /* eslint-disable @typescript-eslint/no-unused-vars */
 
   // $ExpectType LazyPromise<"value a" | "value b", never>
-  const promise1 = pipe(
-    new LazyPromise<"value a", "error a">(() => {}),
+  const promise1 = new LazyPromise<"value a", "error a">(() => {}).pipe(
     catchRejection(() => "value b" as const),
   );
 
   // $ExpectType LazyPromise<"value a" | "value b", "error b">
-  const promise2 = pipe(
-    new LazyPromise<"value a", "error a">(() => {}),
+  const promise2 = new LazyPromise<"value a", "error a">(() => {}).pipe(
     catchRejection(() => new LazyPromise<"value b", "error b">(() => {})),
   );
 
@@ -73,10 +70,7 @@ test("types", () => {
 });
 
 test("falling back to a value", () => {
-  const promise = pipe(
-    rejected(1),
-    catchRejection((error) => error + 1),
-  );
+  const promise = rejected(1).pipe(catchRejection((error) => error + 1));
   promise.subscribe((value) => {
     log("handleValue", value);
   });
@@ -91,10 +85,7 @@ test("falling back to a value", () => {
 });
 
 test("outer promise resolves", () => {
-  const promise = pipe(
-    resolved(1),
-    catchRejection(() => undefined),
-  );
+  const promise = resolved(1).pipe(catchRejection(() => undefined));
   promise.subscribe((value) => {
     log("handleValue", value);
   });
@@ -109,12 +100,9 @@ test("outer promise resolves", () => {
 });
 
 test("outer promise fails", () => {
-  const promise = pipe(
-    new LazyPromise((resolve, reject, fail) => {
-      fail("oops");
-    }),
-    catchRejection(() => undefined),
-  );
+  const promise = new LazyPromise((resolve, reject, fail) => {
+    fail("oops");
+  }).pipe(catchRejection(() => undefined));
   promise.subscribe(undefined, undefined, (error) => {
     log("handleFailure", error);
   });
@@ -129,10 +117,7 @@ test("outer promise fails", () => {
 });
 
 test("inner promise resolves", () => {
-  const promise = pipe(
-    rejected("a"),
-    catchRejection(() => resolved("b")),
-  );
+  const promise = rejected("a").pipe(catchRejection(() => resolved("b")));
   promise.subscribe((value) => {
     log("handleValue", value);
   });
@@ -147,10 +132,7 @@ test("inner promise resolves", () => {
 });
 
 test("inner promise rejects", () => {
-  const promise = pipe(
-    rejected("a"),
-    catchRejection(() => rejected("b")),
-  );
+  const promise = rejected("a").pipe(catchRejection(() => rejected("b")));
   promise.subscribe(undefined, (error) => {
     log("handleError", error);
   });
@@ -165,8 +147,7 @@ test("inner promise rejects", () => {
 });
 
 test("inner promise fails", () => {
-  const promise = pipe(
-    rejected(1),
+  const promise = rejected(1).pipe(
     catchRejection(
       () =>
         new LazyPromise((resolve, reject, fail) => {
@@ -188,8 +169,7 @@ test("inner promise fails", () => {
 });
 
 test("callback throws", () => {
-  const promise = pipe(
-    rejected(1),
+  const promise = rejected(1).pipe(
     catchRejection(() => {
       throw "oops";
     }),
@@ -208,12 +188,9 @@ test("callback throws", () => {
 });
 
 test("cancel outer promise", () => {
-  const promise = pipe(
-    new LazyPromise(() => () => {
-      log("dispose");
-    }),
-    catchRejection((value) => value + 1),
-  );
+  const promise = new LazyPromise(() => () => {
+    log("dispose");
+  }).pipe(catchRejection((value) => value + 1));
   const dispose = promise.subscribe();
   vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
@@ -229,8 +206,7 @@ test("cancel outer promise", () => {
 });
 
 test("cancel inner promise", () => {
-  const promise = pipe(
-    rejected(1),
+  const promise = rejected(1).pipe(
     catchRejection(
       () =>
         new LazyPromise(() => () => {
@@ -254,46 +230,48 @@ test("cancel inner promise", () => {
 
 test("unsubscribe in the callback", () => {
   let reject: (error: number) => void;
-  const unsubscribe = pipe(
-    new LazyPromise<never, number>((resolve, rejectLocal) => {
-      reject = rejectLocal;
-    }),
-    catchRejection(() => {
-      unsubscribe();
-    }),
-  ).subscribe(
-    () => {
-      log("handleValue");
-    },
-    () => {
-      log("handleError");
-    },
-  );
+  const unsubscribe = new LazyPromise<never, number>((resolve, rejectLocal) => {
+    reject = rejectLocal;
+  })
+    .pipe(
+      catchRejection(() => {
+        unsubscribe();
+      }),
+    )
+    .subscribe(
+      () => {
+        log("handleValue");
+      },
+      () => {
+        log("handleError");
+      },
+    );
   reject!(1);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
 test("unsubscribe and throw in the callback", () => {
   let reject: (error: number) => void;
-  const unsubscribe = pipe(
-    new LazyPromise<never, number>((resolve, rejectLocal) => {
-      reject = rejectLocal;
-    }),
-    catchRejection(() => {
-      unsubscribe();
-      throw "oops";
-    }),
-  ).subscribe(
-    () => {
-      log("handleValue");
-    },
-    () => {
-      log("handleError");
-    },
-    () => {
-      log("handleFailure");
-    },
-  );
+  const unsubscribe = new LazyPromise<never, number>((resolve, rejectLocal) => {
+    reject = rejectLocal;
+  })
+    .pipe(
+      catchRejection(() => {
+        unsubscribe();
+        throw "oops";
+      }),
+    )
+    .subscribe(
+      () => {
+        log("handleValue");
+      },
+      () => {
+        log("handleError");
+      },
+      () => {
+        log("handleFailure");
+      },
+    );
   reject!(1);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   expect(processMockMicrotaskQueue).toThrow("oops");

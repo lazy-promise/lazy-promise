@@ -14,7 +14,7 @@ import { LazyPromise } from "./lazyPromise";
  * To limit this to only when the promise resolves, use
  *
  * ```
- * map((value) => pipe(nextTick(), map(() => value)))
+ * map((value) => nextTick().pipe(map(() => value)))
  * ```
  */
 export const nextTick = (): LazyPromise<void, never> =>

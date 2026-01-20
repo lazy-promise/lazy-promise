@@ -25,8 +25,7 @@ Since this function takes a lazy promise with error type `never`, type system wi
 ```
 createEffect(() => {
   useLazyPromise(
-    pipe(
-      yourLazyPromise,
+    yourLazyPromise.pipe(
       map(value => {
         // Reading a signal here will not create a dependency even
         // when the callback is run synchronously.
@@ -40,8 +39,7 @@ To error out the scope, fail the lazy promise:
 
 ```
 useLazyPromise(
-  pipe(
-    yourLazyPromise,
+  yourLazyPromise.pipe(
     catchRejection(error => {
       // Trigger the error boundary.
       throw error;
@@ -114,7 +112,7 @@ const [processing, trackProcessing] = createTrackProcessing();
 Here, `trackProcessing` (a value of type `TrackProcessing`) is an operator that you can use to wrap one or more lazy promises:
 
 ```
-const wrappedLazyPromise = pipe(lazyPromise, trackProcessing);
+const wrappedLazyPromise = lazyPromise.pipe(trackProcessing);
 ```
 
 `processing` is an accessor that will tell you whether any of the wrapped promises are currently active (subscribed but not yet settled/unsubscribed):

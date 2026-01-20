@@ -4,7 +4,6 @@ import {
   failed,
   LazyPromise,
   log,
-  pipe,
   rejected,
   resolved,
 } from "@lazy-promise/core";
@@ -36,15 +35,14 @@ test("base case", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  pipe(
-    new LazyPromise((resolve) => {
-      console.log("subscribing");
-      resolve(1);
-    }),
-    log("base case"),
-  ).subscribe((value) => {
-    console.log("handleValue", value);
-  });
+  new LazyPromise((resolve) => {
+    console.log("subscribing");
+    resolve(1);
+  })
+    .pipe(log("base case"))
+    .subscribe((value) => {
+      console.log("handleValue", value);
+    });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "[base case] [1] [subscribe]",
@@ -60,9 +58,11 @@ test("rejection", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  pipe(rejected(1), log("rejection case")).subscribe(undefined, (error) => {
-    console.log("handleRejection", error);
-  });
+  rejected(1)
+    .pipe(log("rejection case"))
+    .subscribe(undefined, (error) => {
+      console.log("handleRejection", error);
+    });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "[rejection case] [1] [subscribe]",
@@ -77,13 +77,11 @@ test("failure", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  pipe(failed(1), log("failure case")).subscribe(
-    undefined,
-    undefined,
-    (error) => {
+  failed(1)
+    .pipe(log("failure case"))
+    .subscribe(undefined, undefined, (error) => {
       console.log("handleFailure", error);
-    },
-  );
+    });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "[failure case] [1] [subscribe]",
@@ -98,12 +96,11 @@ test("unsubscribe", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  pipe(
-    new LazyPromise(() => () => {
-      console.log("unsubscribing");
-    }),
-    log("unsubscribe case"),
-  ).subscribe()();
+  new LazyPromise(() => () => {
+    console.log("unsubscribing");
+  })
+    .pipe(log("unsubscribe case"))
+    .subscribe()();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "[unsubscribe case] [1] [subscribe]",
@@ -118,7 +115,7 @@ test("counter", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  const getPromise = () => pipe(resolved(1), log("counter case"));
+  const getPromise = () => resolved(1).pipe(log("counter case"));
   getPromise().subscribe();
   getPromise().subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -136,7 +133,7 @@ test("no label", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  const getPromise = () => pipe(resolved(1), log());
+  const getPromise = () => resolved(1).pipe(log());
   getPromise().subscribe();
   getPromise().subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -154,7 +151,7 @@ test("number as label", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  const getPromise = () => pipe(resolved(1), log(42));
+  const getPromise = () => resolved(1).pipe(log(42));
   getPromise().subscribe();
   getPromise().subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -172,11 +169,13 @@ test("patched console.log", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  pipe(resolved(), log("label")).subscribe(() => {
-    console.log("a", "b");
-    console.log(1, "a");
-    console.log();
-  });
+  resolved()
+    .pipe(log("label"))
+    .subscribe(() => {
+      console.log("a", "b");
+      console.log(1, "a");
+      console.log();
+    });
 
   expect(readLog()).toMatchInlineSnapshot(`
     [
