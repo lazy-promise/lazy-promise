@@ -432,6 +432,28 @@ test("multiple yields", () => {
       ],
     ]
   `);
+
+  fromGenerator(function* () {
+    log(yield* getAsyncPromise(1));
+    log(yield* resolved(2));
+    log(yield* getAsyncPromise(3));
+  }).subscribe();
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        1,
+      ],
+      [
+        2,
+      ],
+      "1000 ms passed",
+      [
+        3,
+      ],
+    ]
+  `);
 });
 
 test("throw in callback", () => {
