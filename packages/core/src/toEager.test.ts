@@ -65,7 +65,7 @@ test("no signal, fail", async () => {
 
 test("signal, sync resolve", async () => {
   expect(
-    await toEager(resolved("value"), new AbortController().signal),
+    await toEager(resolved("value"), { signal: new AbortController().signal }),
   ).toMatchInlineSnapshot(`"value"`);
 });
 
@@ -76,7 +76,7 @@ test("signal, async resolve", async () => {
     new LazyPromise((resolveLocal) => {
       resolve = resolveLocal;
     }),
-    new AbortController().signal,
+    { signal: new AbortController().signal },
   ).then((value) => {
     log("resolved", value);
   });
@@ -96,10 +96,9 @@ test("signal, async resolve", async () => {
 test("signal, sync reject", async () => {
   let error;
   try {
-    await toEager(
-      rejected("oops") as LazyPromise<never, never>,
-      new AbortController().signal,
-    );
+    await toEager(rejected("oops") as LazyPromise<never, never>, {
+      signal: new AbortController().signal,
+    });
   } catch (errorLocal) {
     error = errorLocal;
   }
@@ -118,7 +117,7 @@ test("signal, async reject", async () => {
     new LazyPromise<never, "oops">((resolve, rejectLocal) => {
       reject = rejectLocal;
     }) as LazyPromise<never, never>,
-    new AbortController().signal,
+    { signal: new AbortController().signal },
   ).catch((error) => {
     log("rejected");
     if (!(error instanceof Error)) {
@@ -143,7 +142,7 @@ test("signal, async reject", async () => {
 
 test("signal, sync fail", async () => {
   await expect(() =>
-    toEager(failed("oops"), new AbortController().signal),
+    toEager(failed("oops"), { signal: new AbortController().signal }),
   ).rejects.toMatchInlineSnapshot(`"oops"`);
 });
 
@@ -153,7 +152,7 @@ test("signal, async fail", async () => {
     new LazyPromise((resolve, reject, failLocal) => {
       fail = failLocal;
     }),
-    new AbortController().signal,
+    { signal: new AbortController().signal },
   ).catch((error) => {
     log("rejected", error);
   });
@@ -178,7 +177,7 @@ test("already aborted signal", async () => {
       new LazyPromise<never, never>(() => {
         log("subscribe");
       }),
-      abortController.signal,
+      { signal: abortController.signal },
     ),
   ).rejects.toMatchInlineSnapshot(`"reason"`);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
@@ -194,7 +193,7 @@ test("signal aborted while subscribing", async () => {
         log("unsubscribe");
       };
     }),
-    abortController.signal,
+    { signal: abortController.signal },
   );
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -218,7 +217,7 @@ test("signal aborted after subscribing", async () => {
         log("unsubscribe");
       };
     }),
-    abortController.signal,
+    { signal: abortController.signal },
   ).catch((error) => {
     log("rejected", error);
   });

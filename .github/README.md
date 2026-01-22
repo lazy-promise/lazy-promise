@@ -147,7 +147,7 @@ The failure channel makes typed errors an optional feature: you can easily use t
 
 ## Async-await syntax
 
-You cannot `await` a lazy promise, but you can return one from an async function, and that enables typed errors:
+You cannot `await` a lazy promise, but you can return one from an async function, and that makes it easy to have typed errors when working with Promise-based APIs:
 
 ```ts
 // Type inferred as LazyPromise<"a", "error1">
@@ -161,7 +161,7 @@ const lazyPromise = fromEager(async () => {
 
 ## Generator syntax
 
-This is the LazyPromise equivalent of async-await. Just use generator functions instead of async functions, and `yield*` instead of `await`:
+This is a full LazyPromise equivalent of async-await. Just use generator functions instead of async functions, and `yield*` instead of `await`:
 
 ```ts
 // Type inferred as LazyPromise<"b", "error1" | "error2">

@@ -11,14 +11,17 @@ const wrapRejectionError = (error: unknown) =>
  * Converts a LazyPromise to a Promise. The LazyPromise is expected to not
  * reject, and failures are passed on as Promise rejections. If you'd like
  * LazyPromise rejections to also be passed on as Promise rejections, pipe the
- * LazyPromise through `catchRejection(failed)`.
+ * lazy promise through `catchRejection(failed)`.
+ *
+ * You can pass an AbortSignal in the options object.
  */
 export const toEager = <Value>(
   lazyPromise: LazyPromise<Value, never>,
-  abortSignal?: AbortSignal,
+  options?: { readonly signal?: AbortSignal },
 ): Promise<Value> =>
   new Promise((resolve, reject) => {
-    if (!abortSignal) {
+    const signal = options?.signal;
+    if (!signal) {
       lazyPromise.subscribe(
         resolve,
         (error) => {
@@ -28,26 +31,26 @@ export const toEager = <Value>(
       );
       return;
     }
-    if (abortSignal.aborted) {
-      reject(abortSignal.reason);
+    if (signal.aborted) {
+      reject(signal.reason);
       return;
     }
     let listener: (() => void) | undefined = undefined;
     const handleResolve = (value: Value) => {
       if (listener) {
-        abortSignal.removeEventListener("abort", listener);
+        signal.removeEventListener("abort", listener);
       }
       resolve(value);
     };
     const handleReject = (error: unknown) => {
       if (listener) {
-        abortSignal.removeEventListener("abort", listener);
+        signal.removeEventListener("abort", listener);
       }
       reject(wrapRejectionError(error));
     };
     const handleFailure = (error: unknown) => {
       if (listener) {
-        abortSignal.removeEventListener("abort", listener);
+        signal.removeEventListener("abort", listener);
       }
       reject(error);
     };
@@ -60,15 +63,15 @@ export const toEager = <Value>(
       return;
     }
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (abortSignal.aborted) {
+    if (signal.aborted) {
       unsubscribe();
-      reject(abortSignal.reason);
+      reject(signal.reason);
       return;
     }
     listener = () => {
-      abortSignal.removeEventListener("abort", listener!);
+      signal.removeEventListener("abort", listener!);
       unsubscribe();
-      reject(abortSignal.reason);
+      reject(signal.reason);
     };
-    abortSignal.addEventListener("abort", listener);
+    signal.addEventListener("abort", listener);
   });
