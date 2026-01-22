@@ -3,6 +3,7 @@ import {
   failed,
   fromEager,
   LazyPromise,
+  map,
   rejected,
 } from "@lazy-promise/core";
 import { afterEach, expect, test } from "vitest";
@@ -83,6 +84,14 @@ test("types", () => {
   const promise5 = fromEager(() => {
     throw 1;
   });
+
+  // Return generic type.
+  const f = <T>(arg: T) => {
+    const promise = fromEager(async () => arg);
+    return promise.pipe(map((x) => x));
+  };
+  // $ExpectType LazyPromise<"a", never>
+  const x = f("a" as const);
 
   /* eslint-enable require-await */
   /* eslint-enable @typescript-eslint/no-unused-vars */

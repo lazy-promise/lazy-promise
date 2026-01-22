@@ -3,9 +3,10 @@ import {
   failed,
   fromGenerator,
   LazyPromise,
+  map,
   rejected,
 } from "@lazy-promise/core";
-import { afterEach, assertType, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const logContents: unknown[] = [];
 let logTime: number;
@@ -101,7 +102,26 @@ test("types", () => {
     yield* [box(1)];
   });
 
-  assertType<number>(1 as const);
+  // Return generic type.
+  const f1 = <T>(arg: T) => {
+    const promise = fromGenerator(function* () {
+      return arg;
+    });
+    return promise.pipe(map((x) => x));
+  };
+  // $ExpectType LazyPromise<"a", never>
+  const promise7 = f1("a" as const);
+
+  // Yield generic type.
+  const f2 = <T>(arg: T) => {
+    const promise = fromGenerator(function* () {
+      yield* rejected(arg);
+      return { prop: yield* box(arg) };
+    });
+    return promise.pipe(map((x) => x));
+  };
+  // $ExpectType LazyPromise<{ prop: "a"; }, "a">
+  const promise8 = f2("a" as const);
 
   /* eslint-enable @typescript-eslint/no-unused-vars */
 });

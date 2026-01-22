@@ -50,12 +50,10 @@ export const fromEager = <PromiseValue = never>(
   callback: (options: {
     readonly signal: AbortSignal;
   }) => PromiseLike<PromiseValue>,
-): [PromiseValue] extends [never]
-  ? LazyPromise<never, never>
-  : LazyPromise<
-      PromiseValue extends LazyPromise<infer Value, any> ? Value : PromiseValue,
-      PromiseValue extends LazyPromise<any, infer Error> ? Error : never
-    > =>
+): LazyPromise<
+  PromiseValue extends LazyPromise<infer Value, any> ? Value : PromiseValue,
+  PromiseValue extends LazyPromise<any, infer Error> ? Error : never
+> =>
   new LazyPromise<any, any>((resolve, reject, fail) => {
     const options = new FromEagerOptions();
     let discardPromiseResult = false;

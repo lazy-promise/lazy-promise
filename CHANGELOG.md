@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.18](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.18)
+
+- Better `fromEager` type inference.
+
 ## [@lazy-promise/core@0.0.17](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.17)
 
 - `createLazyPromise(...)` becomes `new LazyPromise(...)`.
