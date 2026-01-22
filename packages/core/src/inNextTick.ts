@@ -8,16 +8,16 @@ import { LazyPromise } from "./lazyPromise";
  * though
  *
  * ```
- * finalize(nextTick)
+ * finalize(inNextTick)
  * ```
  *
  * To limit this to only when the promise resolves, use
  *
  * ```
- * map((value) => nextTick().pipe(map(() => value)))
+ * map((value) => inNextTick().pipe(map(() => value)))
  * ```
  */
-export const nextTick = (): LazyPromise<void, never> =>
+export const inNextTick = (): LazyPromise<void, never> =>
   new LazyPromise((resolve) => {
     let disposed = false;
     process.nextTick(() => {

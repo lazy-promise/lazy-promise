@@ -8,16 +8,16 @@ import { LazyPromise } from "./lazyPromise";
  * microtask, pipe it though
  *
  * ```
- * finalize(microtask)
+ * finalize(inMicrotask)
  * ```
  *
  * To limit this to only when the promise resolves, use
  *
  * ```
- * map((value) => microtask().pipe(map(() => value)))
+ * map((value) => inMicrotask().pipe(map(() => value)))
  * ```
  */
-export const microtask = (): LazyPromise<void, never> =>
+export const inMicrotask = (): LazyPromise<void, never> =>
   new LazyPromise((resolve) => {
     let disposed = false;
     queueMicrotask(() => {

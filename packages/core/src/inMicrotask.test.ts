@@ -1,15 +1,9 @@
-import { timeout } from "@lazy-promise/core";
+import { inMicrotask } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const logContents: unknown[] = [];
-let logTime: number;
 
 const log = (...args: unknown[]) => {
-  const currentTime = Date.now();
-  if (currentTime !== logTime) {
-    logContents.push(`${currentTime - logTime} ms passed`);
-    logTime = currentTime;
-  }
   logContents.push(args);
 };
 
@@ -23,11 +17,14 @@ const readLog = () => {
 
 beforeEach(() => {
   vi.useFakeTimers();
-  logTime = Date.now();
+  vi.spyOn(global, "queueMicrotask").mockImplementation((callback) => {
+    setTimeout(callback);
+  });
 });
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
   try {
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
@@ -38,14 +35,13 @@ afterEach(() => {
 });
 
 test("resolve", () => {
-  timeout(1000).subscribe((value) => {
+  inMicrotask().subscribe((value) => {
     log("handleValue", value);
   });
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
-      "1000 ms passed",
       [
         "handleValue",
         undefined,
@@ -55,7 +51,7 @@ test("resolve", () => {
 });
 
 test("cancel", () => {
-  timeout().subscribe(() => {
+  inMicrotask().subscribe(() => {
     log("handleValue");
   })();
   vi.runAllTimers();

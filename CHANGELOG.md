@@ -14,7 +14,9 @@
 
 - `fromEager` flattens the returned lazy promise.
 
-- `resolved` becomes `box` and now flattens the returned lazy promise.
+- `resolved` becomes `box` and flattens the returned lazy promise.
+
+- `timeout`, `microtask` etc. renamed to `inTimeout`, `inMicrotask` etc.
 
 ## [@lazy-promise/core@0.0.16](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.16)
 

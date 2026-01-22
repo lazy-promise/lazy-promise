@@ -1,4 +1,4 @@
-import { animationFrame } from "@lazy-promise/core";
+import { inNextTick } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const logContents: unknown[] = [];
@@ -17,19 +17,14 @@ const readLog = () => {
 
 beforeEach(() => {
   vi.useFakeTimers();
-  global.requestAnimationFrame = (callback) =>
-    setTimeout(() => {
-      callback(42);
-    }) as unknown as number;
-  global.cancelAnimationFrame = (id) => {
-    clearTimeout(id as unknown as NodeJS.Timeout);
-  };
+  vi.spyOn(process, "nextTick").mockImplementation((callback, ...args) => {
+    setTimeout(() => callback(...args));
+  });
 });
 
 afterEach(() => {
   vi.useRealTimers();
-  delete (global as any).requestAnimationFrame;
-  delete (global as any).cancelAnimationFrame;
+  vi.restoreAllMocks();
   try {
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
@@ -40,7 +35,7 @@ afterEach(() => {
 });
 
 test("resolve", () => {
-  animationFrame().subscribe((value) => {
+  inNextTick().subscribe((value) => {
     log("handleValue", value);
   });
   expect(readLog()).toMatchInlineSnapshot(`[]`);
@@ -49,14 +44,14 @@ test("resolve", () => {
     [
       [
         "handleValue",
-        42,
+        undefined,
       ],
     ]
   `);
 });
 
 test("cancel", () => {
-  animationFrame().subscribe(() => {
+  inNextTick().subscribe(() => {
     log("handleValue");
   })();
   vi.runAllTimers();

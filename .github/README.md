@@ -141,7 +141,7 @@ The failure channel makes typed errors an optional feature: you can easily use t
 
 - `toEager` converts a LazyPromise to a Promise, `fromEager` converts an async function to a LazyPromise. Both functions support AbortSignal API.
 
-- There are convenience wrappers for browser and Node deferral APIs: `timeout`, `microtask`, `animationFrame`, `idleCallback`, `immediate`, `nextTick`. Each of these returns a lazy promise that fires in respectively `setTimeout`, `queueMicrotask` etc. If you wrote `try { return 1 } finally { await x }`, this would produce a promise that waits for `x`, then resolves with 1. In the same way, piping a lazy promise through `finalize(() => timeout(ms))` delays it by `ms`, or piping it through `finalize(microtask)` makes it settle in a microtask.
+- There are convenience wrappers for browser and Node deferral APIs: `inTimeout`, `inMicrotask`, `inAnimationFrame`, `inIdleCallback`, `inImmediate`, `inNextTick`. Each of these returns a lazy promise that fires in respectively `setTimeout`, `queueMicrotask` etc. If you wrote `try { return 1 } finally { await x }`, this would produce a promise that waits for `x`, then resolves with 1. In the same way, piping a lazy promise through `finalize(() => inTimeout(ms))` delays it by `ms`, or piping it through `finalize(inMicrotask)` makes it settle in a microtask.
 
 - `log` function wraps a lazy promise without changing its behavior, and console.logs everything that happens to it: `lazyPromise.pipe(log("your label"))`.
 

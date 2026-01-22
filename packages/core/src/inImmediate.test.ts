@@ -1,4 +1,4 @@
-import { microtask } from "@lazy-promise/core";
+import { inImmediate } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const logContents: unknown[] = [];
@@ -17,8 +17,12 @@ const readLog = () => {
 
 beforeEach(() => {
   vi.useFakeTimers();
-  vi.spyOn(global, "queueMicrotask").mockImplementation((callback) => {
-    setTimeout(callback);
+  vi.spyOn(global, "setImmediate").mockImplementation(
+    (callback, ...args) =>
+      setTimeout(callback, 0, ...args) as unknown as NodeJS.Immediate,
+  );
+  vi.spyOn(global, "clearImmediate").mockImplementation((id) => {
+    clearTimeout(id as unknown as NodeJS.Timeout);
   });
 });
 
@@ -35,7 +39,7 @@ afterEach(() => {
 });
 
 test("resolve", () => {
-  microtask().subscribe((value) => {
+  inImmediate().subscribe((value) => {
     log("handleValue", value);
   });
   expect(readLog()).toMatchInlineSnapshot(`[]`);
@@ -51,7 +55,7 @@ test("resolve", () => {
 });
 
 test("cancel", () => {
-  microtask().subscribe(() => {
+  inImmediate().subscribe(() => {
     log("handleValue");
   })();
   vi.runAllTimers();

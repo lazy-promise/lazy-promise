@@ -4,7 +4,7 @@ import { LazyPromise } from "./lazyPromise";
  * Takes optional IdleRequestOptions, and returns a lazy promise that resolves
  * with `IdleDeadline` in an idle callback.
  */
-export const idleCallback = (
+export const inIdleCallback = (
   options?: IdleRequestOptions,
 ): LazyPromise<IdleDeadline, never> =>
   new LazyPromise((resolve) => {

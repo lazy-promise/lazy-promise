@@ -8,16 +8,16 @@ import { LazyPromise } from "./lazyPromise";
  * pipe it though
  *
  * ```
- * finalize(immediate)
+ * finalize(inImmediate)
  * ```
  *
  * To limit this to only when the promise resolves, use
  *
  * ```
- * map((value) => immediate().pipe(map(() => value)))
+ * map((value) => inImmediate().pipe(map(() => value)))
  * ```
  */
-export const immediate = (): LazyPromise<void, never> =>
+export const inImmediate = (): LazyPromise<void, never> =>
   new LazyPromise((resolve) => {
     const id = setImmediate(resolve);
     return () => {

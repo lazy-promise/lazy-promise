@@ -1,4 +1,4 @@
-import { idleCallback } from "@lazy-promise/core";
+import { inAnimationFrame } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const logContents: unknown[] = [];
@@ -17,24 +17,19 @@ const readLog = () => {
 
 beforeEach(() => {
   vi.useFakeTimers();
-  global.requestIdleCallback = (callback, options) => {
-    log("requestIdleCallback", options);
-    return setTimeout(() => {
-      callback({
-        didTimeout: false,
-        timeRemaining: () => 43,
-      });
+  global.requestAnimationFrame = (callback) =>
+    setTimeout(() => {
+      callback(42);
     }) as unknown as number;
-  };
-  global.cancelIdleCallback = (id) => {
+  global.cancelAnimationFrame = (id) => {
     clearTimeout(id as unknown as NodeJS.Timeout);
   };
 });
 
 afterEach(() => {
   vi.useRealTimers();
-  delete (global as any).requestIdleCallback;
-  delete (global as any).cancelIdleCallback;
+  delete (global as any).requestAnimationFrame;
+  delete (global as any).cancelAnimationFrame;
   try {
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
@@ -45,45 +40,25 @@ afterEach(() => {
 });
 
 test("resolve", () => {
-  idleCallback({ timeout: 42 }).subscribe((value) => {
+  inAnimationFrame().subscribe((value) => {
     log("handleValue", value);
   });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "requestIdleCallback",
-        {
-          "timeout": 42,
-        },
-      ],
-    ]
-  `);
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleValue",
-        {
-          "didTimeout": false,
-          "timeRemaining": [Function],
-        },
+        42,
       ],
     ]
   `);
 });
 
 test("cancel", () => {
-  idleCallback().subscribe(() => {
+  inAnimationFrame().subscribe(() => {
     log("handleValue");
   })();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "requestIdleCallback",
-        undefined,
-      ],
-    ]
-  `);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
