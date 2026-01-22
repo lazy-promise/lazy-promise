@@ -58,19 +58,19 @@ If a lazy promise does fire, then like a regular promise it will remember foreve
 
 Aside from some small naming differences, LazyPromise API mirrors that of Promise:
 
-| Promise api                    | LazyPromise equivalent                       |
-| :----------------------------- | :------------------------------------------- |
-| `promise.then(foo)`            | `lazyPromise.pipe(map(foo))`                 |
-| `promise.catch(foo)`           | `lazyPromise.pipe(catchRejection(foo))`      |
-| `promise.finally(foo)`         | `lazyPromise.pipe(finalize(foo))`            |
-| `Promise.resolve(value)`       | `resolved(value)`                            |
-| `Promise.reject(error)`        | `rejected(error)`                            |
-| `new Promise<never>(() => {})` | `never`                                      |
-| `Promise.all(...)`             | `all(...)`                                   |
-| `Promise.any(...)`             | `any(...)`                                   |
-| `Promise.race(...)`            | `race(...)`                                  |
-| `Promise<Value>`               | `LazyPromise<Value, Error>`                  |
-| `Awaited<T>`                   | `LazyPromiseValue<T>`, `LazyPromiseError<T>` |
+| Promise api                       | LazyPromise equivalent                       |
+| :-------------------------------- | :------------------------------------------- |
+| `promise.then(foo)`               | `lazyPromise.pipe(map(foo))`                 |
+| `promise.catch(foo)`              | `lazyPromise.pipe(catchRejection(foo))`      |
+| `promise.finally(foo)`            | `lazyPromise.pipe(finalize(foo))`            |
+| `Promise.resolve(valueOrPromise)` | `box(valueOrLazyPromise)`                    |
+| `Promise.reject(error)`           | `rejected(error)`                            |
+| `new Promise<never>(() => {})`    | `never`                                      |
+| `Promise.all(...)`                | `all(...)`                                   |
+| `Promise.any(...)`                | `any(...)`                                   |
+| `Promise.race(...)`               | `race(...)`                                  |
+| `Promise<Value>`                  | `LazyPromise<Value, Error>`                  |
+| `Awaited<T>`                      | `LazyPromiseValue<T>`, `LazyPromiseError<T>` |
 
 Your typical code could look something like this (types of all values and errors will be inferred, and callbacks are guaranteed to not be called once you unsubscribe):
 

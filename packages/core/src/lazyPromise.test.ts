@@ -1,10 +1,10 @@
 import {
+  box,
   failed,
   LazyPromise,
   never,
   noopUnsubscribe,
   rejected,
-  resolved,
 } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
@@ -81,16 +81,24 @@ test("types", () => {
   promise2.subscribe(() => {}, undefined);
 
   // $ExpectType LazyPromise<"a", never>
-  const promise3 = resolved("a");
+  const promise3 = box("a");
 
   // $ExpectType LazyPromise<void, never>
-  const promise4 = resolved();
+  const promise4 = box();
+
+  // $ExpectType LazyPromise<"value", "error">
+  const promise5 = box(new LazyPromise<"value", "error">(() => {}));
+
+  // $ExpectType LazyPromise<"a" | "value", "error">
+  const promise6 = box(
+    (true as boolean) ? "a" : new LazyPromise<"value", "error">(() => {}),
+  );
 
   // $ExpectType LazyPromise<never, "a">
-  const promise5 = rejected("a");
+  const promise7 = rejected("a");
 
   // $ExpectType LazyPromise<never, void>
-  const promise6 = rejected();
+  const promise8 = rejected();
 
   /* eslint-enable @typescript-eslint/no-unused-vars */
 });
@@ -877,8 +885,8 @@ test("subscribe in teardown function", () => {
   `);
 });
 
-test("resolved", () => {
-  const promise = resolved(1);
+test("box", () => {
+  const promise = box(1);
   expect(promise instanceof LazyPromise).toMatchInlineSnapshot(`true`);
   expect(
     promise.subscribe((value) => {
@@ -897,6 +905,7 @@ test("resolved", () => {
     throw "oops";
   })();
   expect(processMockMicrotaskQueue).toThrow("oops");
+  expect(box(promise)).toBe(promise);
 });
 
 test("rejected", () => {

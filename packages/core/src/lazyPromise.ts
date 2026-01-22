@@ -445,7 +445,7 @@ export class LazyPromise<Value, Error = never> {
    *   if (...) {
    *     return rejected(1);
    *   }
-   *   return resolved(2);
+   *   return box(2);
    * }
    * ```
    *
@@ -472,14 +472,23 @@ function resolvedSubscribe(
 }
 
 /**
- * Returns a LazyPromise which is already resolved.
+ * If the argument is a lazy promise, passes it through, otherwise wraps it in a
+ * resolved lazy promise.
  */
-export const resolved: {
-  <const Value>(value: Value): LazyPromise<Value, never>;
+export const box: {
+  <const Arg>(
+    arg: Arg,
+  ): LazyPromise<
+    Arg extends LazyPromise<infer Value, any> ? Value : Arg,
+    Arg extends LazyPromise<any, infer Error> ? Error : never
+  >;
   (): LazyPromise<void, never>;
-} = (value?: any): any => {
+} = (arg?: any): any => {
+  if (arg instanceof LazyPromise) {
+    return arg;
+  }
   const instance = Object.create(LazyPromise.prototype) as SettledLazyPromise;
-  instance.result = value;
+  instance.result = arg;
   instance.subscribe = resolvedSubscribe;
   return instance;
 };

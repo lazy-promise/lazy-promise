@@ -1,4 +1,4 @@
-import { any, LazyPromise, rejected, resolved } from "@lazy-promise/core";
+import { any, box, LazyPromise, rejected } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -230,7 +230,7 @@ test("internally disposed when a source resolves, internal disposal should preve
         log("dispose a");
       };
     }),
-    resolved("b"),
+    box("b"),
     new LazyPromise<undefined, string>((resolve, reject) => {
       log("produce c");
       setTimeout(() => {

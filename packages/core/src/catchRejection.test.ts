@@ -1,9 +1,4 @@
-import {
-  catchRejection,
-  LazyPromise,
-  rejected,
-  resolved,
-} from "@lazy-promise/core";
+import { box, catchRejection, LazyPromise, rejected } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -85,7 +80,7 @@ test("falling back to a value", () => {
 });
 
 test("outer promise resolves", () => {
-  const promise = resolved(1).pipe(catchRejection(() => undefined));
+  const promise = box(1).pipe(catchRejection(() => undefined));
   promise.subscribe((value) => {
     log("handleValue", value);
   });
@@ -117,7 +112,7 @@ test("outer promise fails", () => {
 });
 
 test("inner promise resolves", () => {
-  const promise = rejected("a").pipe(catchRejection(() => resolved("b")));
+  const promise = rejected("a").pipe(catchRejection(() => box("b")));
   promise.subscribe((value) => {
     log("handleValue", value);
   });

@@ -14,6 +14,8 @@
 
 - `fromEager` flattens the returned lazy promise.
 
+- `resolved` becomes `box` and now flattens the returned lazy promise.
+
 ## [@lazy-promise/core@0.0.16](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.16)
 
 - Make `log` play well with string substitutions.

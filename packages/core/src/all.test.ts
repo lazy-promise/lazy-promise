@@ -1,4 +1,4 @@
-import { all, LazyPromise, rejected, resolved } from "@lazy-promise/core";
+import { all, box, LazyPromise, rejected } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -90,7 +90,7 @@ test("empty iterable", () => {
 });
 
 test("sync resolve", () => {
-  const promise = all([resolved("a" as const), resolved("b" as const)]);
+  const promise = all([box("a" as const), box("b" as const)]);
   promise.subscribe((value) => {
     log("handleValue", value);
   });
@@ -108,7 +108,7 @@ test("sync resolve", () => {
 });
 
 test("non-array iterable", () => {
-  const promise = all(new Set([resolved("a")]));
+  const promise = all(new Set([box("a")]));
   promise.subscribe((value) => {
     log("handleValue", value);
   });
@@ -136,7 +136,7 @@ test("async resolve", () => {
         resolve("b");
       }, 1000);
     }),
-    resolved("c" as const),
+    box("c" as const),
   ]);
   promise.subscribe((value) => {
     log("handleValue", value);
@@ -268,7 +268,7 @@ test("unsubscribe", () => {
         log("dispose a");
       };
     }),
-    resolved("b" as const),
+    box("b" as const),
   ]);
   const dispose = promise.subscribe();
   vi.advanceTimersByTime(1000);

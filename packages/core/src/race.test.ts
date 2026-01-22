@@ -1,4 +1,4 @@
-import { LazyPromise, race, rejected, resolved } from "@lazy-promise/core";
+import { box, LazyPromise, race, rejected } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -72,7 +72,7 @@ test("sync resolve", () => {
         log("dispose a");
       };
     }),
-    resolved("b" as const),
+    box("b" as const),
     new LazyPromise<never>(() => {
       log("produce c");
       return () => {
@@ -100,7 +100,7 @@ test("sync resolve", () => {
 });
 
 test("non-array iterable", () => {
-  const promise = race(new Set([resolved("a")]));
+  const promise = race(new Set([box("a")]));
   promise.subscribe((value) => {
     log("resolve", value);
   });

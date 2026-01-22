@@ -1,9 +1,9 @@
 import {
+  box,
   failed,
   finalize,
   LazyPromise,
   rejected,
-  resolved,
 } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
@@ -55,7 +55,7 @@ afterEach(() => {
 });
 
 test("source resolves", () => {
-  const promise = resolved(1).pipe(
+  const promise = box(1).pipe(
     finalize(() => {
       log("finalize");
     }),
@@ -123,7 +123,7 @@ test("source fails", () => {
 });
 
 test("callback throws", () => {
-  resolved(1)
+  box(1)
     .pipe(
       finalize(() => {
         throw "oops 1";
@@ -330,7 +330,7 @@ test("unsubscribe and throw in the callback (source fails)", () => {
 });
 
 test("inner promise resolves", () => {
-  const promise = resolved(1).pipe(
+  const promise = box(1).pipe(
     finalize(
       () =>
         new LazyPromise<2>((resolve) => {
@@ -357,7 +357,7 @@ test("inner promise resolves", () => {
 });
 
 test("inner promise rejects", () => {
-  const promise = resolved(1).pipe(
+  const promise = box(1).pipe(
     finalize(() => rejected(2) as LazyPromise<never, never>),
   );
   promise.subscribe(
@@ -429,7 +429,7 @@ test("cancel outer promise", () => {
 });
 
 test("cancel inner promise", () => {
-  const promise = resolved(1).pipe(
+  const promise = box(1).pipe(
     finalize(
       () =>
         new LazyPromise(() => () => {

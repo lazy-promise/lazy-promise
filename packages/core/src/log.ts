@@ -42,7 +42,7 @@ const bumpStackLevel = <T>(callback: () => T) => {
  * prefixed with dots indicating sync stack depth, so
  *
  * ```
- * resolved(1).pipe(
+ * box(1).pipe(
  *   log("a"),
  *   map(() => {
  *     console.log("mapping");

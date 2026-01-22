@@ -1,4 +1,4 @@
-import { LazyPromise, map, rejected, resolved } from "@lazy-promise/core";
+import { box, LazyPromise, map, rejected } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -65,7 +65,7 @@ test("types", () => {
 });
 
 test("mapping to a value", () => {
-  const promise = resolved(1).pipe(map((value) => value + 1));
+  const promise = box(1).pipe(map((value) => value + 1));
   promise.subscribe((value) => {
     log("handleValue", value);
   });
@@ -112,7 +112,7 @@ test("outer promise fails", () => {
 });
 
 test("inner promise resolves", () => {
-  const promise = resolved(1).pipe(map(() => resolved(2)));
+  const promise = box(1).pipe(map(() => box(2)));
   promise.subscribe((value) => {
     log("handleValue", value);
   });
@@ -127,7 +127,7 @@ test("inner promise resolves", () => {
 });
 
 test("inner promise rejects", () => {
-  const promise = resolved(1).pipe(map(() => rejected("oops")));
+  const promise = box(1).pipe(map(() => rejected("oops")));
   promise.subscribe(undefined, (error) => {
     log("handleError", error);
   });
@@ -142,7 +142,7 @@ test("inner promise rejects", () => {
 });
 
 test("inner promise fails", () => {
-  const promise = resolved(1).pipe(
+  const promise = box(1).pipe(
     map(
       () =>
         new LazyPromise((resolve, reject, fail) => {
@@ -164,7 +164,7 @@ test("inner promise fails", () => {
 });
 
 test("callback throws", () => {
-  const promise = resolved(1).pipe(
+  const promise = box(1).pipe(
     map(() => {
       throw "oops";
     }),
@@ -201,7 +201,7 @@ test("cancel outer promise", () => {
 });
 
 test("cancel inner promise", () => {
-  const promise = resolved(1).pipe(
+  const promise = box(1).pipe(
     map(
       () =>
         new LazyPromise(() => () => {

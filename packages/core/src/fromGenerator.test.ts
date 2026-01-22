@@ -1,9 +1,9 @@
 import {
+  box,
   failed,
   fromGenerator,
   LazyPromise,
   rejected,
-  resolved,
 } from "@lazy-promise/core";
 import { afterEach, assertType, beforeEach, expect, test, vi } from "vitest";
 
@@ -69,7 +69,7 @@ test("types", () => {
     if (true as boolean) {
       return rejected(1);
     }
-    return resolved(2);
+    return box(2);
   });
 
   // $ExpectType LazyPromise<void, 2 | 1>
@@ -88,7 +88,7 @@ test("types", () => {
 
   /** @ts-expect-error */
   fromGenerator(function* () {
-    yield resolved(1);
+    yield box(1);
   });
 
   /** @ts-expect-error */
@@ -98,7 +98,7 @@ test("types", () => {
 
   /** @ts-expect-error */
   fromGenerator(function* () {
-    yield* [resolved(1)];
+    yield* [box(1)];
   });
 
   assertType<number>(1 as const);
@@ -130,7 +130,7 @@ test("return value", () => {
 test("return resolved", () => {
   const promise = fromGenerator(function* () {
     log("in generator");
-    return resolved("a");
+    return box("a");
   });
   promise.subscribe((value) => {
     log("handleValue", value);
@@ -254,7 +254,7 @@ test("return async", () => {
 test("yield resolved", () => {
   const promise = fromGenerator(function* () {
     log("in generator, start");
-    const a = yield* resolved("a");
+    const a = yield* box("a");
     log("in generator, after yield", a);
   });
   promise.subscribe();
@@ -385,8 +385,8 @@ test("multiple yields", () => {
     });
 
   fromGenerator(function* () {
-    log(yield* resolved(1));
-    log(yield* resolved(2));
+    log(yield* box(1));
+    log(yield* box(2));
   }).subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -418,9 +418,9 @@ test("multiple yields", () => {
   `);
 
   fromGenerator(function* () {
-    log(yield* resolved(1));
+    log(yield* box(1));
     log(yield* getAsyncPromise(2));
-    log(yield* resolved(3));
+    log(yield* box(3));
   }).subscribe();
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -440,7 +440,7 @@ test("multiple yields", () => {
 
   fromGenerator(function* () {
     log(yield* getAsyncPromise(1));
-    log(yield* resolved(2));
+    log(yield* box(2));
     log(yield* getAsyncPromise(3));
   }).subscribe();
   vi.runAllTimers();
@@ -500,7 +500,7 @@ test("throw at the start of the generator", () => {
 
 test("throw in the middle of a sync generator", () => {
   fromGenerator(function* () {
-    yield* resolved();
+    yield* box();
     throw "oops";
   }).subscribe(undefined, undefined, (error) => {
     log("handleFailure", error);
@@ -571,7 +571,7 @@ test("stack overflow", () => {
   const maxStackDepth = getMaxStackDepth();
   fromGenerator(function* () {
     for (let i = 0; i < maxStackDepth + 10; i++) {
-      yield* resolved();
+      yield* box();
     }
   }).subscribe();
 

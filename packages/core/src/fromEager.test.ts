@@ -1,9 +1,9 @@
 import {
+  box,
   failed,
   fromEager,
   LazyPromise,
   rejected,
-  resolved,
 } from "@lazy-promise/core";
 import { afterEach, expect, test } from "vitest";
 
@@ -238,7 +238,7 @@ test("un-aborted promise resolves", async () => {
 
 test("flattened promise resolves", async () => {
   // eslint-disable-next-line require-await
-  const promise = fromEager(async () => resolved("a"));
+  const promise = fromEager(async () => box("a"));
   promise.subscribe((value) => {
     log("handleValue", value);
   });

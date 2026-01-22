@@ -1,12 +1,6 @@
 /* eslint-disable no-console */
 
-import {
-  failed,
-  LazyPromise,
-  log,
-  rejected,
-  resolved,
-} from "@lazy-promise/core";
+import { box, failed, LazyPromise, log, rejected } from "@lazy-promise/core";
 import { afterEach, expect, test, vi } from "vitest";
 
 const logContents: unknown[] = [];
@@ -115,7 +109,7 @@ test("counter", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  const getPromise = () => resolved(1).pipe(log("counter case"));
+  const getPromise = () => box(1).pipe(log("counter case"));
   getPromise().subscribe();
   getPromise().subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -133,7 +127,7 @@ test("no label", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  const getPromise = () => resolved(1).pipe(log());
+  const getPromise = () => box(1).pipe(log());
   getPromise().subscribe();
   getPromise().subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -151,7 +145,7 @@ test("number as label", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  const getPromise = () => resolved(1).pipe(log(42));
+  const getPromise = () => box(1).pipe(log(42));
   getPromise().subscribe();
   getPromise().subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -169,7 +163,7 @@ test("patched console.log", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  resolved()
+  box()
     .pipe(log("label"))
     .subscribe(() => {
       console.log("a", "b");

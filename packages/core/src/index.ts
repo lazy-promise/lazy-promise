@@ -9,12 +9,12 @@ export { fromGenerator } from "./fromGenerator";
 export { idleCallback } from "./idleCallback";
 export { immediate } from "./immediate";
 export {
+  box,
   failed,
   LazyPromise,
   never,
   noopUnsubscribe,
   rejected,
-  resolved,
 } from "./lazyPromise";
 export type { LazyPromiseError, LazyPromiseValue } from "./lazyPromise";
 export { log } from "./log";

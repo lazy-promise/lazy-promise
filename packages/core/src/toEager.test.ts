@@ -1,8 +1,8 @@
 import {
+  box,
   failed,
   LazyPromise,
   rejected,
-  resolved,
   toEager,
 } from "@lazy-promise/core";
 import { afterEach, expect, test } from "vitest";
@@ -38,7 +38,7 @@ const flushMicrotasks = async () => {
 };
 
 test("no signal, resolve", async () => {
-  expect(await toEager(resolved("value"))).toMatchInlineSnapshot(`"value"`);
+  expect(await toEager(box("value"))).toMatchInlineSnapshot(`"value"`);
 });
 
 test("no signal, reject", async () => {
@@ -65,7 +65,7 @@ test("no signal, fail", async () => {
 
 test("signal, sync resolve", async () => {
   expect(
-    await toEager(resolved("value"), { signal: new AbortController().signal }),
+    await toEager(box("value"), { signal: new AbortController().signal }),
   ).toMatchInlineSnapshot(`"value"`);
 });
 
@@ -78,7 +78,7 @@ test("signal, async resolve", async () => {
     }),
     { signal: new AbortController().signal },
   ).then((value) => {
-    log("resolved", value);
+    log("resolve", value);
   });
   resolve!("value");
   expect(readLog()).toMatchInlineSnapshot(`[]`);
@@ -86,7 +86,7 @@ test("signal, async resolve", async () => {
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "resolved",
+        "resolve",
         "value",
       ],
     ]
