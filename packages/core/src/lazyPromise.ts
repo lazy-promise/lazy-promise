@@ -6,7 +6,7 @@ declare const stabilizerSymbol: unique symbol;
 
 interface Subscriber<Value, Error> {
   handleValue?: (value: Value) => void;
-  handleError?: (error: Error) => void;
+  handleRejection?: (error: Error) => void;
   handleFailure?: (error: unknown) => void;
 }
 
@@ -134,7 +134,7 @@ export class LazyPromise<Value, Error = never> {
       }
       // For GC purposes: unsubscribe handle keeps a reference to the
       // subscriber.
-      delete this.subscribers[i]!.handleError;
+      delete this.subscribers[i]!.handleRejection;
       // For GC purposes: unsubscribe handle keeps a reference to the
       // subscriber.
       delete this.subscribers[i]!.handleFailure;
@@ -157,16 +157,16 @@ export class LazyPromise<Value, Error = never> {
     this.dispose = undefined;
     let unhandledRejection = false;
     for (let i = 0; i < this.subscribers.length; i++) {
-      const handleError = this.subscribers[i]!.handleError;
-      if (handleError) {
+      const handleRejection = this.subscribers[i]!.handleRejection;
+      if (handleRejection) {
         try {
-          handleError(this.result as Error);
+          handleRejection(this.result as Error);
         } catch (error) {
           throwInMicrotask(error);
         }
         // For GC purposes: unsubscribe handle keeps a reference to the
         // subscriber.
-        delete this.subscribers[i]!.handleError;
+        delete this.subscribers[i]!.handleRejection;
       } else {
         unhandledRejection = true;
       }
@@ -216,7 +216,7 @@ export class LazyPromise<Value, Error = never> {
       delete this.subscribers[i]!.handleValue;
       // For GC purposes: unsubscribe handle keeps a reference to the
       // subscriber.
-      delete this.subscribers[i]!.handleError;
+      delete this.subscribers[i]!.handleRejection;
     }
     if (unhandledFailure) {
       throwInMicrotask(this.result);
@@ -255,14 +255,18 @@ export class LazyPromise<Value, Error = never> {
     // For GC purposes.
     delete subscriber.handleValue;
     // For GC purposes.
-    delete subscriber.handleError;
+    delete subscriber.handleRejection;
     // For GC purposes.
     delete subscriber.handleFailure;
   }
 
+  /**
+   * Subscribes to the lazy promise. Rejection handler must be provided if the
+   * error type is other than `never`.
+   */
   subscribe(
     handleValue: ((value: Value) => void) | void,
-    handleError: [Error] extends [never]
+    handleRejection: [Error] extends [never]
       ? ((error: Error) => void) | void
       : (error: Error) => void,
     handleFailure: ((error: unknown) => void) | void,
@@ -278,9 +282,9 @@ export class LazyPromise<Value, Error = never> {
       return noopUnsubscribe;
     }
     if (this.status === rejectedSymbol) {
-      if (handleError) {
+      if (handleRejection) {
         try {
-          handleError(this.result as Error);
+          handleRejection(this.result as Error);
         } catch (error) {
           throwInMicrotask(error);
         }
@@ -308,8 +312,8 @@ export class LazyPromise<Value, Error = never> {
     if (handleValue) {
       subscriber.handleValue = handleValue;
     }
-    if (handleError) {
-      subscriber.handleError = handleError;
+    if (handleRejection) {
+      subscriber.handleRejection = handleRejection;
     }
     if (handleFailure) {
       subscriber.handleFailure = handleFailure;
@@ -352,6 +356,15 @@ export class LazyPromise<Value, Error = never> {
     };
   }
 
+  /**
+   * Pipes the lazy promise though the provided functions in the order that they
+   * appear in, so `lazyPromise.pipe(a, b)` is `b(a(lazyPromise))`.
+   *
+   * If you call `.pipe` on say `LazyPromise<1, never> | LazyPromise<2, never>`,
+   * you'll get an `Expected 0 arguments` TypeScript error. You can prevent it
+   * by wrapping the lazy promise in a `box` which will make its type
+   * `LazyPromise<1 | 2, never>`.
+   */
   pipe(): LazyPromise<Value, Error>;
   pipe<A>(a: (value: LazyPromise<Value, Error>) => A): A;
   pipe<A, B>(a: (value: LazyPromise<Value, Error>) => A, b: (value: A) => B): B;
