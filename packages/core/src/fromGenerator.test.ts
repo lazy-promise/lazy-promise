@@ -46,7 +46,7 @@ afterEach(() => {
 test("types", () => {
   /* eslint-disable @typescript-eslint/no-unused-vars */
 
-  // $ExpectType LazyPromise<"b", "error2" | "error1">
+  // $ExpectType LazyPromise<"b", "error1" | "error2">
   const promise1 = fromGenerator(function* () {
     // $ExpectType "a" | "b"
     const value = yield* new LazyPromise<"a" | "b", "error1">(() => {});
@@ -79,6 +79,11 @@ test("types", () => {
       const x = yield* rejected(1);
     }
     yield* rejected(2);
+  });
+
+  // $ExpectType LazyPromise<never, never>
+  const promise6 = fromGenerator(function* () {
+    throw "a";
   });
 
   /** @ts-expect-error */

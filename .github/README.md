@@ -31,12 +31,12 @@ npm install @lazy-promise/core
 You create a LazyPromise like you create a Promise, except you can optionally return a teardown function, for example:
 
 ```ts
-const lazyPromise = new LazyPromise<0, "oops">((resolve, reject) => {
+const lazyPromise = new LazyPromise<"a", "error1">((resolve, reject) => {
   const timeoutId = setTimeout(() => {
     if (Math.random() > 0.5) {
-      resolve(0);
+      resolve("a");
     } else {
-      reject("oops");
+      reject("error1");
     }
   }, 1000);
   return () => {
@@ -139,11 +139,25 @@ The failure channel makes typed errors an optional feature: you can easily use t
 
 ## Utilities
 
-- Functions `toEager` and `fromEager` convert to and from a regular promise. `toEager` takes a LazyPromise and an optional AbortSignal, and returns a Promise, `fromEager` takes a function `async (abortSignal) => ...` and returns a LazyPromise.
+- `toEager` converts a LazyPromise to a Promise, `fromEager` converts an async function to a LazyPromise. Both functions support AbortSignal API.
 
-- There are convenience wrappers for browser/Node deferral APIs: `timeout`, `microtask`, `animationFrame`, `idleCallback`, `immediate`, `nextTick`. Each of these is a function returning a lazy promise that fires in respectively `setTimeout`, `queueMicrotask` etc. Since like the native `.finally`, `finalize` waits for the promise if its callback returns one (think `try { ... } finally { await ... }`), you can delay a lazy promise by piping it through `finalize(() => timeout(ms))`, or make it settle in a microtask with `finalize(microtask)`.
+- There are convenience wrappers for browser and Node deferral APIs: `timeout`, `microtask`, `animationFrame`, `idleCallback`, `immediate`, `nextTick`. Each of these returns a lazy promise that fires in respectively `setTimeout`, `queueMicrotask` etc. If you wrote `try { return 1 } finally { await x }`, this would produce a promise that waits for `x`, then resolves with 1. In the same way, piping a lazy promise through `finalize(() => timeout(ms))` delays it by `ms`, or piping it through `finalize(microtask)` makes it settle in a microtask.
 
 - `log` function wraps a lazy promise without changing its behavior, and console.logs everything that happens to it: `lazyPromise.pipe(log("your label"))`.
+
+## Async-await syntax
+
+You cannot `await` a lazy promise, but you can return one from an async function, and that enables typed errors:
+
+```ts
+// Type inferred as LazyPromise<"a", "error1">
+const lazyPromise = fromEager(async () => {
+  if (await someNativePromise) {
+    return rejected("error1");
+  }
+  return "a";
+});
+```
 
 ## Generator syntax
 
