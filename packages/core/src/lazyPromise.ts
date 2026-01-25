@@ -8,6 +8,8 @@ interface Subscriber<Value, Error> {
   handleValue?: (value: Value) => void;
   handleRejection?: (error: Error) => void;
   handleFailure?: (error: unknown) => void;
+  next?: Subscriber<Value, Error>;
+  previous?: Subscriber<Value, Error>;
 }
 
 const getActionStr = (
@@ -96,7 +98,8 @@ export class LazyPromise<Value, Error = never> {
     | typeof rejectedSymbol
     | typeof failedSymbol;
   private result: unknown;
-  private subscribers: Subscriber<Value, Error>[] | undefined;
+  // A linked list.
+  private subscribers: Subscriber<Value, Error> | undefined;
   private dispose: (() => void) | undefined;
 
   constructor(
@@ -120,8 +123,8 @@ export class LazyPromise<Value, Error = never> {
     (this.produce as unknown) = undefined;
     // For GC purposes.
     this.dispose = undefined;
-    for (let i = 0; i < this.subscribers.length; i++) {
-      const handleValue = this.subscribers[i]!.handleValue;
+    do {
+      const handleValue = this.subscribers.handleValue;
       if (handleValue) {
         try {
           handleValue(this.result as Value);
@@ -130,16 +133,16 @@ export class LazyPromise<Value, Error = never> {
         }
         // For GC purposes: unsubscribe handle keeps a reference to the
         // subscriber.
-        delete this.subscribers[i]!.handleValue;
+        delete this.subscribers.handleValue;
       }
       // For GC purposes: unsubscribe handle keeps a reference to the
       // subscriber.
-      delete this.subscribers[i]!.handleRejection;
+      delete this.subscribers.handleRejection;
       // For GC purposes: unsubscribe handle keeps a reference to the
       // subscriber.
-      delete this.subscribers[i]!.handleFailure;
-    }
-    this.subscribers = undefined;
+      delete this.subscribers.handleFailure;
+      this.subscribers = this.subscribers.next;
+    } while (this.subscribers);
   }
 
   private reject(error: Error) {
@@ -156,8 +159,8 @@ export class LazyPromise<Value, Error = never> {
     // For GC purposes.
     this.dispose = undefined;
     let unhandledRejection = false;
-    for (let i = 0; i < this.subscribers.length; i++) {
-      const handleRejection = this.subscribers[i]!.handleRejection;
+    do {
+      const handleRejection = this.subscribers.handleRejection;
       if (handleRejection) {
         try {
           handleRejection(this.result as Error);
@@ -166,21 +169,21 @@ export class LazyPromise<Value, Error = never> {
         }
         // For GC purposes: unsubscribe handle keeps a reference to the
         // subscriber.
-        delete this.subscribers[i]!.handleRejection;
+        delete this.subscribers.handleRejection;
       } else {
         unhandledRejection = true;
       }
       // For GC purposes: unsubscribe handle keeps a reference to the
       // subscriber.
-      delete this.subscribers[i]!.handleValue;
+      delete this.subscribers.handleValue;
       // For GC purposes: unsubscribe handle keeps a reference to the
       // subscriber.
-      delete this.subscribers[i]!.handleFailure;
-    }
+      delete this.subscribers.handleFailure;
+      this.subscribers = this.subscribers.next;
+    } while (this.subscribers);
     if (unhandledRejection) {
       throwInMicrotask(wrapRejectionError(this.result));
     }
-    this.subscribers = undefined;
   }
 
   private fail(error: unknown) {
@@ -197,8 +200,8 @@ export class LazyPromise<Value, Error = never> {
     // For GC purposes.
     this.dispose = undefined;
     let unhandledFailure = false;
-    for (let i = 0; i < this.subscribers.length; i++) {
-      const handleFailure = this.subscribers[i]!.handleFailure;
+    do {
+      const handleFailure = this.subscribers.handleFailure;
       if (handleFailure) {
         try {
           handleFailure(error);
@@ -207,50 +210,62 @@ export class LazyPromise<Value, Error = never> {
         }
         // For GC purposes: unsubscribe handle keeps a reference to the
         // subscriber.
-        delete this.subscribers[i]!.handleFailure;
+        delete this.subscribers.handleFailure;
       } else {
         unhandledFailure = true;
       }
       // For GC purposes: unsubscribe handle keeps a reference to the
       // subscriber.
-      delete this.subscribers[i]!.handleValue;
+      delete this.subscribers.handleValue;
       // For GC purposes: unsubscribe handle keeps a reference to the
       // subscriber.
-      delete this.subscribers[i]!.handleRejection;
-    }
+      delete this.subscribers.handleRejection;
+      this.subscribers = this.subscribers.next;
+    } while (this.subscribers);
     if (unhandledFailure) {
       throwInMicrotask(this.result);
     }
-    this.subscribers = undefined;
   }
 
   private unsubscribe(subscriber: Subscriber<Value, Error>) {
     if (this.status || !this.subscribers) {
       return;
-    } else if (this.subscribers.length === 1) {
-      if (this.subscribers[0] !== subscriber) {
-        return;
-      }
-      this.subscribers = undefined;
-      if (this.dispose) {
-        try {
-          this.dispose();
-        } catch (error) {
-          this.status = failedSymbol;
-          this.result = error;
-          // For GC purposes.
-          (this.produce as unknown) = undefined;
-          throwInMicrotask(error);
-        }
-        this.dispose = undefined;
-      }
     } else {
-      const swap = this.subscribers.indexOf(subscriber);
-      if (swap === -1) {
-        return;
+      if (subscriber.previous) {
+        if (subscriber.next) {
+          subscriber.previous.next = subscriber.next;
+          subscriber.next.previous = subscriber.previous;
+          // For GC purposes.
+          delete subscriber.next;
+        } else {
+          delete subscriber.previous.next;
+        }
+        delete subscriber.previous;
+      } else {
+        if (this.subscribers !== subscriber) {
+          return;
+        }
+        if (subscriber.next) {
+          this.subscribers = subscriber.next;
+          delete subscriber.next.previous;
+          // For GC purposes.
+          delete subscriber.next;
+        } else {
+          this.subscribers = undefined;
+          if (this.dispose) {
+            try {
+              this.dispose();
+            } catch (error) {
+              this.status = failedSymbol;
+              this.result = error;
+              // For GC purposes.
+              (this.produce as unknown) = undefined;
+              throwInMicrotask(error);
+            }
+            this.dispose = undefined;
+          }
+        }
       }
-      this.subscribers[swap] = this.subscribers[this.subscribers.length - 1]!;
-      this.subscribers.pop();
     }
     // For GC purposes.
     delete subscriber.handleValue;
@@ -319,9 +334,11 @@ export class LazyPromise<Value, Error = never> {
       subscriber.handleFailure = handleFailure;
     }
     if (this.subscribers) {
-      this.subscribers.push(subscriber);
+      this.subscribers.previous = subscriber;
+      subscriber.next = this.subscribers;
+      this.subscribers = subscriber;
     } else {
-      this.subscribers = [subscriber];
+      this.subscribers = subscriber;
       try {
         const retVal = this.produce(
           (value) => {

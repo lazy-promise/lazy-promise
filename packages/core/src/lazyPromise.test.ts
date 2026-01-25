@@ -328,6 +328,132 @@ test("cancellation", () => {
   `);
 });
 
+test("linked list of subscribers: first entry", () => {
+  let resolve: (value: string) => void;
+  const promise = new LazyPromise<string>((resolveLocal) => {
+    resolve = resolveLocal;
+    log("produce");
+    return () => {
+      log("dispose");
+    };
+  });
+  const a = promise.subscribe((value) => {
+    log("subscriber a handleValue", value);
+  });
+  promise.subscribe((value) => {
+    log("subscriber b handleValue", value);
+  });
+  promise.subscribe((value) => {
+    log("subscriber c handleValue", value);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+      ],
+    ]
+  `);
+  a();
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  resolve!("value");
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "subscriber c handleValue",
+        "value",
+      ],
+      [
+        "subscriber b handleValue",
+        "value",
+      ],
+    ]
+  `);
+});
+
+test("linked list of subscribers: middle entry", () => {
+  let resolve: (value: string) => void;
+  const promise = new LazyPromise<string>((resolveLocal) => {
+    resolve = resolveLocal;
+    log("produce");
+    return () => {
+      log("dispose");
+    };
+  });
+  promise.subscribe((value) => {
+    log("subscriber a handleValue", value);
+  });
+  const b = promise.subscribe((value) => {
+    log("subscriber b handleValue", value);
+  });
+  promise.subscribe((value) => {
+    log("subscriber c handleValue", value);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+      ],
+    ]
+  `);
+  b();
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  resolve!("value");
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "subscriber c handleValue",
+        "value",
+      ],
+      [
+        "subscriber a handleValue",
+        "value",
+      ],
+    ]
+  `);
+});
+
+test("linked list of subscribers: last entry", () => {
+  let resolve: (value: string) => void;
+  const promise = new LazyPromise<string>((resolveLocal) => {
+    resolve = resolveLocal;
+    log("produce");
+    return () => {
+      log("dispose");
+    };
+  });
+  promise.subscribe((value) => {
+    log("subscriber a handleValue", value);
+  });
+  promise.subscribe((value) => {
+    log("subscriber b handleValue", value);
+  });
+  const c = promise.subscribe((value) => {
+    log("subscriber c handleValue", value);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+      ],
+    ]
+  `);
+  c();
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  resolve!("value");
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "subscriber b handleValue",
+        "value",
+      ],
+      [
+        "subscriber a handleValue",
+        "value",
+      ],
+    ]
+  `);
+});
+
 test("teardown function is not called if the lazy promise resolves", () => {
   const promise = new LazyPromise<number>((resolve) => {
     setTimeout(() => {
@@ -411,7 +537,7 @@ test("error in produce function before settling", () => {
         "oops",
       ],
     ]
-    `);
+  `);
 });
 
 test("error in produce function after settling", () => {
@@ -587,15 +713,15 @@ test("error in failure handler function", () => {
     [
       "1000 ms passed",
       [
-        "handleFailure 1",
-        "error",
-      ],
-      [
         "handleFailure 2",
         "error",
       ],
+      [
+        "handleFailure 1",
+        "error",
+      ],
     ]
-    `);
+  `);
   expect(processMockMicrotaskQueue).toThrow("oops 1");
   promise.subscribe(undefined, undefined, (error) => {
     log("handleFailure 3", error);
@@ -608,7 +734,7 @@ test("error in failure handler function", () => {
         "error",
       ],
     ]
-    `);
+  `);
   expect(processMockMicrotaskQueue).toThrow("oops 2");
 });
 
