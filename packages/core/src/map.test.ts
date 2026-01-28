@@ -82,12 +82,12 @@ test("mapping to a value", () => {
 test("outer promise rejects", () => {
   const promise = rejected("oops").pipe(map(() => undefined));
   promise.subscribe(undefined, (error) => {
-    log("handleError", error);
+    log("handleRejection", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleError",
+        "handleRejection",
         "oops",
       ],
     ]
@@ -129,12 +129,12 @@ test("inner promise resolves", () => {
 test("inner promise rejects", () => {
   const promise = box(1).pipe(map(() => rejected("oops")));
   promise.subscribe(undefined, (error) => {
-    log("handleError", error);
+    log("handleRejection", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleError",
+        "handleRejection",
         "oops",
       ],
     ]

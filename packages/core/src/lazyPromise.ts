@@ -67,12 +67,12 @@ export type Yieldable<T> = T & {
   [yieldableSymbol]: `Did you forget a star (*) after yield?`;
 };
 
-class LazyPromiseIterator<T, TReturn> {
+class LazyPromiseIterator<TYield> implements Iterator<TYield> {
   private done = false;
 
-  constructor(private yieldable: T) {}
+  constructor(private yieldable: TYield) {}
 
-  next(value: TReturn): IteratorResult<T, TReturn> {
+  next(value: any): IteratorResult<TYield> {
     if (this.done) {
       return {
         value,
@@ -84,6 +84,17 @@ class LazyPromiseIterator<T, TReturn> {
       value: this.yieldable,
       done: false,
     };
+  }
+
+  return(value: any): IteratorResult<TYield> {
+    return {
+      value,
+      done: true,
+    };
+  }
+
+  throw(error: unknown): IteratorResult<TYield> {
+    throw error;
   }
 }
 
@@ -462,7 +473,7 @@ export class LazyPromise<Value, Error = never> {
       ...args: ReadonlyArray<any>
     ): IteratorResult<Yieldable<LazyPromise<Value, Error>>, Value>;
   } {
-    return new LazyPromiseIterator(this as Yieldable<typeof this>);
+    return new LazyPromiseIterator(this as any);
   }
 
   /**

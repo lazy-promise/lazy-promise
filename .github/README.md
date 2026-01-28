@@ -174,15 +174,34 @@ const lazyPromise = fromEager(async () => {
 This is a full LazyPromise equivalent of async-await. Just use generator functions instead of async functions, and `yield*` instead of `await`:
 
 ```ts
-// Type inferred as LazyPromise<"b", "error1" | "error2">
+// Type inferred as LazyPromise<"a-mapped", "error1">
+const lazyPromise = fromGenerator(function* () {
+  // Type inferred as "a"
+  const value = yield* new LazyPromise<"a", "error1">(() => {});
+  return `${value}-mapped` as const;
+});
+```
+
+The one difference is that there is no flattening. If you just wrote `return lazyPromise`, `fromGenerator` would produce `LazyPromise<LazyPromise<...>>`, so instead you should write `return yield* lazyPromise` (the equivalent of `return await nativePromise`).
+
+When you `yield*` to a lazy promise of type `LazyPromise<never, ...>` such as `rejected(...)` or `never`, you get a value of type `never`, in other words the execution stops. To help TypeScript type inference, add a `return` statement in front of `yield*`:
+
+```ts
+// Type inferred as LazyPromise<"b", "error1">
 const lazyPromise = fromGenerator(function* () {
   // Type inferred as "a" | "b"
-  const value = yield* new LazyPromise<"a" | "b", "error1">(() => {});
+  const value = yield* new LazyPromise<"a" | "b", never>(() => {});
   if (value === "a") {
-    // `yield*` would have worked too, but `return` tells TypeScript that the
-    // execution stops so it can narrow down the type of `value`.
-    return rejected("error2");
+    // Adding `return` doesn't change the return type of the function
+    // since we're returning `never`, but helps TS narrow down the type
+    // of `value` down below.
+    return yield* rejected("error1");
   }
+  // Type inferred as "b"
   return value;
 });
 ```
+
+When you `yield*` to a lazy promise and that lazy promise fails, the same thing happens as when you `await` a native promise that rejects: there is an error thrown which you can catch.
+
+As with the `finalize` operator, the `finally` block always executes unless the lazy promise returned by `fromGenerator` is torn down before reaching it. If you don't `yield*` inside the `try` block, you keep the guarantee that `finally` will run no matter what.

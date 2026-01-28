@@ -3,52 +3,29 @@ import { LazyPromise } from "./lazyPromise";
 
 const emptySymbol = Symbol("empty");
 
+/**
+ * Converts a generator function to a LazyPromise.
+ */
 export const fromGenerator = <
-  T extends Yieldable<LazyPromise<any, any>>,
+  TYield extends Yieldable<LazyPromise<any, any>>,
   TReturn,
 >(
-  generatorFunction: () => Generator<T, TReturn>,
+  generatorFunction: () => Generator<TYield, TReturn>,
 ): LazyPromise<
-  TReturn extends LazyPromise<infer Value, any> ? Value : TReturn,
-  | (TReturn extends LazyPromise<any, infer Error> ? Error : never)
-  | (T extends Yieldable<LazyPromise<any, infer Error>> ? Error : never)
+  TReturn,
+  TYield extends Yieldable<LazyPromise<any, infer Error>> ? Error : never
 > =>
-  new LazyPromise((resolve, reject, fail) => {
+  new LazyPromise<any, any>((resolve, reject, fail) => {
     const generator = generatorFunction();
     let unsubscribe: (() => void) | undefined;
-    let lastValue: any = emptySymbol;
-
-    const handleResult = (result: IteratorResult<T, TReturn>) => {
-      while (true) {
-        if (result.done) {
-          if (result.value instanceof LazyPromise) {
-            unsubscribe = result.value.subscribe(resolve, reject, fail);
-            return;
-          }
-          resolve(result.value as any);
-          return;
-        }
-        const source = result.value;
-        // eslint-disable-next-line no-use-before-define
-        unsubscribe = source.subscribe(handleValue, reject, fail);
-        if (lastValue === emptySymbol) {
-          return;
-        }
-        unsubscribe = undefined;
-        try {
-          result = generator.next(lastValue);
-        } catch (error) {
-          fail(error);
-          return;
-        }
-        lastValue = emptySymbol;
-      }
-    };
+    let resolveValue: unknown = emptySymbol;
+    let rejectError: unknown = emptySymbol;
+    let failError: unknown = emptySymbol;
 
     const handleValue = (value: any) => {
       // When possible, use the while loop to avoid increasing stack depth.
       if (!unsubscribe) {
-        lastValue = value;
+        resolveValue = value;
         return;
       }
       let result;
@@ -58,12 +35,103 @@ export const fromGenerator = <
         fail(error);
         return;
       }
+      // eslint-disable-next-line no-use-before-define
       handleResult(result);
+    };
+
+    const handleRejection = (error: any) => {
+      // When possible, use the while loop to avoid increasing stack depth.
+      if (!unsubscribe) {
+        rejectError = error;
+        return;
+      }
+      let result;
+      try {
+        result = (generator as Generator<TYield, void>).return();
+      } catch (error) {
+        fail(error);
+        return;
+      }
+      rejectError = error;
+      // eslint-disable-next-line no-use-before-define
+      handleResult(result);
+    };
+
+    const handleFailure = (error: any) => {
+      // When possible, use the while loop to avoid increasing stack depth.
+      if (!unsubscribe) {
+        failError = error;
+        return;
+      }
+      let result;
+      try {
+        result = (generator as Generator<TYield, void>).throw(error);
+      } catch (error) {
+        fail(error);
+        return;
+      }
+      // eslint-disable-next-line no-use-before-define
+      handleResult(result);
+    };
+
+    const handleResult = (result: IteratorResult<TYield, TReturn | void>) => {
+      while (true) {
+        if (result.done) {
+          if (rejectError !== emptySymbol) {
+            reject(rejectError);
+            return;
+          }
+          resolve(result.value as any);
+          return;
+        }
+        const source = result.value;
+        unsubscribe = source.subscribe(
+          handleValue,
+          handleRejection,
+          handleFailure,
+        );
+        if (resolveValue !== emptySymbol) {
+          unsubscribe = undefined;
+          try {
+            result = generator.next(resolveValue);
+          } catch (error) {
+            fail(error);
+            return;
+          }
+          resolveValue = emptySymbol;
+          continue;
+        }
+        if (failError !== emptySymbol) {
+          unsubscribe = undefined;
+          try {
+            result = (generator as Generator<TYield, void>).throw(failError);
+          } catch (error) {
+            fail(error);
+            return;
+          }
+          failError = emptySymbol;
+          continue;
+        }
+        // This comes last because we want to check for rejectError only if
+        // resolveValue and failError are empty.
+        if (rejectError !== emptySymbol) {
+          unsubscribe = undefined;
+          try {
+            result = (generator as Generator<TYield, void>).return();
+          } catch (error) {
+            fail(error);
+            return;
+          }
+          continue;
+        }
+        return;
+      }
     };
 
     handleResult(generator.next());
 
     return () => {
+      // In this case we don't run `finally {...}`.
       unsubscribe?.();
     };
   });

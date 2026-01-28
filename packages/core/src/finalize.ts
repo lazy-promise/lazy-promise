@@ -1,25 +1,19 @@
 import { LazyPromise } from "./lazyPromise";
 
-const wrapRejectionError = (error: unknown) =>
-  new Error(
-    `The lazy promise returned by finalize(...) callback has rejected. The original error has been stored as the .cause property.`,
-    { cause: error },
-  );
-
 /**
  * The LazyPromise equivalent of `promise.finally(...)`. The callback is called
- * if the source promise resolves, rejects, or fails. If the callback returns
- * a lazy promise, that promise is expected to never reject.
+ * if the source promise resolves, rejects, or fails.
  */
 export const finalize =
-  <CallbackReturn>(
-    callback: () => CallbackReturn extends LazyPromise<unknown, unknown>
-      ? LazyPromise<unknown, never>
-      : CallbackReturn,
-  ) =>
+  <CallbackReturn>(callback: () => CallbackReturn) =>
   <Value, Error>(
     source: LazyPromise<Value, Error>,
-  ): LazyPromise<Value, Error> =>
+  ): LazyPromise<
+    Value,
+    CallbackReturn extends LazyPromise<any, infer NewError>
+      ? Error | NewError
+      : Error
+  > =>
     new LazyPromise((resolve, reject, fail) => {
       let disposed = false;
       let dispose: (() => void) | undefined;
@@ -44,9 +38,7 @@ export const finalize =
               () => {
                 settle(arg);
               },
-              (error) => {
-                fail(wrapRejectionError(error));
-              },
+              reject,
               fail,
             );
           } else {
@@ -55,7 +47,7 @@ export const finalize =
         };
       const disposeOuter = source.subscribe(
         handleSettle(resolve),
-        handleSettle(reject),
+        handleSettle(reject as any),
         handleSettle(fail),
       );
       if (!dispose) {

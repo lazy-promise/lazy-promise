@@ -169,14 +169,14 @@ test("rejection of one of the sources should reject result", () => {
     }),
   ]);
   promise.subscribe(undefined, (error) => {
-    log("handleError", error);
+    log("handleRejection", error);
   });
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
       [
-        "handleError",
+        "handleRejection",
         "oops",
       ],
       [
@@ -242,7 +242,7 @@ test("internally disposed when a source rejects, internal disposal should preven
     }),
   ]);
   promise.subscribe(undefined, (error) => {
-    log("handleError", error);
+    log("handleRejection", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -250,7 +250,7 @@ test("internally disposed when a source rejects, internal disposal should preven
         "produce a",
       ],
       [
-        "handleError",
+        "handleRejection",
         "b",
       ],
       [

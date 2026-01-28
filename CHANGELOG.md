@@ -1,5 +1,13 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.19](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.19)
+
+- Switch from an array to a linked list in LazyPromise internals for better performance.
+
+- Allow `finalize` callback to return a rejecting lazy promise.
+
+- Fix how `fromGenerator` handles try-catch-finally.
+
 ## [@lazy-promise/core@0.0.18](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.18)
 
 - Better `fromEager` type inference.

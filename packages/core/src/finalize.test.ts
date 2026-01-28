@@ -54,6 +54,24 @@ afterEach(() => {
   }
 });
 
+test("types", () => {
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+
+  // $ExpectType LazyPromise<1, never>
+  const promise1 = box(1).pipe(finalize(() => {}));
+
+  // $ExpectType LazyPromise<1, never>
+  const promise2 = box(1).pipe(finalize(() => box(2)));
+
+  // $ExpectType LazyPromise<never, 1>
+  const promise3 = rejected(1).pipe(finalize(() => {}));
+
+  // $ExpectType LazyPromise<never, 2 | 1>
+  const promise4 = rejected(1).pipe(finalize(() => rejected(2)));
+
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+});
+
 test("source resolves", () => {
   const promise = box(1).pipe(
     finalize(() => {
@@ -83,7 +101,7 @@ test("source rejects", () => {
     }),
   );
   promise.subscribe(undefined, (error) => {
-    log("handleError", error);
+    log("handleRejection", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -91,7 +109,7 @@ test("source rejects", () => {
         "finalize",
       ],
       [
-        "handleError",
+        "handleRejection",
         1,
       ],
     ]
@@ -216,7 +234,7 @@ test("unsubscribe in the callback (source rejects)", () => {
         log("handleValue");
       },
       () => {
-        log("handleError");
+        log("handleRejection");
       },
     );
   reject!(1);
@@ -240,7 +258,7 @@ test("unsubscribe in the callback (source fails)", () => {
         log("handleValue");
       },
       () => {
-        log("handleError");
+        log("handleRejection");
       },
       () => {
         log("handleFailure");
@@ -291,7 +309,7 @@ test("unsubscribe and throw in the callback (source rejects)", () => {
         log("handleValue");
       },
       () => {
-        log("handleError");
+        log("handleRejection");
       },
       () => {
         log("handleFailure");
@@ -318,7 +336,7 @@ test("unsubscribe and throw in the callback (source fails)", () => {
         log("handleValue");
       },
       () => {
-        log("handleError");
+        log("handleRejection");
       },
       () => {
         log("handleFailure");
@@ -357,44 +375,36 @@ test("inner promise resolves", () => {
 });
 
 test("inner promise rejects", () => {
-  const promise = box(1).pipe(
-    finalize(() => rejected(2) as LazyPromise<never, never>),
-  );
+  const promise = failed(1).pipe(finalize(() => rejected(2)));
   promise.subscribe(
     (value) => {
       log("handleValue", value);
     },
     (error) => {
-      log("handleError", error);
+      log("handleRejection", error);
     },
     (error) => {
-      log("handleFailure");
-      if (!(error instanceof Error)) {
-        throw new Error("fail");
-      }
-      expect(error.message).toMatchInlineSnapshot(
-        `"The lazy promise returned by finalize(...) callback has rejected. The original error has been stored as the .cause property."`,
-      );
-      expect(error.cause).toMatchInlineSnapshot(`2`);
+      log("handleFailure", error);
     },
   );
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleFailure",
+        "handleRejection",
+        2,
       ],
     ]
   `);
 });
 
 test("inner promise fails", () => {
-  const promise = failed(1).pipe(finalize(() => failed(2)));
+  const promise = rejected(1).pipe(finalize(() => failed(2)));
   promise.subscribe(
     (value) => {
       log("handleValue", value);
     },
     (error) => {
-      log("handleError", error);
+      log("handleRejection", error);
     },
     (error) => {
       log("handleFailure", error);

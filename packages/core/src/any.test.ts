@@ -77,12 +77,12 @@ test("types", () => {
 test("empty iterable", () => {
   const promise = any([]);
   promise.subscribe(undefined, (value) => {
-    log("handleError", value);
+    log("handleRejection", value);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleError",
+        "handleRejection",
         [],
       ],
     ]
@@ -92,12 +92,12 @@ test("empty iterable", () => {
 test("sync resolve", () => {
   const promise = any([rejected("a" as const), rejected("b" as const)]);
   promise.subscribe(undefined, (value) => {
-    log("handleError", value);
+    log("handleRejection", value);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleError",
+        "handleRejection",
         [
           "a",
           "b",
@@ -110,12 +110,12 @@ test("sync resolve", () => {
 test("non-array iterable", () => {
   const promise = any(new Set([rejected("a")]));
   promise.subscribe(undefined, (value) => {
-    log("handleError", value);
+    log("handleRejection", value);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleError",
+        "handleRejection",
         [
           "a",
         ],
@@ -139,14 +139,14 @@ test("async reject", () => {
     rejected("c" as const),
   ]);
   promise.subscribe(undefined, (value) => {
-    log("handleError", value);
+    log("handleRejection", value);
   });
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "2000 ms passed",
       [
-        "handleError",
+        "handleRejection",
         [
           "a",
           "b",

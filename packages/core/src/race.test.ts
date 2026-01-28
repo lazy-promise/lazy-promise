@@ -55,7 +55,7 @@ test("empty iterable", () => {
       log("handleValue", value);
     },
     (error) => {
-      log("handleError", error);
+      log("handleRejection", error);
     },
     () => {
       log("handleFailure");
@@ -170,7 +170,7 @@ test("sync error", () => {
     }),
   ]);
   promise.subscribe(undefined, (error) => {
-    log("handleError", error);
+    log("handleRejection", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -178,7 +178,7 @@ test("sync error", () => {
         "produce a",
       ],
       [
-        "handleError",
+        "handleRejection",
         "b",
       ],
       [
@@ -210,14 +210,14 @@ test("async error", () => {
     }),
   ]);
   promise.subscribe(undefined, (error) => {
-    log("handleError", error);
+    log("handleRejection", error);
   });
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
       [
-        "handleError",
+        "handleRejection",
         "a",
       ],
       [
@@ -316,7 +316,7 @@ test("internally disposed when a source rejects, a source resolve is ignored whe
     }),
   ]);
   promise.subscribe(undefined, (error) => {
-    log("handleError", error);
+    log("handleRejection", error);
     log("resolve a");
     resolveA("a");
   });
@@ -328,7 +328,7 @@ test("internally disposed when a source rejects, a source resolve is ignored whe
         "reject b",
       ],
       [
-        "handleError",
+        "handleRejection",
         "b",
       ],
       [
@@ -477,7 +477,7 @@ test("internally disposed by the teardown function, a source resolve is ignored 
       log("handleValue", value);
     },
     (error) => {
-      log("handleError", error);
+      log("handleRejection", error);
     },
     () => {
       log("handleFailure");

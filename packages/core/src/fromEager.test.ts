@@ -267,14 +267,14 @@ test("flattened promise rejects", async () => {
   // eslint-disable-next-line require-await
   const promise = fromEager(async () => rejected("a"));
   promise.subscribe(undefined, (error) => {
-    log("handleReject", error);
+    log("handleRejection", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleReject",
+        "handleRejection",
         "a",
       ],
     ]

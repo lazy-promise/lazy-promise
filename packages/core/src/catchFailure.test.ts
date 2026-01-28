@@ -99,12 +99,12 @@ test("outer promise resolves", () => {
 test("outer promise rejects", () => {
   const promise = rejected("a").pipe(catchFailure(() => undefined));
   promise.subscribe(undefined, (error) => {
-    log("handleError", error);
+    log("handleRejection", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleError",
+        "handleRejection",
         "a",
       ],
     ]
@@ -147,7 +147,7 @@ test("inner promise rejects", () => {
     }),
   );
   promise.subscribe(undefined, (error) => {
-    log("handleError", error);
+    log("handleRejection", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -156,7 +156,7 @@ test("inner promise rejects", () => {
         "oops",
       ],
       [
-        "handleError",
+        "handleRejection",
         "b",
       ],
     ]

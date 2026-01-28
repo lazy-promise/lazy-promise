@@ -169,14 +169,14 @@ test("async reject", () => {
     }, 1000);
   });
   promise.subscribe(undefined, (error) => {
-    log("handleError", error);
+    log("handleRejection", error);
   });
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
       [
-        "handleError",
+        "handleRejection",
         "oops",
       ],
     ]
@@ -190,7 +190,7 @@ test("sync reject", () => {
   });
   expect(
     promise.subscribe(undefined, (error) => {
-      log("handleError 1", error);
+      log("handleRejection 1", error);
     }),
   ).toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`
@@ -199,20 +199,20 @@ test("sync reject", () => {
         "produce",
       ],
       [
-        "handleError 1",
+        "handleRejection 1",
         "oops",
       ],
     ]
   `);
   expect(
     promise.subscribe(undefined, (error) => {
-      log("handleError 2", error);
+      log("handleRejection 2", error);
     }),
   ).toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleError 2",
+        "handleRejection 2",
         "oops",
       ],
     ]
@@ -672,7 +672,7 @@ test("error in error handler function", () => {
   promise.subscribe(
     undefined,
     (error) => {
-      log("handleError", error);
+      log("handleRejection", error);
     },
     () => {
       log("handleFailure");
@@ -683,7 +683,7 @@ test("error in error handler function", () => {
     [
       "1000 ms passed",
       [
-        "handleError",
+        "handleRejection",
         "error",
       ],
     ]
@@ -964,7 +964,7 @@ test("no subscribers", () => {
       log("handleValue 1", value);
     },
     (error) => {
-      log("handleError 1", error);
+      log("handleRejection 1", error);
     },
     (error) => {
       log("handleFailure 1", error);
@@ -1039,13 +1039,13 @@ test("rejected", () => {
   expect(promise instanceof LazyPromise).toMatchInlineSnapshot(`true`);
   expect(
     promise.subscribe(undefined, (error) => {
-      log("handleError", error);
+      log("handleRejection", error);
     }),
   ).toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleError",
+        "handleRejection",
         "error",
       ],
     ]
@@ -1093,7 +1093,7 @@ test("never", () => {
         log("handleValue");
       },
       () => {
-        log("handleError");
+        log("handleRejection");
       },
       () => {
         log("handleFailure");

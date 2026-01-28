@@ -4,6 +4,7 @@ import {
   fromGenerator,
   LazyPromise,
   map,
+  never,
   rejected,
 } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
@@ -52,7 +53,7 @@ test("types", () => {
     // $ExpectType "a" | "b"
     const value = yield* new LazyPromise<"a" | "b", "error1">(() => {});
     if (value === "a") {
-      return rejected("error2");
+      return yield* rejected("error2");
     }
     return value;
   });
@@ -65,21 +66,12 @@ test("types", () => {
   // $ExpectType LazyPromise<void, never>
   const promise3 = fromGenerator(function* () {});
 
-  // $ExpectType LazyPromise<2, 1>
+  // $ExpectType LazyPromise<LazyPromise<never, 1> | LazyPromise<2, never>, never>
   const promise4 = fromGenerator(function* () {
     if (true as boolean) {
       return rejected(1);
     }
     return box(2);
-  });
-
-  // $ExpectType LazyPromise<void, 2 | 1>
-  const promise5 = fromGenerator(function* () {
-    if (Math.random() > 0.5) {
-      // $ExpectType never
-      const x = yield* rejected(1);
-    }
-    yield* rejected(2);
   });
 
   // $ExpectType LazyPromise<never, never>
@@ -147,130 +139,6 @@ test("return value", () => {
   `);
 });
 
-test("return resolved", () => {
-  const promise = fromGenerator(function* () {
-    log("in generator");
-    return box("a");
-  });
-  promise.subscribe((value) => {
-    log("handleValue", value);
-  });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "in generator",
-      ],
-      [
-        "handleValue",
-        "a",
-      ],
-    ]
-  `);
-});
-
-test("return rejected", () => {
-  const promise = fromGenerator(function* () {
-    log("in generator");
-    return rejected("a");
-  });
-  promise.subscribe(undefined, (error) => {
-    log("handleError", error);
-  });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "in generator",
-      ],
-      [
-        "handleError",
-        "a",
-      ],
-    ]
-  `);
-});
-
-test("return failed", () => {
-  const promise = fromGenerator(function* () {
-    log("in generator");
-    return failed("a");
-  });
-  promise.subscribe(undefined, undefined, (error) => {
-    log("handleFailure", error);
-  });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "in generator",
-      ],
-      [
-        "handleFailure",
-        "a",
-      ],
-    ]
-  `);
-});
-
-test("return async", () => {
-  const inner = new LazyPromise<"a">((resolve) => {
-    log("subscribe inner");
-    const timeoutId = setTimeout(() => {
-      resolve("a");
-    }, 1000);
-    return () => {
-      log("dispose inner");
-      clearTimeout(timeoutId);
-    };
-  });
-  const promise = fromGenerator(function* () {
-    log("in generator");
-    return inner;
-  });
-  const unsubscribe = promise.subscribe((value) => {
-    log("handleValue", value);
-  });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "in generator",
-      ],
-      [
-        "subscribe inner",
-      ],
-    ]
-  `);
-  unsubscribe();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "dispose inner",
-      ],
-    ]
-  `);
-  promise.subscribe((value) => {
-    log("handleValue", value);
-  });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "in generator",
-      ],
-      [
-        "subscribe inner",
-      ],
-    ]
-  `);
-  vi.runAllTimers();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      "1000 ms passed",
-      [
-        "handleValue",
-        "a",
-      ],
-    ]
-  `);
-});
-
 test("yield resolved", () => {
   const promise = fromGenerator(function* () {
     log("in generator, start");
@@ -298,7 +166,7 @@ test("yield rejected", () => {
     log("in generator, after yield", a);
   });
   promise.subscribe(undefined, (error) => {
-    log("handleError", error);
+    log("handleRejection", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -306,7 +174,7 @@ test("yield rejected", () => {
         "in generator, start",
       ],
       [
-        "handleError",
+        "handleRejection",
         "a",
       ],
     ]
@@ -580,7 +448,292 @@ test("empty iterator", () => {
   `);
 });
 
-test("stack overflow", () => {
+test("return in try clause", () => {
+  const promise = fromGenerator(function* () {
+    log("in generator");
+    try {
+      return "a";
+    } finally {
+      log("yielded", yield* box(1));
+      // eslint-disable-next-line no-unsafe-finally
+      return yield* rejected("b");
+    }
+  });
+  promise.subscribe(undefined, (error) => {
+    log("handleRejection", error);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      [
+        "yielded",
+        1,
+      ],
+      [
+        "handleRejection",
+        "b",
+      ],
+    ]
+  `);
+});
+
+test("throw in try clause", () => {
+  fromGenerator(function* () {
+    log("in generator");
+    try {
+      throw "a";
+    } finally {
+      log("yielded", yield* box(1));
+      // eslint-disable-next-line no-unsafe-finally
+      return yield* rejected("b");
+    }
+  }).subscribe(undefined, (error) => {
+    log("handleRejection", error);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      [
+        "yielded",
+        1,
+      ],
+      [
+        "handleRejection",
+        "b",
+      ],
+    ]
+  `);
+});
+
+test("yield to rejected in try clause", () => {
+  const promise = fromGenerator(function* () {
+    log("in generator");
+    try {
+      return yield* rejected("a");
+    } finally {
+      log("yielded", yield* box(1));
+      // eslint-disable-next-line no-unsafe-finally
+      return 2;
+    }
+  });
+  promise.subscribe(undefined, (error) => {
+    log("handleRejection", error);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      [
+        "yielded",
+        1,
+      ],
+      [
+        "handleRejection",
+        "a",
+      ],
+    ]
+  `);
+});
+
+test("override rejection with another rejection in finally clause", () => {
+  const promise = fromGenerator(function* () {
+    log("in generator");
+    try {
+      return yield* rejected("a");
+    } finally {
+      yield* rejected("b");
+    }
+  });
+  promise.subscribe(undefined, (error) => {
+    log("handleRejection", error);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      [
+        "handleRejection",
+        "b",
+      ],
+    ]
+  `);
+});
+
+test("override rejection with failure in finally clause", () => {
+  const promise = fromGenerator(function* () {
+    log("in generator");
+    try {
+      return yield* rejected("a");
+    } finally {
+      yield* failed("b");
+    }
+  });
+  promise.subscribe(
+    undefined,
+    () => {},
+    (error) => {
+      log("handleFailure", error);
+    },
+  );
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      [
+        "handleFailure",
+        "b",
+      ],
+    ]
+  `);
+});
+
+test("yielding to a sync failed (uncaught)", () => {
+  fromGenerator(function* () {
+    log("in generator");
+    yield* failed("a");
+  }).subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      [
+        "handleFailure",
+        "a",
+      ],
+    ]
+  `);
+});
+
+test("yielding to a sync failed (caught)", () => {
+  fromGenerator(function* () {
+    log("in generator");
+    try {
+      yield* failed("a");
+    } catch (e) {
+      log("in catch");
+      expect(e).toMatchInlineSnapshot(`"a"`);
+      return "b";
+    }
+  }).subscribe((value) => {
+    log("handleValue", value);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      [
+        "in catch",
+      ],
+      [
+        "handleValue",
+        "b",
+      ],
+    ]
+  `);
+});
+
+test("yielding to an async failed (uncaught)", () => {
+  fromGenerator(function* () {
+    log("in generator");
+    yield* new LazyPromise((resolve, reject, fail) => {
+      setTimeout(() => {
+        fail("a");
+      }, 1000);
+    });
+  }).subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+    ]
+  `);
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "handleFailure",
+        "a",
+      ],
+    ]
+  `);
+});
+
+test("yielding to an async failed (caught)", () => {
+  fromGenerator(function* () {
+    log("in generator");
+    try {
+      yield* new LazyPromise((resolve, reject, fail) => {
+        setTimeout(() => {
+          fail("a");
+        }, 1000);
+      });
+    } catch (e) {
+      log("in catch");
+      expect(e).toMatchInlineSnapshot(`"a"`);
+      return "b";
+    }
+  }).subscribe((value) => {
+    log("handleValue", value);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+    ]
+  `);
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "in catch",
+      ],
+      [
+        "handleValue",
+        "b",
+      ],
+    ]
+  `);
+});
+
+test("ignore the finally clause when unsubscribed", () => {
+  const promise = fromGenerator(function* () {
+    log("in generator");
+    try {
+      yield* never;
+    } finally {
+      log("in finally");
+    }
+  });
+  const unsubscribe = promise.subscribe();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+    ]
+  `);
+  unsubscribe();
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+});
+
+test("stack overflow with resolved lazy promises", () => {
   const getMaxStackDepth = (depth = 1) => {
     try {
       return getMaxStackDepth(depth + 1);
@@ -605,6 +758,162 @@ test("stack overflow", () => {
     yield* getInner(1);
     yield* getInner(2);
     yield* getInner(3);
+  }).subscribe();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "start",
+        1,
+      ],
+      [
+        "end",
+        1,
+      ],
+      [
+        "start",
+        2,
+      ],
+      [
+        "end",
+        2,
+      ],
+      [
+        "start",
+        3,
+      ],
+      [
+        "end",
+        3,
+      ],
+    ]
+  `);
+});
+
+test("stack overflow with rejected lazy promises", () => {
+  const getMaxStackDepth = (depth = 1) => {
+    try {
+      return getMaxStackDepth(depth + 1);
+    } catch (e) {
+      return depth;
+    }
+  };
+  const maxStackDepth = getMaxStackDepth();
+  fromGenerator(function* () {
+    for (let i = 0; i < maxStackDepth + 10; i++) {
+      try {
+        try {
+          yield* rejected();
+        } finally {
+          // eslint-disable-next-line no-unsafe-finally
+          throw "a";
+        }
+        // eslint-disable-next-line no-empty
+      } catch (e) {}
+    }
+  }).subscribe(undefined, () => {});
+
+  const getInner = (index: number) =>
+    new LazyPromise<never, void>((resolve, reject) => {
+      log("start", index);
+      reject();
+      log("end", index);
+    });
+  fromGenerator(function* () {
+    try {
+      try {
+        yield* getInner(1);
+      } finally {
+        // eslint-disable-next-line no-unsafe-finally
+        throw "a";
+      }
+      // eslint-disable-next-line no-empty
+    } catch (e) {}
+    try {
+      try {
+        yield* getInner(2);
+      } finally {
+        // eslint-disable-next-line no-unsafe-finally
+        throw "a";
+      }
+      // eslint-disable-next-line no-empty
+    } catch (e) {}
+    try {
+      try {
+        yield* getInner(3);
+      } finally {
+        // eslint-disable-next-line no-unsafe-finally
+        throw "a";
+      }
+      // eslint-disable-next-line no-empty
+    } catch (e) {}
+  }).subscribe(undefined, () => {});
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "start",
+        1,
+      ],
+      [
+        "end",
+        1,
+      ],
+      [
+        "start",
+        2,
+      ],
+      [
+        "end",
+        2,
+      ],
+      [
+        "start",
+        3,
+      ],
+      [
+        "end",
+        3,
+      ],
+    ]
+  `);
+});
+
+test("stack overflow with failed lazy promises", () => {
+  const getMaxStackDepth = (depth = 1) => {
+    try {
+      return getMaxStackDepth(depth + 1);
+    } catch (e) {
+      return depth;
+    }
+  };
+  const maxStackDepth = getMaxStackDepth();
+  fromGenerator(function* () {
+    for (let i = 0; i < maxStackDepth + 10; i++) {
+      try {
+        yield* failed();
+        // eslint-disable-next-line no-empty
+      } catch (e) {}
+    }
+  }).subscribe();
+
+  const getInner = (index: number) =>
+    new LazyPromise<void>((resolve, reject, fail) => {
+      log("start", index);
+      fail(undefined);
+      log("end", index);
+    });
+  fromGenerator(function* () {
+    try {
+      yield* getInner(1);
+      // eslint-disable-next-line no-empty
+    } catch (e) {}
+    try {
+      yield* getInner(2);
+      // eslint-disable-next-line no-empty
+    } catch (e) {}
+    try {
+      yield* getInner(3);
+      // eslint-disable-next-line no-empty
+    } catch (e) {}
   }).subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
     [
