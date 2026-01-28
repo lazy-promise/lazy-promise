@@ -204,4 +204,4 @@ const lazyPromise = fromGenerator(function* () {
 
 When you `yield*` to a lazy promise and that lazy promise fails, the same thing happens as when you `await` a native promise that rejects: there is an error thrown which you can catch.
 
-As with the `finalize` operator, the `finally` block always executes unless the lazy promise returned by `fromGenerator` is torn down before reaching it. If you don't `yield*` inside the `try` block, you keep the guarantee that `finally` will run no matter what.
+As with the `finalize` operator, the `finally` block always executes unless the lazy promise returned by `fromGenerator` is torn down before reaching it. If you don't `yield*` inside `try`/`catch`, you keep the guarantee that `finally` will run no matter what.
