@@ -75,6 +75,7 @@ test("signal, async resolve", async () => {
   toEager(
     new LazyPromise((resolveLocal) => {
       resolve = resolveLocal;
+      return () => {};
     }),
     { signal: new AbortController().signal },
   ).then((value) => {
@@ -116,6 +117,7 @@ test("signal, async reject", async () => {
   toEager(
     new LazyPromise<never, "oops">((resolve, rejectLocal) => {
       reject = rejectLocal;
+      return () => {};
     }) as LazyPromise<never, never>,
     { signal: new AbortController().signal },
   ).catch((error) => {
@@ -151,6 +153,7 @@ test("signal, async fail", async () => {
   toEager(
     new LazyPromise((resolve, reject, failLocal) => {
       fail = failLocal;
+      return () => {};
     }),
     { signal: new AbortController().signal },
   ).catch((error) => {

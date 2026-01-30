@@ -227,6 +227,7 @@ test("unsubscribe in the callback", () => {
   let resolve: (value: number) => void;
   const unsubscribe = new LazyPromise((resolveLocal) => {
     resolve = resolveLocal;
+    return () => {};
   })
     .pipe(
       map(() => {
@@ -244,6 +245,7 @@ test("unsubscribe and throw in the callback", () => {
   let resolve: (value: number) => void;
   const unsubscribe = new LazyPromise((resolveLocal) => {
     resolve = resolveLocal;
+    return () => {};
   })
     .pipe(
       map(() => {

@@ -271,12 +271,14 @@ test("internally disposed when a source resolves, a source resolve is ignored wh
   const promise = race([
     new LazyPromise<"a">((resolve) => {
       resolveA = resolve;
+      return () => {};
     }),
     new LazyPromise<"b">((resolve) => {
       setTimeout(() => {
         log("resolve b");
         resolve("b");
       }, 1000);
+      return () => {};
     }),
   ]);
   promise.subscribe((value) => {
@@ -307,12 +309,14 @@ test("internally disposed when a source rejects, a source resolve is ignored whe
   const promise = race([
     new LazyPromise<"a">((resolve) => {
       resolveA = resolve;
+      return () => {};
     }),
     new LazyPromise<never, "b">((resolve, reject) => {
       setTimeout(() => {
         log("reject b");
         reject("b");
       }, 1000);
+      return () => {};
     }),
   ]);
   promise.subscribe(undefined, (error) => {
@@ -343,12 +347,14 @@ test("internally disposed when a source fails, a source resolve is ignored when 
   const promise = race([
     new LazyPromise<"a">((resolve) => {
       resolveA = resolve;
+      return () => {};
     }),
     new LazyPromise<never>((resolve, reject, fail) => {
       setTimeout(() => {
         log("fail b");
         fail("oops");
       }, 1000);
+      return () => {};
     }),
   ]);
   promise.subscribe(undefined, undefined, (error) => {
@@ -379,12 +385,14 @@ test("internally disposed when a source resolves, a source reject is ignored whe
   const promise = race([
     new LazyPromise<never, "a">((resolve, reject) => {
       rejectA = reject;
+      return () => {};
     }),
     new LazyPromise<"b">((resolve) => {
       setTimeout(() => {
         log("resolve b");
         resolve("b");
       }, 1000);
+      return () => {};
     }),
   ]);
   promise.subscribe(
@@ -418,12 +426,14 @@ test("internally disposed when a source resolves, a source failure is ignored wh
   const promise = race([
     new LazyPromise<never>((resolve, reject, fail) => {
       failA = fail;
+      return () => {};
     }),
     new LazyPromise<"b">((resolve) => {
       setTimeout(() => {
         log("resolve b");
         resolve("b");
       }, 1000);
+      return () => {};
     }),
   ]);
   promise.subscribe((value) => {

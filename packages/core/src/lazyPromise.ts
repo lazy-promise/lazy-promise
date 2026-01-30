@@ -1,6 +1,7 @@
 const resolvedSymbol = Symbol("resolved");
 const rejectedSymbol = Symbol("rejected");
 const failedSymbol = Symbol("failed");
+const neverSymbol = Symbol("never");
 declare const yieldableSymbol: unique symbol;
 declare const stabilizerSymbol: unique symbol;
 
@@ -27,12 +28,18 @@ const alreadySettledErrorMessage = (
 ) =>
   `You cannot ${getActionStr(action)} ${action === status ? `an already` : `a`} ${status === resolvedSymbol ? `resolved` : status === rejectedSymbol ? `rejected` : (status satisfies typeof failedSymbol, `failed`)} lazy promise.`;
 
-const noSubscribersErrorMessage = (
+const disposedErrorMessage = (
+  action: typeof resolvedSymbol | typeof rejectedSymbol | typeof failedSymbol,
+) => `You cannot ${getActionStr(action)} a lazy promise which was torn down.`;
+
+const noDisposeErrorMessage = (
   action: typeof resolvedSymbol | typeof rejectedSymbol | typeof failedSymbol,
 ) =>
-  `You cannot ${getActionStr(action)} a lazy promise that no longer has any subscribers. This error indicates that the lazy promise has not been fully torn down. Make sure that the callback you're passing to the LazyPromise constructor returns a working teardown function.`;
+  `You cannot asynchronously ${getActionStr(action)} a lazy promise which does not have a teardown function other than noopUnsubscribe.`;
 
-const cannotSubscribeMessage = `You cannot subscribe to a lazy promise while its teardown function is running.`;
+const cannotSubscribeInProduceMessage = `You cannot subscribe to a lazy promise from its constructor callback.`;
+
+const cannotSubscribeInDisposeMessage = `You cannot subscribe to a lazy promise from its teardown function.`;
 
 // We throw failure errors as they are, but when there is an unhandled
 // rejection, we wrap it before throwing because (1) failure to handle a
@@ -107,7 +114,8 @@ export class LazyPromise<Value, Error = never> {
     | undefined
     | typeof resolvedSymbol
     | typeof rejectedSymbol
-    | typeof failedSymbol;
+    | typeof failedSymbol
+    | typeof neverSymbol;
   private result: unknown;
   // A linked list.
   private subscribers: Subscriber<Value, Error> | undefined;
@@ -122,11 +130,14 @@ export class LazyPromise<Value, Error = never> {
   ) {}
 
   private resolve(value: Value) {
+    if (this.status === neverSymbol) {
+      throw new Error(noDisposeErrorMessage(resolvedSymbol));
+    }
     if (this.status) {
       throw new Error(alreadySettledErrorMessage(resolvedSymbol, this.status));
     }
     if (!this.subscribers) {
-      throw new Error(noSubscribersErrorMessage(resolvedSymbol));
+      throw new Error(disposedErrorMessage(resolvedSymbol));
     }
     this.result = value;
     this.status = resolvedSymbol;
@@ -157,11 +168,14 @@ export class LazyPromise<Value, Error = never> {
   }
 
   private reject(error: Error) {
+    if (this.status === neverSymbol) {
+      throw new Error(noDisposeErrorMessage(rejectedSymbol));
+    }
     if (this.status) {
       throw new Error(alreadySettledErrorMessage(rejectedSymbol, this.status));
     }
     if (!this.subscribers) {
-      throw new Error(noSubscribersErrorMessage(rejectedSymbol));
+      throw new Error(disposedErrorMessage(rejectedSymbol));
     }
     this.result = error;
     this.status = rejectedSymbol;
@@ -198,11 +212,14 @@ export class LazyPromise<Value, Error = never> {
   }
 
   private fail(error: unknown) {
+    if (this.status === neverSymbol) {
+      throw new Error(noDisposeErrorMessage(failedSymbol));
+    }
     if (this.status) {
       throw new Error(alreadySettledErrorMessage(failedSymbol, this.status));
     }
     if (!this.subscribers) {
-      throw new Error(noSubscribersErrorMessage(failedSymbol));
+      throw new Error(disposedErrorMessage(failedSymbol));
     }
     this.result = error;
     this.status = failedSymbol;
@@ -263,18 +280,16 @@ export class LazyPromise<Value, Error = never> {
           delete subscriber.next;
         } else {
           this.subscribers = undefined;
-          if (this.dispose) {
-            try {
-              this.dispose();
-            } catch (error) {
-              this.status = failedSymbol;
-              this.result = error;
-              // For GC purposes.
-              (this.produce as unknown) = undefined;
-              throwInMicrotask(error);
-            }
-            this.dispose = undefined;
+          try {
+            this.dispose!();
+          } catch (error) {
+            this.status = failedSymbol;
+            this.result = error;
+            // For GC purposes.
+            (this.produce as unknown) = undefined;
+            throwInMicrotask(error);
           }
+          this.dispose = undefined;
         }
       }
     }
@@ -331,8 +346,8 @@ export class LazyPromise<Value, Error = never> {
       }
       return noopUnsubscribe;
     }
-    if (!this.subscribers && this.dispose) {
-      throw new Error(cannotSubscribeMessage);
+    if (this.status === neverSymbol) {
+      return noopUnsubscribe;
     }
     const subscriber: Subscriber<Value, Error> = {};
     if (handleValue) {
@@ -345,13 +360,19 @@ export class LazyPromise<Value, Error = never> {
       subscriber.handleFailure = handleFailure;
     }
     if (this.subscribers) {
+      if (!this.dispose) {
+        throw new Error(cannotSubscribeInProduceMessage);
+      }
       this.subscribers.previous = subscriber;
       subscriber.next = this.subscribers;
       this.subscribers = subscriber;
     } else {
+      if (this.dispose) {
+        throw new Error(cannotSubscribeInDisposeMessage);
+      }
       this.subscribers = subscriber;
       try {
-        const retVal = this.produce(
+        const dispose = this.produce(
           (value) => {
             this.resolve(value);
           },
@@ -364,20 +385,24 @@ export class LazyPromise<Value, Error = never> {
         ) as (() => void) | undefined;
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (this.subscribers) {
-          this.dispose = retVal;
+          if (dispose && dispose !== noopUnsubscribe) {
+            this.dispose = dispose;
+          } else {
+            this.status = neverSymbol;
+            this.subscribers = undefined;
+            return noopUnsubscribe;
+          }
+        } else {
+          return noopUnsubscribe;
         }
       } catch (error) {
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (!this.status) {
-          this.fail(error);
-        } else {
+        if (this.status) {
           throwInMicrotask(error);
+        } else {
+          this.fail(error);
         }
+        return noopUnsubscribe;
       }
-    }
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (this.status) {
-      return noopUnsubscribe;
     }
     return () => {
       this.unsubscribe(subscriber);
@@ -592,20 +617,7 @@ export const failed = (error?: unknown): LazyPromise<never, never> => {
   return instance as any;
 };
 
-// This is a tricky point: whether `never` should return `noopUnsubscribe`. At
-// first glance, you'd say yes because the client logic seems to be typically
-// the same as long as the promise is guaranteed to never fire in the future,
-// doesn't matter if it's a lazy promise that settles synchronously or it's
-// `never`. In practice though, this would mean that to get performance
-// benefits, `map` would have to check if its source observable is `never` and
-// in that case return `never`, `all` would have to check if all of its sources
-// are `never` promises, and most importantly, client-built operators would also
-// have to implement this type of short-circuiting logic. Also, when `never`
-// does not return `noopUnsubscribe`, this gives `noopUnsubscribe` an easily
-// defined meaning of "the promise has settled synchronously".
-const neverUnsubscribe = () => {};
-
-const neverSubscribe = () => neverUnsubscribe;
+const neverSubscribe = () => noopUnsubscribe;
 
 /**
  * A LazyPromise which never resolves, rejects or fails.

@@ -108,6 +108,7 @@ test("async resolve", () => {
     setTimeout(() => {
       resolve("value");
     }, 1000);
+    return () => {};
   });
   promise.subscribe((value) => {
     log("handleValue", value);
@@ -167,6 +168,7 @@ test("async reject", () => {
     setTimeout(() => {
       reject("oops");
     }, 1000);
+    return () => {};
   });
   promise.subscribe(undefined, (error) => {
     log("handleRejection", error);
@@ -224,6 +226,7 @@ test("async fail", () => {
     setTimeout(() => {
       fail("oops");
     }, 1000);
+    return () => {};
   });
   promise.subscribe(undefined, undefined, (error) => {
     log("handleFailure", error);
@@ -274,6 +277,21 @@ test("sync fail", () => {
       ],
     ]
   `);
+});
+
+test("no teardown function", () => {
+  const promise = new LazyPromise<unknown, never>(() => {
+    log("produce");
+  });
+  expect(promise.subscribe()).toBe(noopUnsubscribe);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+      ],
+    ]
+  `);
+  expect(promise.subscribe()).toBe(noopUnsubscribe);
 });
 
 test("cancellation", () => {
@@ -618,6 +636,7 @@ test("error in value handler function", () => {
     setTimeout(() => {
       resolve("value");
     }, 1000);
+    return () => {};
   });
   promise.subscribe(
     () => {
@@ -659,6 +678,7 @@ test("error in error handler function", () => {
     setTimeout(() => {
       reject("error");
     }, 1000);
+    return () => {};
   });
   promise.subscribe(
     undefined,
@@ -700,6 +720,7 @@ test("error in failure handler function", () => {
     setTimeout(() => {
       fail("error");
     }, 1000);
+    return () => {};
   });
   promise.subscribe(undefined, undefined, (error) => {
     log("handleFailure 1", error);
@@ -743,6 +764,7 @@ test("unhandled rejection", () => {
     setTimeout(() => {
       reject("oops");
     }, 1000);
+    return () => {};
   });
   // @ts-expect-error
   promise.subscribe();
@@ -796,6 +818,7 @@ test("unhandled failure", () => {
     setTimeout(() => {
       fail("oops");
     }, 1000);
+    return () => {};
   });
   // @ts-expect-error
   promise.subscribe();
@@ -958,6 +981,7 @@ test("no subscribers", () => {
         log("fail error", error);
       }
     });
+    return () => {};
   });
   promise.subscribe(
     (value) => {
@@ -978,15 +1002,88 @@ test("no subscribers", () => {
       ],
       [
         "resolve error",
-        [Error: You cannot resolve a lazy promise that no longer has any subscribers. This error indicates that the lazy promise has not been fully torn down. Make sure that the callback you're passing to the LazyPromise constructor returns a working teardown function.],
+        [Error: You cannot resolve a lazy promise which was torn down.],
       ],
       [
         "reject error",
-        [Error: You cannot reject a lazy promise that no longer has any subscribers. This error indicates that the lazy promise has not been fully torn down. Make sure that the callback you're passing to the LazyPromise constructor returns a working teardown function.],
+        [Error: You cannot reject a lazy promise which was torn down.],
       ],
       [
         "fail error",
-        [Error: You cannot fail a lazy promise that no longer has any subscribers. This error indicates that the lazy promise has not been fully torn down. Make sure that the callback you're passing to the LazyPromise constructor returns a working teardown function.],
+        [Error: You cannot fail a lazy promise which was torn down.],
+      ],
+    ]
+  `);
+});
+
+test("no teardown function", () => {
+  const promise = new LazyPromise<number, number>((resolve, reject, fail) => {
+    log("produce");
+    setTimeout(() => {
+      try {
+        resolve(1);
+      } catch (error) {
+        log("resolve error", error);
+      }
+      try {
+        reject(1);
+      } catch (error) {
+        log("reject error", error);
+      }
+      try {
+        fail(1);
+      } catch (error) {
+        log("fail error", error);
+      }
+    });
+  });
+  promise.subscribe(
+    (value) => {
+      log("handleValue 1", value);
+    },
+    (error) => {
+      log("handleRejection 1", error);
+    },
+    (error) => {
+      log("handleFailure 1", error);
+    },
+  )();
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+      ],
+      [
+        "resolve error",
+        [Error: You cannot asynchronously resolve a lazy promise which does not have a teardown function other than noopUnsubscribe.],
+      ],
+      [
+        "reject error",
+        [Error: You cannot asynchronously reject a lazy promise which does not have a teardown function other than noopUnsubscribe.],
+      ],
+      [
+        "fail error",
+        [Error: You cannot asynchronously fail a lazy promise which does not have a teardown function other than noopUnsubscribe.],
+      ],
+    ]
+  `);
+});
+
+test("subscribe in produce", () => {
+  const promise = new LazyPromise(() => {
+    try {
+      promise.subscribe();
+    } catch (error) {
+      log("subscribe error", error);
+    }
+  });
+  promise.subscribe();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "subscribe error",
+        [Error: You cannot subscribe to a lazy promise from its constructor callback.],
       ],
     ]
   `);
@@ -1005,7 +1102,7 @@ test("subscribe in teardown function", () => {
     [
       [
         "subscribe error",
-        [Error: You cannot subscribe to a lazy promise while its teardown function is running.],
+        [Error: You cannot subscribe to a lazy promise from its teardown function.],
       ],
     ]
   `);
@@ -1099,7 +1196,7 @@ test("never", () => {
         log("handleFailure");
       },
     ),
-  ).not.toBe(noopUnsubscribe);
+  ).toBe(noopUnsubscribe);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 

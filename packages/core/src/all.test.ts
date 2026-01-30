@@ -130,11 +130,13 @@ test("async resolve", () => {
       setTimeout(() => {
         resolve("a");
       }, 2000);
+      return () => {};
     }),
     new LazyPromise<"b">((resolve) => {
       setTimeout(() => {
         resolve("b");
       }, 1000);
+      return () => {};
     }),
     box("c" as const),
   ]);
@@ -166,6 +168,7 @@ test("rejection of one of the sources should reject result", () => {
       setTimeout(() => {
         reject("oops");
       }, 1000);
+      return () => {};
     }),
   ]);
   promise.subscribe(undefined, (error) => {
@@ -195,6 +198,7 @@ test("failure of one of the sources should fail result", () => {
       setTimeout(() => {
         fail("oops");
       }, 1000);
+      return () => {};
     }),
   ]);
   promise.subscribe(
@@ -296,12 +300,14 @@ test("internally disposed when a source rejects, a source resolve is ignored whe
     new LazyPromise<"a">((resolve) => {
       log("produce a");
       resolveA = resolve;
+      return () => {};
     }),
     new LazyPromise<never, "b">((resolve, reject) => {
       setTimeout(() => {
         log("call reject b");
         reject("b");
       }, 1000);
+      return () => {};
     }),
   ]);
   promise.subscribe(undefined, () => {
@@ -331,12 +337,14 @@ test("internally disposed when a source rejects, a source reject is ignored when
     new LazyPromise<never, "a">((resolve, reject) => {
       log("produce a");
       rejectA = reject;
+      return () => {};
     }),
     new LazyPromise<never, "b">((resolve, reject) => {
       setTimeout(() => {
         log("call reject b");
         reject("b");
       }, 1000);
+      return () => {};
     }),
   ]);
   promise.subscribe(undefined, () => {
@@ -366,12 +374,14 @@ test("internally disposed when a source rejects, a source failure is ignored whe
     new LazyPromise<never, "a">((resolve, reject, fail) => {
       log("produce a");
       failA = fail;
+      return () => {};
     }),
     new LazyPromise<never, "b">((resolve, reject) => {
       setTimeout(() => {
         log("call reject b");
         reject("b");
       }, 1000);
+      return () => {};
     }),
   ]);
   promise.subscribe(undefined, () => {
@@ -400,12 +410,14 @@ test("internally disposed when a source fails, a source reject is ignored when i
   const promise = all([
     new LazyPromise<never, "oops 1">((resolve, reject) => {
       rejectA = reject;
+      return () => {};
     }),
     new LazyPromise<never>((resolve, reject, fail) => {
       setTimeout(() => {
         log("call fail b");
         fail("oops 2");
       }, 1000);
+      return () => {};
     }),
   ]);
   promise.subscribe(

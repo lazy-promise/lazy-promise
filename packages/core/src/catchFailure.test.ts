@@ -259,6 +259,7 @@ test("unsubscribe in the callback", () => {
   let fail: (error: unknown) => void;
   const unsubscribe = new LazyPromise((resolve, reject, failLocal) => {
     fail = failLocal;
+    return () => {};
   })
     .pipe(
       catchFailure(() => {
@@ -282,6 +283,7 @@ test("unsubscribe and throw in the callback", () => {
   let fail: (error: unknown) => void;
   const unsubscribe = new LazyPromise((resolve, reject, failLocal) => {
     fail = failLocal;
+    return () => {};
   })
     .pipe(
       catchFailure(() => {

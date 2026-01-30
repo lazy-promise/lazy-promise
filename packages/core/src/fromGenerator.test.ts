@@ -409,6 +409,7 @@ test("throw in the middle of an async generator", () => {
       setTimeout(() => {
         resolve();
       }, 1000);
+      return () => {};
     });
     throw "oops";
   }).subscribe(undefined, undefined, (error) => {
@@ -650,6 +651,7 @@ test("yielding to an async failed (uncaught)", () => {
       setTimeout(() => {
         fail("a");
       }, 1000);
+      return () => {};
     });
   }).subscribe(undefined, undefined, (error) => {
     log("handleFailure", error);
@@ -681,6 +683,7 @@ test("yielding to an async failed (caught)", () => {
         setTimeout(() => {
           fail("a");
         }, 1000);
+        return () => {};
       });
     } catch (e) {
       log("in catch");

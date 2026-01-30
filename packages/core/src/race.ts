@@ -20,7 +20,7 @@ export const race = <Value, Error>(
       }
     };
 
-    const handleError = (error: Error) => {
+    const handleRejection = (error: Error) => {
       if (!abort) {
         abort = true;
         reject(error);
@@ -41,7 +41,11 @@ export const race = <Value, Error>(
     };
 
     for (const source of sources) {
-      const dispose = source.subscribe(handleValue, handleError, handleFailure);
+      const dispose = source.subscribe(
+        handleValue,
+        handleRejection,
+        handleFailure,
+      );
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (abort) {
         dispose();

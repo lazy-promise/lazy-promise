@@ -14,7 +14,7 @@ The ingredients that went into the cauldron were as follows:
 
 - A primitive-based approach: make the simplest possible primitive for the job without attempting to think of all possible use-cases.
 
-- The good and bad parts of the experience of using RxJS. You can't beat Observable for simplicity, but you've got the diamond problem (see 5th section "Reactive Algorithms" in [this article](https://milomg.dev/2022-12-01/reactivity)) and [undesirable behavior in the case of sync re-entry](https://github.com/ReactiveX/rxjs/issues/5174). LazyPromise is what you get if you take an Observable, make it impossible to misuse it for what the Signals were built to do, and then take advantage of the reduced scope to gracefully handle re-entry.
+- The good and bad parts of the experience of using RxJS. You can't beat Observable for simplicity, but you've got the diamond problem (see 5th section "Reactive Algorithms" in [this article](https://milomg.dev/2022-12-01/reactivity)) and [undesirable behavior in the case of sync reentry](https://github.com/ReactiveX/rxjs/issues/5174). LazyPromise is what you get if you take an Observable, make it impossible to misuse it for what the Signals were built to do, and then take advantage of the reduced scope to make it reentry-proof.
 
 - Desire to avoid mandatory microtasks. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it (this breaks modularity). Without microtasks, you're in full control over what runs in what order.
 
@@ -49,7 +49,7 @@ Unlike a promise, a lazy promise doesn't do anything until you subscribe to it:
 
 ```ts
 // `unsubscribe` is an idempotent `() => void` function.
-const unsubscribe = lazyPromise.subscribe(handleValue, handleError);
+const unsubscribe = lazyPromise.subscribe(handleValue, handleRejection);
 ```
 
 Besides being lazy, LazyPromise is cancelable: if the subscriber count goes down to zero before the promise has had time to fire, the teardown function will be called and we'll be back to square one.
@@ -111,7 +111,7 @@ Since the type system doesn't know what errors a function can throw, you don't r
 
 ```ts
 // `handleFailure` is always optional and has signature `(error: unknown) => void`.
-lazyPromise.subscribe(handleValue, handleError, handleFailure);
+lazyPromise.subscribe(handleValue, handleRejection, handleFailure);
 ```
 
 Besides throwing in the callbacks you pass to LazyPromise constructor, `fromEager`, `map`, etc., you can also fail a lazy promise using the `fail` handle:
