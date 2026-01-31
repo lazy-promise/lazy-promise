@@ -1,4 +1,4 @@
-import { finalize, LazyPromise, noopUnsubscribe } from "@lazy-promise/core";
+import { finalize, LazyPromise } from "@lazy-promise/core";
 import type { Accessor } from "solid-js";
 import { createMemo, createSignal } from "solid-js";
 
@@ -18,8 +18,7 @@ export type TrackProcessing = <Value, Error>(
  *
  * `processing` is an accessor that will tell you whether any of the wrapped
  * promises are currently active, i.e. subscribed but not yet settled or
- * unsubscribed. It only changes its value to `true` when a lazy promise doesn't
- * settle synchronously.
+ * unsubscribed.
  */
 export const createTrackProcessing = (): [
   Accessor<boolean>,
@@ -31,21 +30,14 @@ export const createTrackProcessing = (): [
     processing,
     <Value, Error>(lazyPromise: LazyPromise<Value, Error>) =>
       new LazyPromise<Value, Error>((resolve, reject, fail) => {
-        let unsubscribe: (() => void) | undefined;
-        // eslint-disable-next-line prefer-const
-        unsubscribe = lazyPromise
+        setCount((count) => count + 1);
+        const unsubscribe = lazyPromise
           .pipe(
             finalize(() => {
-              if (unsubscribe) {
-                setCount((count) => count - 1);
-              }
+              setCount((count) => count - 1);
             }),
           )
           .subscribe(resolve, reject, fail);
-        if (unsubscribe === noopUnsubscribe) {
-          return;
-        }
-        setCount((count) => count + 1);
         return () => {
           setCount((count) => count - 1);
           unsubscribe();
