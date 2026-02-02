@@ -93,12 +93,14 @@ export const log =
           },
         ),
       );
-      return () => {
-        console.log(...prefix, `[unsubscribe]`);
-        bumpStackLevel(() => {
-          unsubscribe();
-        });
-      };
+      if (unsubscribe) {
+        return () => {
+          console.log(...prefix, `[unsubscribe]`);
+          bumpStackLevel(() => {
+            unsubscribe();
+          });
+        };
+      }
     });
 
     /* eslint-enable no-console */

@@ -94,12 +94,31 @@ test("unsubscribe", () => {
     console.log("unsubscribing");
   })
     .pipe(log("unsubscribe case"))
-    .subscribe()();
+    .subscribe()!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "[unsubscribe case] [1] [subscribe]",
       "[unsubscribe case] [1] [unsubscribe]",
       "· unsubscribing",
+    ]
+  `);
+});
+
+test("unsubscribe (no teardown function)", () => {
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
+
+  const unsubscribe = new LazyPromise(() => {
+    console.log("subscribing");
+  })
+    .pipe(log("unsubscribe (no teardown function) case"))
+    .subscribe();
+  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "[unsubscribe (no teardown function) case] [1] [subscribe]",
+      "· subscribing",
     ]
   `);
 });

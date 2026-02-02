@@ -123,9 +123,10 @@ test("return value", () => {
     log("in generator");
     return "a";
   });
-  promise.subscribe((value) => {
+  const unsubscribe = promise.subscribe((value) => {
     log("handleValue", value);
   });
+  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -230,7 +231,7 @@ test("yield async", () => {
       ],
     ]
   `);
-  unsubscribe();
+  unsubscribe!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -541,7 +542,7 @@ test("yield to rejected in try clause", () => {
   `);
 });
 
-test("override rejection with another rejection in finally clause", () => {
+test("override rejection with another rejection in finally clause (sync)", () => {
   const promise = fromGenerator(function* () {
     log("in generator");
     try {
@@ -624,6 +625,73 @@ test("override rejection with failure in finally clause", () => {
       [
         "in generator",
       ],
+      [
+        "handleFailure",
+        "b",
+      ],
+    ]
+  `);
+});
+
+test("override rejection with throw in finally clause (sync)", () => {
+  const promise = fromGenerator(function* () {
+    log("in generator");
+    try {
+      return yield* rejected("a");
+    } finally {
+      // eslint-disable-next-line no-unsafe-finally
+      throw "b";
+    }
+  });
+  promise.subscribe(
+    undefined,
+    () => {},
+    (error) => {
+      log("handleFailure", error);
+    },
+  );
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      [
+        "handleFailure",
+        "b",
+      ],
+    ]
+  `);
+});
+
+test("override rejection with throw in finally clause (async)", () => {
+  const promise = fromGenerator(function* () {
+    log("in generator");
+    try {
+      return yield* new LazyPromise<never, "a">((resolve, reject) => {
+        setTimeout(() => {
+          reject("a");
+        }, 1000);
+        return () => {};
+      });
+    } finally {
+      // eslint-disable-next-line no-unsafe-finally
+      throw "b";
+    }
+  });
+  promise.subscribe(
+    undefined,
+    () => {},
+    (error) => {
+      log("handleFailure", error);
+    },
+  );
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      "1000 ms passed",
       [
         "handleFailure",
         "b",
@@ -769,8 +837,7 @@ test("ignore the finally clause when unsubscribed", () => {
       ],
     ]
   `);
-  unsubscribe();
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
 });
 
 test("stack overflow with resolved lazy promises", () => {

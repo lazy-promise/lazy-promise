@@ -58,7 +58,7 @@ test("resolve", () => {
 test("cancel", () => {
   inAnimationFrame().subscribe(() => {
     log("handleValue");
-  })();
+  })!();
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });

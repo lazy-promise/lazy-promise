@@ -1,5 +1,4 @@
 import type { LazyPromise } from "@lazy-promise/core";
-import { noopUnsubscribe } from "@lazy-promise/core";
 import { getOwner, onCleanup, runWithOwner } from "solid-js";
 
 /**
@@ -30,7 +29,7 @@ export const useLazyPromise: <Value>(
       },
     ),
   );
-  if (unsubscribe && unsubscribe !== noopUnsubscribe) {
+  if (unsubscribe) {
     onCleanup(unsubscribe);
   }
 };

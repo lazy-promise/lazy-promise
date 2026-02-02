@@ -41,22 +41,26 @@ export const race = <Value, Error>(
     };
 
     for (const source of sources) {
-      const dispose = source.subscribe(
+      const unsubscribe = source.subscribe(
         handleValue,
         handleRejection,
         handleFailure,
       );
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (abort) {
-        dispose();
+        unsubscribe?.();
         return;
       }
-      disposables.push(dispose);
-    }
-    return () => {
-      abort = true;
-      for (let i = 0; i < disposables.length; i++) {
-        disposables[i]!();
+      if (unsubscribe) {
+        disposables.push(unsubscribe);
       }
-    };
+    }
+    if (disposables.length) {
+      return () => {
+        abort = true;
+        for (let i = 0; i < disposables.length; i++) {
+          disposables[i]!();
+        }
+      };
+    }
   });

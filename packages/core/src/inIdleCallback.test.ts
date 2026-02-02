@@ -75,7 +75,7 @@ test("resolve", () => {
 test("cancel", () => {
   inIdleCallback().subscribe(() => {
     log("handleValue");
-  })();
+  })!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [

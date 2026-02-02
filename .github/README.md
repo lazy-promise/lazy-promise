@@ -103,7 +103,7 @@ lazyPromise.pipe(
 
 - Illegal operations, such as settling an already settled lazy promise, throw an error rather than failing silently.
 
-- An easy way to tell whether a lazy promise has settled synchronously when you subscribed is to check if the unsubscribe handle `=== noopUnsubscribe`.
+- Instead of an unsubscribe handle, `.subscribe(...)` may return `undefined` when there is nothing to tear down.
 
 ## Failure channel
 

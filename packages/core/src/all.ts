@@ -32,7 +32,7 @@ export const all: {
     let i = 0;
     for (const source of sources) {
       const sourceIndex = i;
-      const dispose = source.subscribe(
+      const unsubscribe = source.subscribe(
         (value) => {
           if (values) {
             values[sourceIndex] = value;
@@ -63,16 +63,20 @@ export const all: {
       );
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (!values) {
-        dispose();
+        unsubscribe?.();
         return;
       }
-      disposables.push(dispose);
+      if (unsubscribe) {
+        disposables.push(unsubscribe);
+      }
       i++;
     }
     initialized = true;
     if (resolvedCount === i) {
       resolve(values);
-    } else {
+      return;
+    }
+    if (disposables.length) {
       return () => {
         values = undefined;
         for (let j = 0; j < disposables.length; j++) {

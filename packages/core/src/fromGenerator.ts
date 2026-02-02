@@ -17,7 +17,8 @@ export const fromGenerator = <
 > =>
   new LazyPromise<any, any>((resolve, reject, fail) => {
     const generator = generatorFunction();
-    let unsubscribe: (() => void) | undefined;
+    let unsubscribe: (() => void) | undefined | typeof emptySymbol =
+      emptySymbol;
     let resolveValue: unknown = emptySymbol;
     let rejectError: unknown = emptySymbol;
     let rejected = false;
@@ -25,7 +26,7 @@ export const fromGenerator = <
 
     const handleValue = (value: any) => {
       // When possible, use the while loop to avoid increasing stack depth.
-      if (!unsubscribe) {
+      if (unsubscribe === emptySymbol) {
         resolveValue = value;
         return;
       }
@@ -41,7 +42,7 @@ export const fromGenerator = <
     const handleRejection = (error: any) => {
       rejectError = error;
       // When possible, use the while loop to avoid increasing stack depth.
-      if (!unsubscribe) {
+      if (unsubscribe === emptySymbol) {
         rejected = true;
         return;
       }
@@ -56,7 +57,7 @@ export const fromGenerator = <
 
     const handleFailure = (error: any) => {
       // When possible, use the while loop to avoid increasing stack depth.
-      if (!unsubscribe) {
+      if (unsubscribe === emptySymbol) {
         failError = error;
         return;
       }
@@ -88,19 +89,19 @@ export const fromGenerator = <
           handleFailure,
         );
         if (resolveValue !== emptySymbol) {
-          unsubscribe = undefined;
+          unsubscribe = emptySymbol;
           result = generator.next(resolveValue);
           resolveValue = emptySymbol;
           continue;
         }
         if (rejected) {
-          unsubscribe = undefined;
+          unsubscribe = emptySymbol;
           result = (generator as Generator<TYield, void>).return();
           rejected = false;
           continue;
         }
         if (failError !== emptySymbol) {
-          unsubscribe = undefined;
+          unsubscribe = emptySymbol;
           result = (generator as Generator<TYield, void>).throw(failError);
           failError = emptySymbol;
           continue;
@@ -111,8 +112,14 @@ export const fromGenerator = <
 
     handleResult(generator.next());
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (!unsubscribe) {
+      return;
+    }
+
     return () => {
-      // In this case we don't run `finally {...}`.
-      unsubscribe?.();
+      if (unsubscribe !== emptySymbol) {
+        unsubscribe?.();
+      }
     };
   });

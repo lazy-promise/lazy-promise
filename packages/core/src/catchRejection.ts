@@ -17,8 +17,8 @@ export const catchRejection =
         reject,
         fail,
       ) => {
-        let dispose: (() => void) | undefined;
-        const disposeOuter = source.subscribe(
+        let unsubscribe: (() => void) | undefined;
+        const unsubscribeOuter = source.subscribe(
           resolve,
           (error) => {
             let newValueOrPromise;
@@ -35,19 +35,23 @@ export const catchRejection =
               return;
             }
             if (newValueOrPromise instanceof LazyPromise) {
-              dispose = newValueOrPromise.subscribe(resolve, reject, fail);
+              unsubscribe = newValueOrPromise.subscribe(resolve, reject, fail);
             } else {
               resolve(newValueOrPromise);
             }
           },
           fail,
         );
-        if (!dispose) {
-          dispose = disposeOuter;
+        if (!unsubscribe) {
+          if (unsubscribeOuter) {
+            unsubscribe = unsubscribeOuter;
+          } else {
+            return;
+          }
         }
         return () => {
           resolve = undefined;
-          dispose!();
+          unsubscribe!();
         };
       },
     );

@@ -1,5 +1,4 @@
 import type { LazyPromise } from "./lazyPromise";
-import { noopUnsubscribe } from "./lazyPromise";
 
 const wrapRejectionError = (error: unknown) =>
   new Error(
@@ -59,7 +58,7 @@ export const toEager = <Value>(
       handleReject,
       handleFailure,
     );
-    if (unsubscribe === noopUnsubscribe) {
+    if (!unsubscribe) {
       return;
     }
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

@@ -1,11 +1,4 @@
-import {
-  box,
-  failed,
-  LazyPromise,
-  never,
-  noopUnsubscribe,
-  rejected,
-} from "@lazy-promise/core";
+import { box, failed, LazyPromise, never, rejected } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -134,7 +127,7 @@ test("sync resolve", () => {
     promise.subscribe((value) => {
       log("handleValue 1", value);
     }),
-  ).toBe(noopUnsubscribe);
+  ).toBe(undefined);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -150,7 +143,7 @@ test("sync resolve", () => {
     promise.subscribe((value) => {
       log("handleValue 2", value);
     }),
-  ).toBe(noopUnsubscribe);
+  ).toBe(undefined);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -194,7 +187,7 @@ test("sync reject", () => {
     promise.subscribe(undefined, (error) => {
       log("handleRejection 1", error);
     }),
-  ).toBe(noopUnsubscribe);
+  ).toBe(undefined);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -210,7 +203,7 @@ test("sync reject", () => {
     promise.subscribe(undefined, (error) => {
       log("handleRejection 2", error);
     }),
-  ).toBe(noopUnsubscribe);
+  ).toBe(undefined);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -252,7 +245,7 @@ test("sync fail", () => {
     promise.subscribe(undefined, undefined, (error) => {
       log("handleFailure 1", error);
     }),
-  ).toBe(noopUnsubscribe);
+  ).toBe(undefined);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -268,7 +261,7 @@ test("sync fail", () => {
     promise.subscribe(undefined, undefined, (error) => {
       log("handleFailure 2", error);
     }),
-  ).toBe(noopUnsubscribe);
+  ).toBe(undefined);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -283,7 +276,7 @@ test("no teardown function", () => {
   const promise = new LazyPromise<unknown, never>(() => {
     log("produce");
   });
-  expect(promise.subscribe()).toBe(noopUnsubscribe);
+  expect(promise.subscribe()).toBe(undefined);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -291,7 +284,7 @@ test("no teardown function", () => {
       ],
     ]
   `);
-  expect(promise.subscribe()).toBe(noopUnsubscribe);
+  expect(promise.subscribe()).toBe(undefined);
 });
 
 test("cancellation", () => {
@@ -304,7 +297,7 @@ test("cancellation", () => {
   const a = promise.subscribe();
   const b = promise.subscribe();
   const c = promise.subscribe();
-  a();
+  a!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -312,13 +305,13 @@ test("cancellation", () => {
       ],
     ]
   `);
-  a();
+  a!();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  b();
+  b!();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  b();
+  b!();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  c();
+  c!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -326,7 +319,7 @@ test("cancellation", () => {
       ],
     ]
   `);
-  c();
+  c!();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   const d = promise.subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -336,7 +329,7 @@ test("cancellation", () => {
       ],
     ]
   `);
-  d();
+  d!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -371,7 +364,7 @@ test("linked list of subscribers: first entry", () => {
       ],
     ]
   `);
-  a();
+  a!();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   resolve!("value");
   expect(readLog()).toMatchInlineSnapshot(`
@@ -413,7 +406,7 @@ test("linked list of subscribers: middle entry", () => {
       ],
     ]
   `);
-  b();
+  b!();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   resolve!("value");
   expect(readLog()).toMatchInlineSnapshot(`
@@ -455,7 +448,7 @@ test("linked list of subscribers: last entry", () => {
       ],
     ]
   `);
-  c();
+  c!();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   resolve!("value");
   expect(readLog()).toMatchInlineSnapshot(`
@@ -483,7 +476,7 @@ test("teardown function is not called if the lazy promise resolves", () => {
   });
   const dispose = promise.subscribe();
   vi.runAllTimers();
-  dispose();
+  dispose!();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
@@ -498,7 +491,7 @@ test("teardown function is not called if the lazy promise rejects", () => {
   });
   const dispose = promise.subscribe(undefined, () => {});
   vi.runAllTimers();
-  dispose();
+  dispose!();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
@@ -513,7 +506,7 @@ test("teardown function is not called if the lazy promise fails", () => {
   });
   const dispose = promise.subscribe(undefined, undefined, () => {});
   vi.runAllTimers();
-  dispose();
+  dispose!();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
@@ -527,7 +520,7 @@ test("teardown function called by consumer", () => {
     };
   });
   const dispose = promise.subscribe(() => {
-    dispose();
+    dispose!();
     log("handleValue");
   });
   vi.runAllTimers();
@@ -609,7 +602,7 @@ test("error in teardown function", () => {
   });
   promise.subscribe(undefined, undefined, () => {
     log("handleFailure 1");
-  })();
+  })!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -993,7 +986,7 @@ test("no subscribers", () => {
     (error) => {
       log("handleFailure 1", error);
     },
-  )();
+  )!();
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -1047,7 +1040,7 @@ test("no teardown function", () => {
     (error) => {
       log("handleFailure 1", error);
     },
-  )();
+  );
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -1056,15 +1049,15 @@ test("no teardown function", () => {
       ],
       [
         "resolve error",
-        [Error: You cannot asynchronously resolve a lazy promise which does not have a teardown function other than noopUnsubscribe.],
+        [Error: You cannot asynchronously resolve a lazy promise which does not have a teardown function.],
       ],
       [
         "reject error",
-        [Error: You cannot asynchronously reject a lazy promise which does not have a teardown function other than noopUnsubscribe.],
+        [Error: You cannot asynchronously reject a lazy promise which does not have a teardown function.],
       ],
       [
         "fail error",
-        [Error: You cannot asynchronously fail a lazy promise which does not have a teardown function other than noopUnsubscribe.],
+        [Error: You cannot asynchronously fail a lazy promise which does not have a teardown function.],
       ],
     ]
   `);
@@ -1097,7 +1090,7 @@ test("subscribe in teardown function", () => {
       log("subscribe error", error);
     }
   });
-  promise.subscribe()();
+  promise.subscribe()!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -1115,7 +1108,7 @@ test("box", () => {
     promise.subscribe((value) => {
       log("handleValue", value);
     }),
-  ).toBe(noopUnsubscribe);
+  ).toBe(undefined);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -1126,7 +1119,7 @@ test("box", () => {
   `);
   promise.subscribe(() => {
     throw "oops";
-  })();
+  });
   expect(processMockMicrotaskQueue).toThrow("oops");
   expect(box(promise)).toBe(promise);
 });
@@ -1138,7 +1131,7 @@ test("rejected", () => {
     promise.subscribe(undefined, (error) => {
       log("handleRejection", error);
     }),
-  ).toBe(noopUnsubscribe);
+  ).toBe(undefined);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -1149,11 +1142,10 @@ test("rejected", () => {
   `);
   promise.subscribe(undefined, () => {
     throw "oops";
-  })();
+  });
   expect(processMockMicrotaskQueue).toThrow("oops");
   // @ts-expect-error
-  const dispose = promise.subscribe();
-  dispose();
+  promise.subscribe();
   expect(processMockMicrotaskQueue).toThrow("error");
 });
 
@@ -1164,7 +1156,7 @@ test("failed", () => {
     promise.subscribe(undefined, undefined, (error) => {
       log("handleFailure", error);
     }),
-  ).toBe(noopUnsubscribe);
+  ).toBe(undefined);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -1175,10 +1167,9 @@ test("failed", () => {
   `);
   promise.subscribe(undefined, undefined, () => {
     throw "oops";
-  })();
+  });
   expect(processMockMicrotaskQueue).toThrow("oops");
-  const dispose = promise.subscribe();
-  dispose();
+  promise.subscribe();
   expect(processMockMicrotaskQueue).toThrow("error");
 });
 
@@ -1196,8 +1187,7 @@ test("never", () => {
         log("handleFailure");
       },
     ),
-  ).toBe(noopUnsubscribe);
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  ).toBe(undefined);
 });
 
 test("pipe", () => {

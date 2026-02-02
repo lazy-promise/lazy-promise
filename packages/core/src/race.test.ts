@@ -1,4 +1,4 @@
-import { box, LazyPromise, race, rejected } from "@lazy-promise/core";
+import { box, LazyPromise, never, race, rejected } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -50,7 +50,7 @@ afterEach(() => {
 
 test("empty iterable", () => {
   const promise = race([]);
-  promise.subscribe(
+  const unsubscribe = promise.subscribe(
     (value) => {
       log("handleValue", value);
     },
@@ -61,6 +61,7 @@ test("empty iterable", () => {
       log("handleFailure");
     },
   );
+  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
@@ -80,9 +81,10 @@ test("sync resolve", () => {
       };
     }),
   ]);
-  promise.subscribe((value) => {
+  const unsubscribe = promise.subscribe((value) => {
     log("handleValue", value);
   });
+  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -112,6 +114,12 @@ test("non-array iterable", () => {
       ],
     ]
   `);
+});
+
+test("never", () => {
+  const promise = race([never]);
+  const unsubscribe = promise.subscribe();
+  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
 });
 
 test("async resolve", () => {
@@ -242,7 +250,7 @@ test("unsubscribe", () => {
       };
     }),
   ]);
-  const dispose = promise.subscribe();
+  const unsubscribe = promise.subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -253,7 +261,7 @@ test("unsubscribe", () => {
       ],
     ]
   `);
-  dispose();
+  unsubscribe!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -492,7 +500,7 @@ test("internally disposed by the teardown function, a source resolve is ignored 
     () => {
       log("handleFailure");
     },
-  )();
+  )!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [

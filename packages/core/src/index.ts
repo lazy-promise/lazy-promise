@@ -11,14 +11,7 @@ export { inImmediate } from "./inImmediate";
 export { inMicrotask } from "./inMicrotask";
 export { inNextTick } from "./inNextTick";
 export { inTimeout } from "./inTimeout";
-export {
-  box,
-  failed,
-  LazyPromise,
-  never,
-  noopUnsubscribe,
-  rejected,
-} from "./lazyPromise";
+export { box, failed, LazyPromise, never, rejected } from "./lazyPromise";
 export type { LazyPromiseError, LazyPromiseValue } from "./lazyPromise";
 export { log } from "./log";
 export { map } from "./map";

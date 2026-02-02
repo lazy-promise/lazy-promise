@@ -1,5 +1,4 @@
 import type { LazyPromise } from "@lazy-promise/core";
-import { noopUnsubscribe } from "@lazy-promise/core";
 import type { ResourceFetcher, ResourceFetcherInfo } from "solid-js";
 import { onCleanup, runWithOwner } from "solid-js";
 
@@ -9,6 +8,7 @@ export const createFetcher =
   ): ResourceFetcher<S, T, R> =>
   (k: S, info: ResourceFetcherInfo<T, R>): T | Promise<T> => {
     const lazyPromise = callback(k, info);
+    let resolved = false;
     let errored = false;
     let result: unknown;
     let resolve: ((value: T) => void) | undefined;
@@ -21,6 +21,7 @@ export const createFetcher =
             return;
           }
           result = value;
+          resolved = true;
         },
         (error: unknown) => {
           const newError = new Error(
@@ -44,12 +45,13 @@ export const createFetcher =
         },
       ),
     )!;
-    if (unsubscribe === noopUnsubscribe) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (errored) {
-        throw result;
-      }
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (resolved) {
       return result as T;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (errored) {
+      throw result;
     }
     onCleanup(unsubscribe);
     return new Promise((resolveLocal, rejectLocal) => {

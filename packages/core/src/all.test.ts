@@ -1,4 +1,4 @@
-import { all, box, LazyPromise, rejected } from "@lazy-promise/core";
+import { all, box, LazyPromise, never, rejected } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -76,9 +76,10 @@ test("types", () => {
 
 test("empty iterable", () => {
   const promise = all([]);
-  promise.subscribe((value) => {
+  const unsubscribe = promise.subscribe((value) => {
     log("handleValue", value);
   });
+  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -89,11 +90,18 @@ test("empty iterable", () => {
   `);
 });
 
+test("never", () => {
+  const promise = all([never]);
+  const unsubscribe = promise.subscribe();
+  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
+});
+
 test("sync resolve", () => {
   const promise = all([box("a" as const), box("b" as const)]);
-  promise.subscribe((value) => {
+  const unsubscribe = promise.subscribe((value) => {
     log("handleValue", value);
   });
+  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -274,7 +282,7 @@ test("unsubscribe", () => {
     }),
     box("b" as const),
   ]);
-  const dispose = promise.subscribe();
+  const unsubscribe = promise.subscribe();
   vi.advanceTimersByTime(1000);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -283,7 +291,7 @@ test("unsubscribe", () => {
       ],
     ]
   `);
-  dispose();
+  unsubscribe!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -463,7 +471,7 @@ test("internally disposed when unsubscribed, a source reject is ignored when int
       };
     }),
   ]);
-  promise.subscribe(undefined, () => {})();
+  promise.subscribe(undefined, () => {})!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [

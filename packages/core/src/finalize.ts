@@ -16,7 +16,7 @@ export const finalize =
   > =>
     new LazyPromise((resolve, reject, fail) => {
       let disposed = false;
-      let dispose: (() => void) | undefined;
+      let unsubscribe: (() => void) | undefined;
       const handleSettle =
         <Arg>(settle: (arg: Arg) => void) =>
         (arg: Arg) => {
@@ -34,7 +34,7 @@ export const finalize =
             return;
           }
           if (valueOrPromise instanceof LazyPromise) {
-            dispose = valueOrPromise.subscribe(
+            unsubscribe = valueOrPromise.subscribe(
               () => {
                 settle(arg);
               },
@@ -45,16 +45,20 @@ export const finalize =
             settle(arg);
           }
         };
-      const disposeOuter = source.subscribe(
+      const unsubscribeOuter = source.subscribe(
         handleSettle(resolve),
         handleSettle(reject as any),
         handleSettle(fail),
       );
-      if (!dispose) {
-        dispose = disposeOuter;
+      if (!unsubscribe) {
+        if (unsubscribeOuter) {
+          unsubscribe = unsubscribeOuter;
+        } else {
+          return;
+        }
       }
       return () => {
         disposed = true;
-        dispose!();
+        unsubscribe!();
       };
     });

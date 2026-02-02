@@ -1,5 +1,11 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.20](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.20)
+
+- `noopUnsubscribe` removed in favor of undefined unsubscribe handle.
+
+- Better performance for lazy promises that don't settle asynchronously.
+
 ## [@lazy-promise/core@0.0.19](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.19)
 
 - Switch from an array to a linked list in LazyPromise internals for better performance.

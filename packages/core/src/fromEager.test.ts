@@ -195,7 +195,7 @@ test("callback throws after unsubscribed", async () => {
   });
   promise.subscribe(undefined, undefined, (error) => {
     log("handleFailure", error);
-  })();
+  })!();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   processMockMicrotaskQueue();
   await flushMicrotasks();
@@ -219,7 +219,7 @@ test("cancelation with abort signal", () => {
         });
       }),
   );
-  const dispose = promise.subscribe(undefined, () => {});
+  const unsubscribe = promise.subscribe(undefined, () => {});
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -227,7 +227,7 @@ test("cancelation with abort signal", () => {
       ],
     ]
   `);
-  dispose();
+  unsubscribe!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -240,7 +240,7 @@ test("cancelation with abort signal", () => {
 
 test("un-aborted promise resolves", async () => {
   const promise = fromEager(() => Promise.resolve(1));
-  promise.subscribe()();
+  promise.subscribe()!();
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
@@ -320,7 +320,7 @@ test("unsubscribe flattened promise", async () => {
       ],
     ]
   `);
-  unsubscribe();
+  unsubscribe!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [

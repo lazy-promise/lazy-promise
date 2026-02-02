@@ -56,22 +56,23 @@ export const fromEager = <PromiseValue = never>(
 > =>
   new LazyPromise<any, any>((resolve, reject, fail) => {
     const options = new FromEagerOptions();
-    let discardPromiseResult = false;
+    let nativePromiseDisposed = false;
     let unsubscribe: (() => void) | undefined;
     // If the callback throws, we fail (it cannot be AbortError at this point).
     callback(options).then(
       (value) => {
-        if (discardPromiseResult) {
+        if (nativePromiseDisposed) {
           return;
         }
         if (value instanceof LazyPromise) {
+          nativePromiseDisposed = true;
           unsubscribe = value.subscribe(resolve, reject, fail);
           return;
         }
         resolve(value);
       },
       (error) => {
-        if (discardPromiseResult) {
+        if (nativePromiseDisposed) {
           if (!(error instanceof DOMException && error.name === "AbortError")) {
             throwInMicrotask(error);
           }
@@ -81,11 +82,11 @@ export const fromEager = <PromiseValue = never>(
       },
     );
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
+      if (nativePromiseDisposed) {
+        unsubscribe?.();
         return;
       }
-      discardPromiseResult = true;
+      nativePromiseDisposed = true;
       options[abortControllerSymbol]?.abort(
         new DOMException(
           "The lazy promise no longer has any subscribers.",

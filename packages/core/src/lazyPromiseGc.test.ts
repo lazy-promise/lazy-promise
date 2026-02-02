@@ -41,9 +41,9 @@ const expectNotCollected = async (ref: WeakRef<object>) => {
 test("garbage collect teardown function when unsubscribed", async () => {
   const ref = new WeakRef(() => {});
   const promise = new LazyPromise<undefined>(() => ref.deref());
-  const dispose = promise.subscribe();
+  const unsubscribe = promise.subscribe();
   await expectNotCollected(ref);
-  dispose();
+  unsubscribe!();
   await expectCollected(ref);
 });
 
@@ -145,12 +145,12 @@ test("garbage collect subscriber callbacks when unsubscribed", async () => {
   const handleRejection2 = new WeakRef(() => {});
   const handleFailure2 = new WeakRef(() => {});
   const promise = new LazyPromise(() => () => {});
-  const dispose1 = promise.subscribe(
+  const unsubscribe1 = promise.subscribe(
     handleValue1.deref(),
     handleRejection1.deref(),
     handleFailure1.deref(),
   );
-  const dispose2 = promise.subscribe(
+  const unsubscribe2 = promise.subscribe(
     handleValue2.deref(),
     handleRejection2.deref(),
     handleFailure2.deref(),
@@ -161,14 +161,14 @@ test("garbage collect subscriber callbacks when unsubscribed", async () => {
   await expectNotCollected(handleValue2);
   await expectNotCollected(handleRejection2);
   await expectNotCollected(handleFailure2);
-  dispose1();
+  unsubscribe1!();
   await expectCollected(handleValue1);
   await expectCollected(handleRejection1);
   await expectCollected(handleFailure1);
   await expectNotCollected(handleValue2);
   await expectNotCollected(handleRejection2);
   await expectNotCollected(handleFailure2);
-  dispose2();
+  unsubscribe2!();
   await expectCollected(handleValue2);
   await expectCollected(handleRejection2);
   await expectCollected(handleFailure2);
@@ -211,7 +211,7 @@ test("garbage collect subscriber callbacks when resolved", async () => {
   });
   // It's necessary to hold on to the teardown function.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const dispose = promise.subscribe(
+  const unsubscribe = promise.subscribe(
     handleValue.deref(),
     handleRejection.deref(),
     handleFailure.deref(),
@@ -238,7 +238,7 @@ test("garbage collect subscriber callbacks when rejected", async () => {
   );
   // It's necessary to hold on to the teardown function.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const dispose = promise.subscribe(
+  const unsubscribe = promise.subscribe(
     handleValue.deref(),
     handleRejection.deref()!,
     handleFailure.deref(),
@@ -265,7 +265,7 @@ test("garbage collect subscriber callbacks when failed", async () => {
   );
   // It's necessary to hold on to the teardown function.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const dispose = promise.subscribe(
+  const unsubscribe = promise.subscribe(
     handleValue.deref(),
     handleRejection.deref(),
     handleFailure.deref(),

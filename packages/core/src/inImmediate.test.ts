@@ -57,7 +57,7 @@ test("resolve", () => {
 test("cancel", () => {
   inImmediate().subscribe(() => {
     log("handleValue");
-  })();
+  })!();
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });

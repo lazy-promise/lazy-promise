@@ -78,9 +78,10 @@ test("source resolves", () => {
       log("finalize");
     }),
   );
-  promise.subscribe((value) => {
+  const unsubscribe = promise.subscribe((value) => {
     log("handleValue", value);
   });
+  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -210,7 +211,7 @@ test("unsubscribe in the callback (source resolves)", () => {
   })
     .pipe(
       finalize(() => {
-        unsubscribe();
+        unsubscribe!();
       }),
     )
     .subscribe(() => {
@@ -228,7 +229,7 @@ test("unsubscribe in the callback (source rejects)", () => {
   })
     .pipe(
       finalize(() => {
-        unsubscribe();
+        unsubscribe!();
       }),
     )
     .subscribe(
@@ -253,7 +254,7 @@ test("unsubscribe in the callback (source fails)", () => {
   )
     .pipe(
       finalize(() => {
-        unsubscribe();
+        unsubscribe!();
       }),
     )
     .subscribe(
@@ -279,7 +280,7 @@ test("unsubscribe and throw in the callback (source resolves)", () => {
   })
     .pipe(
       finalize(() => {
-        unsubscribe();
+        unsubscribe!();
         throw "oops";
       }),
     )
@@ -305,7 +306,7 @@ test("unsubscribe and throw in the callback (source rejects)", () => {
   })
     .pipe(
       finalize(() => {
-        unsubscribe();
+        unsubscribe!();
         throw "oops";
       }),
     )
@@ -333,7 +334,7 @@ test("unsubscribe and throw in the callback (source fails)", () => {
   })
     .pipe(
       finalize(() => {
-        unsubscribe();
+        unsubscribe!();
         throw "oops";
       }),
     )
@@ -431,10 +432,10 @@ test("cancel outer promise", () => {
   const promise = new LazyPromise(() => () => {
     log("dispose");
   }).pipe(finalize(() => undefined));
-  const dispose = promise.subscribe();
+  const unsubscribe = promise.subscribe();
   vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  dispose();
+  unsubscribe!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "500 ms passed",
@@ -454,10 +455,10 @@ test("cancel inner promise", () => {
         }),
     ),
   );
-  const dispose = promise.subscribe();
+  const unsubscribe = promise.subscribe();
   vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  dispose();
+  unsubscribe!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "500 ms passed",

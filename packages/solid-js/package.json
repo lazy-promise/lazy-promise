@@ -1,6 +1,6 @@
 {
   "name": "@lazy-promise/solid-js",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "description": "SolidJS bindings for LazyPromise",
   "repository": "https://github.com/lazy-promise/lazy-promise.git",
   "license": "MIT",

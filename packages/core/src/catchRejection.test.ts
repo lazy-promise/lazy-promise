@@ -66,9 +66,10 @@ test("types", () => {
 
 test("falling back to a value", () => {
   const promise = rejected(1).pipe(catchRejection((error) => error + 1));
-  promise.subscribe((value) => {
+  const unsubscribe = promise.subscribe((value) => {
     log("handleValue", value);
   });
+  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -186,10 +187,10 @@ test("cancel outer promise", () => {
   const promise = new LazyPromise(() => () => {
     log("dispose");
   }).pipe(catchRejection((value) => value + 1));
-  const dispose = promise.subscribe();
+  const unsubscribe = promise.subscribe();
   vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  dispose();
+  unsubscribe!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "500 ms passed",
@@ -209,10 +210,10 @@ test("cancel inner promise", () => {
         }),
     ),
   );
-  const dispose = promise.subscribe();
+  const unsubscribe = promise.subscribe();
   vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  dispose();
+  unsubscribe!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "500 ms passed",
@@ -231,7 +232,7 @@ test("unsubscribe in the callback", () => {
   })
     .pipe(
       catchRejection(() => {
-        unsubscribe();
+        unsubscribe!();
       }),
     )
     .subscribe(
@@ -254,7 +255,7 @@ test("unsubscribe and throw in the callback", () => {
   })
     .pipe(
       catchRejection(() => {
-        unsubscribe();
+        unsubscribe!();
         throw "oops";
       }),
     )

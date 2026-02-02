@@ -53,7 +53,7 @@ test("resolve", () => {
 test("cancel", () => {
   inMicrotask().subscribe(() => {
     log("handleValue");
-  })();
+  })!();
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });

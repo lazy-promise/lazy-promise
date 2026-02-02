@@ -33,7 +33,7 @@ export const any: {
     let i = 0;
     for (const source of sources) {
       const sourceIndex = i;
-      const dispose = source.subscribe(
+      const unsubscribe = source.subscribe(
         (value) => {
           if (errors) {
             errors = undefined;
@@ -64,16 +64,20 @@ export const any: {
       );
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (!errors) {
-        dispose();
+        unsubscribe?.();
         return;
       }
-      disposables.push(dispose);
+      if (unsubscribe) {
+        disposables.push(unsubscribe);
+      }
       i++;
     }
     initialized = true;
     if (rejectedCount === i) {
       reject(errors);
-    } else {
+      return;
+    }
+    if (disposables.length) {
       return () => {
         errors = undefined;
         for (let j = 0; j < disposables.length; j++) {

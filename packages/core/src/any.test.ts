@@ -1,4 +1,4 @@
-import { any, box, LazyPromise, rejected } from "@lazy-promise/core";
+import { any, box, LazyPromise, never, rejected } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -76,9 +76,10 @@ test("types", () => {
 
 test("empty iterable", () => {
   const promise = any([]);
-  promise.subscribe(undefined, (value) => {
+  const unsubscribe = promise.subscribe(undefined, (value) => {
     log("handleRejection", value);
   });
+  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -91,9 +92,10 @@ test("empty iterable", () => {
 
 test("sync resolve", () => {
   const promise = any([rejected("a" as const), rejected("b" as const)]);
-  promise.subscribe(undefined, (value) => {
+  const unsubscribe = promise.subscribe(undefined, (value) => {
     log("handleRejection", value);
   });
+  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -122,6 +124,12 @@ test("non-array iterable", () => {
       ],
     ]
   `);
+});
+
+test("never", () => {
+  const promise = any([never]);
+  const unsubscribe = promise.subscribe();
+  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
 });
 
 test("async reject", () => {
@@ -274,7 +282,7 @@ test("unsubscribe", () => {
     }),
     rejected("b" as const),
   ]);
-  const dispose = promise.subscribe();
+  const unsubscribe = promise.subscribe();
   vi.advanceTimersByTime(1000);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -283,7 +291,7 @@ test("unsubscribe", () => {
       ],
     ]
   `);
-  dispose();
+  unsubscribe!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -459,7 +467,7 @@ test("internally disposed when unsubscribed, a source resolve is ignored when in
       };
     }),
   ]);
-  promise.subscribe()();
+  promise.subscribe()!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [

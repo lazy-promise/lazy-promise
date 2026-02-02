@@ -40,7 +40,7 @@ export const createTrackProcessing = (): [
           .subscribe(resolve, reject, fail);
         return () => {
           setCount((count) => count - 1);
-          unsubscribe();
+          unsubscribe?.();
         };
       }),
   ];
