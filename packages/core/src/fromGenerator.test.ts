@@ -566,6 +566,43 @@ test("override rejection with another rejection in finally clause", () => {
   `);
 });
 
+test("override rejection with another rejection in finally clause (async)", () => {
+  const promise = fromGenerator(function* () {
+    log("in generator");
+    try {
+      return yield* new LazyPromise<never, "a">((resolve, reject) => {
+        setTimeout(() => {
+          reject("a");
+        }, 1000);
+        return () => {};
+      });
+    } finally {
+      yield* new LazyPromise<never, "b">((resolve, reject) => {
+        setTimeout(() => {
+          reject("b");
+        }, 1000);
+        return () => {};
+      });
+    }
+  });
+  promise.subscribe(undefined, (error) => {
+    log("handleRejection", error);
+  });
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      "2000 ms passed",
+      [
+        "handleRejection",
+        "b",
+      ],
+    ]
+  `);
+});
+
 test("override rejection with failure in finally clause", () => {
   const promise = fromGenerator(function* () {
     log("in generator");
