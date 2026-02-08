@@ -125,7 +125,7 @@ test("sync resolve", () => {
   });
   expect(
     promise.subscribe((value) => {
-      log("handleValue 1", value);
+      log("handleValue", value);
     }),
   ).toBe(undefined);
   expect(readLog()).toMatchInlineSnapshot(`
@@ -134,26 +134,11 @@ test("sync resolve", () => {
         "produce",
       ],
       [
-        "handleValue 1",
+        "handleValue",
         "value",
       ],
     ]
   `);
-  expect(
-    promise.subscribe((value) => {
-      log("handleValue 2", value);
-    }),
-  ).toBe(undefined);
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "handleValue 2",
-        "value",
-      ],
-    ]
-  `);
-  promise.subscribe();
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
 test("async reject", () => {
@@ -185,7 +170,7 @@ test("sync reject", () => {
   });
   expect(
     promise.subscribe(undefined, (error) => {
-      log("handleRejection 1", error);
+      log("handleRejection", error);
     }),
   ).toBe(undefined);
   expect(readLog()).toMatchInlineSnapshot(`
@@ -194,20 +179,7 @@ test("sync reject", () => {
         "produce",
       ],
       [
-        "handleRejection 1",
-        "oops",
-      ],
-    ]
-  `);
-  expect(
-    promise.subscribe(undefined, (error) => {
-      log("handleRejection 2", error);
-    }),
-  ).toBe(undefined);
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "handleRejection 2",
+        "handleRejection",
         "oops",
       ],
     ]
@@ -243,7 +215,7 @@ test("sync fail", () => {
   });
   expect(
     promise.subscribe(undefined, undefined, (error) => {
-      log("handleFailure 1", error);
+      log("handleFailure", error);
     }),
   ).toBe(undefined);
   expect(readLog()).toMatchInlineSnapshot(`
@@ -252,20 +224,7 @@ test("sync fail", () => {
         "produce",
       ],
       [
-        "handleFailure 1",
-        "oops",
-      ],
-    ]
-  `);
-  expect(
-    promise.subscribe(undefined, undefined, (error) => {
-      log("handleFailure 2", error);
-    }),
-  ).toBe(undefined);
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "handleFailure 2",
+        "handleFailure",
         "oops",
       ],
     ]
@@ -284,7 +243,6 @@ test("no teardown function", () => {
       ],
     ]
   `);
-  expect(promise.subscribe()).toBe(undefined);
 });
 
 test("cancellation", () => {
@@ -294,10 +252,7 @@ test("cancellation", () => {
       log("dispose");
     };
   });
-  const a = promise.subscribe();
-  const b = promise.subscribe();
-  const c = promise.subscribe();
-  a!();
+  const unsubscribe = promise.subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -305,13 +260,7 @@ test("cancellation", () => {
       ],
     ]
   `);
-  a!();
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
-  b!();
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
-  b!();
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
-  c!();
+  unsubscribe!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -319,150 +268,8 @@ test("cancellation", () => {
       ],
     ]
   `);
-  c!();
+  unsubscribe!();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  const d = promise.subscribe();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "produce",
-      ],
-    ]
-  `);
-  d!();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "dispose",
-      ],
-    ]
-  `);
-});
-
-test("linked list of subscribers: first entry", () => {
-  let resolve: (value: string) => void;
-  const promise = new LazyPromise<string>((resolveLocal) => {
-    resolve = resolveLocal;
-    log("produce");
-    return () => {
-      log("dispose");
-    };
-  });
-  const a = promise.subscribe((value) => {
-    log("subscriber a handleValue", value);
-  });
-  promise.subscribe((value) => {
-    log("subscriber b handleValue", value);
-  });
-  promise.subscribe((value) => {
-    log("subscriber c handleValue", value);
-  });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "produce",
-      ],
-    ]
-  `);
-  a!();
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
-  resolve!("value");
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "subscriber c handleValue",
-        "value",
-      ],
-      [
-        "subscriber b handleValue",
-        "value",
-      ],
-    ]
-  `);
-});
-
-test("linked list of subscribers: middle entry", () => {
-  let resolve: (value: string) => void;
-  const promise = new LazyPromise<string>((resolveLocal) => {
-    resolve = resolveLocal;
-    log("produce");
-    return () => {
-      log("dispose");
-    };
-  });
-  promise.subscribe((value) => {
-    log("subscriber a handleValue", value);
-  });
-  const b = promise.subscribe((value) => {
-    log("subscriber b handleValue", value);
-  });
-  promise.subscribe((value) => {
-    log("subscriber c handleValue", value);
-  });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "produce",
-      ],
-    ]
-  `);
-  b!();
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
-  resolve!("value");
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "subscriber c handleValue",
-        "value",
-      ],
-      [
-        "subscriber a handleValue",
-        "value",
-      ],
-    ]
-  `);
-});
-
-test("linked list of subscribers: last entry", () => {
-  let resolve: (value: string) => void;
-  const promise = new LazyPromise<string>((resolveLocal) => {
-    resolve = resolveLocal;
-    log("produce");
-    return () => {
-      log("dispose");
-    };
-  });
-  promise.subscribe((value) => {
-    log("subscriber a handleValue", value);
-  });
-  promise.subscribe((value) => {
-    log("subscriber b handleValue", value);
-  });
-  const c = promise.subscribe((value) => {
-    log("subscriber c handleValue", value);
-  });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "produce",
-      ],
-    ]
-  `);
-  c!();
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
-  resolve!("value");
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "subscriber b handleValue",
-        "value",
-      ],
-      [
-        "subscriber a handleValue",
-        "value",
-      ],
-    ]
-  `);
 });
 
 test("teardown function is not called if the lazy promise resolves", () => {
@@ -535,10 +342,9 @@ test("teardown function called by consumer", () => {
 });
 
 test("error in produce function before settling", () => {
-  const promise = new LazyPromise(() => {
+  new LazyPromise(() => {
     throw "oops";
-  });
-  promise.subscribe(undefined, undefined, (error) => {
+  }).subscribe(undefined, undefined, (error) => {
     log("handleFailure", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
@@ -549,6 +355,27 @@ test("error in produce function before settling", () => {
       ],
     ]
   `);
+
+  new LazyPromise(() => {
+    throw "oops1";
+  }).subscribe(undefined, undefined, (error) => {
+    log("handleFailure", error);
+    throw "oops2";
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleFailure",
+        "oops1",
+      ],
+    ]
+  `);
+  expect(processMockMicrotaskQueue).toThrow("oops2");
+
+  new LazyPromise(() => {
+    throw "oops";
+  }).subscribe();
+  expect(processMockMicrotaskQueue).toThrow("oops");
 });
 
 test("error in produce function after settling", () => {
@@ -556,15 +383,9 @@ test("error in produce function after settling", () => {
     resolve(1);
     throw "oops";
   });
-  promise.subscribe(
-    (value) => {
-      log("handleValue", value);
-    },
-    undefined,
-    () => {
-      log("handleFailure");
-    },
-  );
+  promise.subscribe((value) => {
+    log("handleValue", value);
+  });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -573,24 +394,19 @@ test("error in produce function after settling", () => {
       ],
     ]
   `);
-  expect(processMockMicrotaskQueue).toThrow("oops");
-  promise.subscribe(
-    (value) => {
-      log("handleValue", value);
-    },
-    undefined,
-    () => {
-      log("handleFailure");
-    },
+  let error;
+  try {
+    processMockMicrotaskQueue();
+  } catch (errorLocal) {
+    error = errorLocal as Error;
+  }
+  if (!(error instanceof Error)) {
+    throw new Error("fail");
+  }
+  expect(error.message).toMatchInlineSnapshot(
+    `"You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when the lazy promise constructor threw an error that has been stored as .cause property."`,
   );
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "handleValue",
-        1,
-      ],
-    ]
-  `);
+  expect(error.cause).toMatchInlineSnapshot(`"oops"`);
 });
 
 test("error in teardown function", () => {
@@ -611,17 +427,6 @@ test("error in teardown function", () => {
     ]
   `);
   expect(processMockMicrotaskQueue).toThrow("oops");
-  promise.subscribe(undefined, undefined, (error) => {
-    log("handleFailure 2", error);
-  });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "handleFailure 2",
-        "oops",
-      ],
-    ]
-  `);
 });
 
 test("error in value handler function", () => {
@@ -660,10 +465,6 @@ test("error in value handler function", () => {
     ]
   `);
   expect(processMockMicrotaskQueue).toThrow("oops 1");
-  promise.subscribe(() => {
-    throw "oops 2";
-  });
-  expect(processMockMicrotaskQueue).toThrow("oops 2");
 });
 
 test("error in error handler function", () => {
@@ -702,10 +503,6 @@ test("error in error handler function", () => {
     ]
   `);
   expect(processMockMicrotaskQueue).toThrow("oops 1");
-  promise.subscribe(undefined, () => {
-    throw "oops 2";
-  });
-  expect(processMockMicrotaskQueue).toThrow("oops 2");
 });
 
 test("error in failure handler function", () => {
@@ -716,40 +513,20 @@ test("error in failure handler function", () => {
     return () => {};
   });
   promise.subscribe(undefined, undefined, (error) => {
-    log("handleFailure 1", error);
-    throw "oops 1";
-  });
-  promise.subscribe(undefined, undefined, (error) => {
-    log("handleFailure 2", error);
+    log("handleFailure", error);
+    throw "oops";
   });
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
       [
-        "handleFailure 2",
-        "error",
-      ],
-      [
-        "handleFailure 1",
+        "handleFailure",
         "error",
       ],
     ]
   `);
-  expect(processMockMicrotaskQueue).toThrow("oops 1");
-  promise.subscribe(undefined, undefined, (error) => {
-    log("handleFailure 3", error);
-    throw "oops 2";
-  });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "handleFailure 3",
-        "error",
-      ],
-    ]
-  `);
-  expect(processMockMicrotaskQueue).toThrow("oops 2");
+  expect(processMockMicrotaskQueue).toThrow("oops");
 });
 
 test("unhandled rejection", () => {
@@ -761,17 +538,6 @@ test("unhandled rejection", () => {
   });
   // @ts-expect-error
   promise.subscribe();
-
-  // Make sure there is a type error in all cases.
-  // @ts-expect-error
-  promise.subscribe(undefined);
-  // @ts-expect-error
-  promise.subscribe(undefined, undefined);
-  // @ts-expect-error
-  promise.subscribe(() => {});
-  // @ts-expect-error
-  promise.subscribe(() => {}, undefined);
-
   expect(mockMicrotaskQueue.length).toMatchInlineSnapshot(`0`);
   vi.runAllTimers();
   let error;
@@ -787,52 +553,18 @@ test("unhandled rejection", () => {
     `"Unhandled rejection. The original error has been stored as the .cause property."`,
   );
   expect(error.cause).toMatchInlineSnapshot(`"oops"`);
-  // Only one error is thrown.
-  processMockMicrotaskQueue();
-  // @ts-expect-error
-  promise.subscribe();
-  error = undefined;
-  try {
-    processMockMicrotaskQueue();
-  } catch (errorLocal) {
-    error = errorLocal;
-  }
-  if (!(error instanceof Error)) {
-    throw new Error("fail");
-  }
-  expect(error.message).toMatchInlineSnapshot(
-    `"Unhandled rejection. The original error has been stored as the .cause property."`,
-  );
-  expect(error.cause).toMatchInlineSnapshot(`"oops"`);
 });
 
 test("unhandled failure", () => {
-  const promise = new LazyPromise<unknown, string>((resolve, reject, fail) => {
+  const promise = new LazyPromise<unknown, never>((resolve, reject, fail) => {
     setTimeout(() => {
       fail("oops");
     }, 1000);
     return () => {};
   });
-  // @ts-expect-error
   promise.subscribe();
-
-  // Make sure there is a type error in all cases.
-  // @ts-expect-error
-  promise.subscribe(undefined);
-  // @ts-expect-error
-  promise.subscribe(undefined, undefined);
-  // @ts-expect-error
-  promise.subscribe(() => {});
-  // @ts-expect-error
-  promise.subscribe(() => {}, undefined);
-
   expect(mockMicrotaskQueue.length).toMatchInlineSnapshot(`0`);
   vi.runAllTimers();
-  expect(processMockMicrotaskQueue).toThrow("oops");
-  // Only one error is thrown.
-  processMockMicrotaskQueue();
-  // @ts-expect-error
-  promise.subscribe();
   expect(processMockMicrotaskQueue).toThrow("oops");
 });
 
@@ -842,17 +574,26 @@ test("already resolved", () => {
     try {
       resolve(2);
     } catch (error) {
-      log("resolve error", error);
+      if (!(error instanceof Error)) {
+        throw new Error("fail");
+      }
+      log("resolve error", error.message, error.cause);
     }
     try {
-      reject(1);
+      reject(3);
     } catch (error) {
-      log("reject error", error);
+      if (!(error instanceof Error)) {
+        throw new Error("fail");
+      }
+      log("reject error", error.message, error.cause);
     }
     try {
-      fail(1);
+      fail(4);
     } catch (error) {
-      log("fail error", error);
+      if (!(error instanceof Error)) {
+        throw new Error("fail");
+      }
+      log("fail error", error.message, error.cause);
     }
   });
   promise.subscribe(undefined, () => {});
@@ -860,15 +601,18 @@ test("already resolved", () => {
     [
       [
         "resolve error",
-        [Error: You cannot resolve an already resolved lazy promise.],
+        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when resolve(...) was called with a value that has been stored as .cause property.",
+        2,
       ],
       [
         "reject error",
-        [Error: You cannot reject a resolved lazy promise.],
+        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when reject(...) was called with an error that has been stored as .cause property.",
+        3,
       ],
       [
         "fail error",
-        [Error: You cannot fail a resolved lazy promise.],
+        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when fail(...) was called with an error that has been stored as .cause property.",
+        4,
       ],
     ]
   `);
@@ -878,19 +622,28 @@ test("already rejected", () => {
   const promise = new LazyPromise<number, number>((resolve, reject, fail) => {
     reject(1);
     try {
-      resolve(1);
+      resolve(2);
     } catch (error) {
-      log("resolve error", error);
+      if (!(error instanceof Error)) {
+        throw new Error("fail");
+      }
+      log("resolve error", error.message, error.cause);
     }
     try {
-      reject(2);
+      reject(3);
     } catch (error) {
-      log("reject error", error);
+      if (!(error instanceof Error)) {
+        throw new Error("fail");
+      }
+      log("reject error", error.message, error.cause);
     }
     try {
-      fail(1);
+      fail(4);
     } catch (error) {
-      log("fail error", error);
+      if (!(error instanceof Error)) {
+        throw new Error("fail");
+      }
+      log("fail error", error.message, error.cause);
     }
   });
   promise.subscribe(undefined, () => {});
@@ -898,15 +651,18 @@ test("already rejected", () => {
     [
       [
         "resolve error",
-        [Error: You cannot resolve a rejected lazy promise.],
+        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when resolve(...) was called with a value that has been stored as .cause property.",
+        2,
       ],
       [
         "reject error",
-        [Error: You cannot reject an already rejected lazy promise.],
+        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when reject(...) was called with an error that has been stored as .cause property.",
+        3,
       ],
       [
         "fail error",
-        [Error: You cannot fail a rejected lazy promise.],
+        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when fail(...) was called with an error that has been stored as .cause property.",
+        4,
       ],
     ]
   `);
@@ -916,19 +672,28 @@ test("already failed", () => {
   const promise = new LazyPromise<number, number>((resolve, reject, fail) => {
     fail(1);
     try {
-      resolve(1);
+      resolve(2);
     } catch (error) {
-      log("resolve error", error);
+      if (!(error instanceof Error)) {
+        throw new Error("fail");
+      }
+      log("resolve error", error.message, error.cause);
     }
     try {
-      reject(2);
+      reject(3);
     } catch (error) {
-      log("reject error", error);
+      if (!(error instanceof Error)) {
+        throw new Error("fail");
+      }
+      log("reject error", error.message, error.cause);
     }
     try {
-      fail(2);
+      fail(4);
     } catch (error) {
-      log("fail error", error);
+      if (!(error instanceof Error)) {
+        throw new Error("fail");
+      }
+      log("fail error", error.message, error.cause);
     }
   });
   promise.subscribe(
@@ -940,38 +705,50 @@ test("already failed", () => {
     [
       [
         "resolve error",
-        [Error: You cannot resolve a failed lazy promise.],
+        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when resolve(...) was called with a value that has been stored as .cause property.",
+        2,
       ],
       [
         "reject error",
-        [Error: You cannot reject a failed lazy promise.],
+        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when reject(...) was called with an error that has been stored as .cause property.",
+        3,
       ],
       [
         "fail error",
-        [Error: You cannot fail an already failed lazy promise.],
+        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when fail(...) was called with an error that has been stored as .cause property.",
+        4,
       ],
     ]
   `);
 });
 
-test("no subscribers", () => {
+test("unsubscribed", () => {
   const promise = new LazyPromise<number, number>((resolve, reject, fail) => {
     log("produce");
     setTimeout(() => {
       try {
-        resolve(1);
+        resolve(2);
       } catch (error) {
-        log("resolve error", error);
+        if (!(error instanceof Error)) {
+          throw new Error("fail");
+        }
+        log("resolve error", error.message, error.cause);
       }
       try {
-        reject(1);
+        reject(3);
       } catch (error) {
-        log("reject error", error);
+        if (!(error instanceof Error)) {
+          throw new Error("fail");
+        }
+        log("reject error", error.message, error.cause);
       }
       try {
-        fail(1);
+        fail(4);
       } catch (error) {
-        log("fail error", error);
+        if (!(error instanceof Error)) {
+          throw new Error("fail");
+        }
+        log("fail error", error.message, error.cause);
       }
     });
     return () => {};
@@ -995,15 +772,18 @@ test("no subscribers", () => {
       ],
       [
         "resolve error",
-        [Error: You cannot resolve a lazy promise which was torn down.],
+        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when resolve(...) was called with a value that has been stored as .cause property.",
+        2,
       ],
       [
         "reject error",
-        [Error: You cannot reject a lazy promise which was torn down.],
+        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when reject(...) was called with an error that has been stored as .cause property.",
+        3,
       ],
       [
         "fail error",
-        [Error: You cannot fail a lazy promise which was torn down.],
+        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when fail(...) was called with an error that has been stored as .cause property.",
+        4,
       ],
     ]
   `);
@@ -1014,19 +794,28 @@ test("no teardown function", () => {
     log("produce");
     setTimeout(() => {
       try {
-        resolve(1);
+        resolve(2);
       } catch (error) {
-        log("resolve error", error);
+        if (!(error instanceof Error)) {
+          throw new Error("fail");
+        }
+        log("resolve error", error.message, error.cause);
       }
       try {
-        reject(1);
+        reject(3);
       } catch (error) {
-        log("reject error", error);
+        if (!(error instanceof Error)) {
+          throw new Error("fail");
+        }
+        log("reject error", error.message, error.cause);
       }
       try {
-        fail(1);
+        fail(4);
       } catch (error) {
-        log("fail error", error);
+        if (!(error instanceof Error)) {
+          throw new Error("fail");
+        }
+        log("fail error", error.message, error.cause);
       }
     });
   });
@@ -1049,53 +838,18 @@ test("no teardown function", () => {
       ],
       [
         "resolve error",
-        [Error: You cannot asynchronously resolve a lazy promise which does not have a teardown function.],
+        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when resolve(...) was called with a value that has been stored as .cause property.",
+        2,
       ],
       [
         "reject error",
-        [Error: You cannot asynchronously reject a lazy promise which does not have a teardown function.],
+        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when reject(...) was called with an error that has been stored as .cause property.",
+        3,
       ],
       [
         "fail error",
-        [Error: You cannot asynchronously fail a lazy promise which does not have a teardown function.],
-      ],
-    ]
-  `);
-});
-
-test("subscribe in produce", () => {
-  const promise = new LazyPromise(() => {
-    try {
-      promise.subscribe();
-    } catch (error) {
-      log("subscribe error", error);
-    }
-  });
-  promise.subscribe();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "subscribe error",
-        [Error: You cannot subscribe to a lazy promise from its constructor callback.],
-      ],
-    ]
-  `);
-});
-
-test("subscribe in teardown function", () => {
-  const promise = new LazyPromise(() => () => {
-    try {
-      promise.subscribe();
-    } catch (error) {
-      log("subscribe error", error);
-    }
-  });
-  promise.subscribe()!();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "subscribe error",
-        [Error: You cannot subscribe to a lazy promise from its teardown function.],
+        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when fail(...) was called with an error that has been stored as .cause property.",
+        4,
       ],
     ]
   `);

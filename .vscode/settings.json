@@ -27,6 +27,7 @@
     "!prefer-const",
     "!eslint-comments/no-unused-disable",
     "!@typescript-eslint/no-unnecessary-type-assertion",
+    "!@typescript-eslint/no-unnecessary-condition",
     "*"
   ]
 }

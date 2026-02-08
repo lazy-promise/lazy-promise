@@ -1,45 +1,22 @@
-const resolvedSymbol = Symbol("resolved");
-const rejectedSymbol = Symbol("rejected");
-const failedSymbol = Symbol("failed");
-const neverSymbol = Symbol("never");
+const emptySymbol = Symbol("empty");
 declare const yieldableSymbol: unique symbol;
 declare const stabilizerSymbol: unique symbol;
 
-interface Subscriber<Value, Error> {
-  handleValue?: (value: Value) => void;
-  handleRejection?: (error: Error) => void;
-  handleFailure?: (error: unknown) => void;
-  next?: Subscriber<Value, Error>;
-  previous?: Subscriber<Value, Error>;
-}
+const disposedErrorMessage = (action: string) =>
+  `You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when ${action} that has been stored as .cause property.`;
 
-const getActionStr = (
-  action: typeof resolvedSymbol | typeof rejectedSymbol | typeof failedSymbol,
-) =>
-  action === resolvedSymbol
-    ? `resolve`
-    : action === rejectedSymbol
-      ? `reject`
-      : (action satisfies typeof failedSymbol, `fail`);
-
-const alreadySettledErrorMessage = (
-  action: typeof resolvedSymbol | typeof rejectedSymbol | typeof failedSymbol,
-  status: typeof resolvedSymbol | typeof rejectedSymbol | typeof failedSymbol,
-) =>
-  `You cannot ${getActionStr(action)} ${action === status ? `an already` : `a`} ${status === resolvedSymbol ? `resolved` : status === rejectedSymbol ? `rejected` : (status satisfies typeof failedSymbol, `failed`)} lazy promise.`;
-
-const disposedErrorMessage = (
-  action: typeof resolvedSymbol | typeof rejectedSymbol | typeof failedSymbol,
-) => `You cannot ${getActionStr(action)} a lazy promise which was torn down.`;
-
-const noDisposeErrorMessage = (
-  action: typeof resolvedSymbol | typeof rejectedSymbol | typeof failedSymbol,
-) =>
-  `You cannot asynchronously ${getActionStr(action)} a lazy promise which does not have a teardown function.`;
-
-const cannotSubscribeInProduceMessage = `You cannot subscribe to a lazy promise from its constructor callback.`;
-
-const cannotSubscribeInDisposeMessage = `You cannot subscribe to a lazy promise from its teardown function.`;
+const resolveErrorMessage = disposedErrorMessage(
+  `resolve(...) was called with a value`,
+);
+const rejectErrorMessage = disposedErrorMessage(
+  `reject(...) was called with an error`,
+);
+const failErrorMessage = disposedErrorMessage(
+  `fail(...) was called with an error`,
+);
+const throwErrorMessage = disposedErrorMessage(
+  `the lazy promise constructor threw an error`,
+);
 
 // We throw failure errors as they are, but when there is an unhandled
 // rejection, we wrap it before throwing because (1) failure to handle a
@@ -99,17 +76,6 @@ class LazyPromiseIterator<TYield> implements Iterator<TYield> {
  * emits synchronously instead of on the microtask queue.
  */
 export class LazyPromise<Value, Error = never> {
-  private status:
-    | undefined
-    | typeof resolvedSymbol
-    | typeof rejectedSymbol
-    | typeof failedSymbol
-    | typeof neverSymbol;
-  private result: unknown;
-  // A linked list.
-  private subscribers: Subscriber<Value, Error> | undefined;
-  private dispose: (() => void) | undefined;
-
   constructor(
     private produce: (
       resolve: (value: Value) => void,
@@ -117,178 +83,6 @@ export class LazyPromise<Value, Error = never> {
       fail: (error: unknown) => void,
     ) => (() => void) | void,
   ) {}
-
-  private resolve(value: Value) {
-    if (this.status === neverSymbol) {
-      throw new Error(noDisposeErrorMessage(resolvedSymbol));
-    }
-    if (this.status) {
-      throw new Error(alreadySettledErrorMessage(resolvedSymbol, this.status));
-    }
-    if (!this.subscribers) {
-      throw new Error(disposedErrorMessage(resolvedSymbol));
-    }
-    this.result = value;
-    this.status = resolvedSymbol;
-    // For GC purposes.
-    (this.produce as unknown) = undefined;
-    // For GC purposes.
-    this.dispose = undefined;
-    do {
-      const handleValue = this.subscribers.handleValue;
-      if (handleValue) {
-        try {
-          handleValue(this.result as Value);
-        } catch (error) {
-          throwInMicrotask(error);
-        }
-        // For GC purposes: unsubscribe handle keeps a reference to the
-        // subscriber.
-        delete this.subscribers.handleValue;
-      }
-      // For GC purposes: unsubscribe handle keeps a reference to the
-      // subscriber.
-      delete this.subscribers.handleRejection;
-      // For GC purposes: unsubscribe handle keeps a reference to the
-      // subscriber.
-      delete this.subscribers.handleFailure;
-      this.subscribers = this.subscribers.next;
-    } while (this.subscribers);
-  }
-
-  private reject(error: Error) {
-    if (this.status === neverSymbol) {
-      throw new Error(noDisposeErrorMessage(rejectedSymbol));
-    }
-    if (this.status) {
-      throw new Error(alreadySettledErrorMessage(rejectedSymbol, this.status));
-    }
-    if (!this.subscribers) {
-      throw new Error(disposedErrorMessage(rejectedSymbol));
-    }
-    this.result = error;
-    this.status = rejectedSymbol;
-    // For GC purposes.
-    (this.produce as unknown) = undefined;
-    // For GC purposes.
-    this.dispose = undefined;
-    let unhandledRejection = false;
-    do {
-      const handleRejection = this.subscribers.handleRejection;
-      if (handleRejection) {
-        try {
-          handleRejection(this.result as Error);
-        } catch (error) {
-          throwInMicrotask(error);
-        }
-        // For GC purposes: unsubscribe handle keeps a reference to the
-        // subscriber.
-        delete this.subscribers.handleRejection;
-      } else {
-        unhandledRejection = true;
-      }
-      // For GC purposes: unsubscribe handle keeps a reference to the
-      // subscriber.
-      delete this.subscribers.handleValue;
-      // For GC purposes: unsubscribe handle keeps a reference to the
-      // subscriber.
-      delete this.subscribers.handleFailure;
-      this.subscribers = this.subscribers.next;
-    } while (this.subscribers);
-    if (unhandledRejection) {
-      throwInMicrotask(wrapRejectionError(this.result));
-    }
-  }
-
-  private fail(error: unknown) {
-    if (this.status === neverSymbol) {
-      throw new Error(noDisposeErrorMessage(failedSymbol));
-    }
-    if (this.status) {
-      throw new Error(alreadySettledErrorMessage(failedSymbol, this.status));
-    }
-    if (!this.subscribers) {
-      throw new Error(disposedErrorMessage(failedSymbol));
-    }
-    this.result = error;
-    this.status = failedSymbol;
-    // For GC purposes.
-    (this.produce as unknown) = undefined;
-    // For GC purposes.
-    this.dispose = undefined;
-    let unhandledFailure = false;
-    do {
-      const handleFailure = this.subscribers.handleFailure;
-      if (handleFailure) {
-        try {
-          handleFailure(error);
-        } catch (error) {
-          throwInMicrotask(error);
-        }
-        // For GC purposes: unsubscribe handle keeps a reference to the
-        // subscriber.
-        delete this.subscribers.handleFailure;
-      } else {
-        unhandledFailure = true;
-      }
-      // For GC purposes: unsubscribe handle keeps a reference to the
-      // subscriber.
-      delete this.subscribers.handleValue;
-      // For GC purposes: unsubscribe handle keeps a reference to the
-      // subscriber.
-      delete this.subscribers.handleRejection;
-      this.subscribers = this.subscribers.next;
-    } while (this.subscribers);
-    if (unhandledFailure) {
-      throwInMicrotask(this.result);
-    }
-  }
-
-  private unsubscribe(subscriber: Subscriber<Value, Error>) {
-    if (this.status || !this.subscribers) {
-      return;
-    } else {
-      if (subscriber.previous) {
-        if (subscriber.next) {
-          subscriber.previous.next = subscriber.next;
-          subscriber.next.previous = subscriber.previous;
-          // For GC purposes.
-          delete subscriber.next;
-        } else {
-          delete subscriber.previous.next;
-        }
-        delete subscriber.previous;
-      } else {
-        if (this.subscribers !== subscriber) {
-          return;
-        }
-        if (subscriber.next) {
-          this.subscribers = subscriber.next;
-          delete subscriber.next.previous;
-          // For GC purposes.
-          delete subscriber.next;
-        } else {
-          this.subscribers = undefined;
-          try {
-            this.dispose!();
-          } catch (error) {
-            this.status = failedSymbol;
-            this.result = error;
-            // For GC purposes.
-            (this.produce as unknown) = undefined;
-            throwInMicrotask(error);
-          }
-          this.dispose = undefined;
-        }
-      }
-    }
-    // For GC purposes.
-    delete subscriber.handleValue;
-    // For GC purposes.
-    delete subscriber.handleRejection;
-    // For GC purposes.
-    delete subscriber.handleFailure;
-  }
 
   /**
    * Subscribes to the lazy promise. Rejection handler must be provided if the
@@ -301,101 +95,107 @@ export class LazyPromise<Value, Error = never> {
       : (error: Error) => void,
     handleFailure: ((error: unknown) => void) | void,
   ): (() => void) | undefined {
-    if (this.status === resolvedSymbol) {
-      if (handleValue) {
-        try {
-          handleValue(this.result as Value);
-        } catch (error) {
-          throwInMicrotask(error);
-        }
-      }
-      return;
-    }
-    if (this.status === rejectedSymbol) {
-      if (handleRejection) {
-        try {
-          handleRejection(this.result as Error);
-        } catch (error) {
-          throwInMicrotask(error);
-        }
-      } else {
-        throwInMicrotask(wrapRejectionError(this.result));
-      }
-      return;
-    }
-    if (this.status === failedSymbol) {
-      if (handleFailure) {
-        try {
-          handleFailure(this.result);
-        } catch (error) {
-          throwInMicrotask(error);
-        }
-      } else {
-        throwInMicrotask(this.result);
-      }
-      return;
-    }
-    if (this.status === neverSymbol) {
-      return;
-    }
-    const subscriber: Subscriber<Value, Error> = {};
-    if (handleValue) {
-      subscriber.handleValue = handleValue;
-    }
-    if (handleRejection) {
-      subscriber.handleRejection = handleRejection;
-    }
-    if (handleFailure) {
-      subscriber.handleFailure = handleFailure;
-    }
-    if (this.subscribers) {
-      if (!this.dispose) {
-        throw new Error(cannotSubscribeInProduceMessage);
-      }
-      this.subscribers.previous = subscriber;
-      subscriber.next = this.subscribers;
-      this.subscribers = subscriber;
-    } else {
-      if (this.dispose) {
-        throw new Error(cannotSubscribeInDisposeMessage);
-      }
-      this.subscribers = subscriber;
-      try {
-        const dispose = this.produce(
-          (value) => {
-            this.resolve(value);
-          },
-          (error) => {
-            this.reject(error);
-          },
-          (error) => {
-            this.fail(error);
-          },
-        ) as (() => void) | undefined;
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (this.subscribers) {
-          if (dispose) {
-            this.dispose = dispose;
-          } else {
-            this.status = neverSymbol;
-            this.subscribers = undefined;
-            return;
+    let dispose: (() => void) | void | typeof emptySymbol = emptySymbol;
+    try {
+      const disposeLocal = this.produce(
+        (value) => {
+          if (!dispose) {
+            throw new Error(resolveErrorMessage, { cause: value });
           }
-        } else {
-          return;
-        }
-      } catch (error) {
-        if (this.status) {
-          throwInMicrotask(error);
-        } else {
-          this.fail(error);
-        }
+          dispose = undefined;
+          if (handleValue) {
+            try {
+              handleValue(value);
+            } catch (error) {
+              throwInMicrotask(error);
+            }
+          }
+
+          // For GC purposes.
+          handleValue = undefined;
+          handleRejection = undefined as any;
+          handleFailure = undefined;
+        },
+        (error) => {
+          if (!dispose) {
+            throw new Error(rejectErrorMessage, { cause: error });
+          }
+          dispose = undefined;
+          if (handleRejection) {
+            try {
+              handleRejection(error);
+            } catch (error) {
+              throwInMicrotask(error);
+            }
+          } else {
+            throwInMicrotask(wrapRejectionError(error));
+          }
+
+          // For GC purposes.
+          handleValue = undefined;
+          handleRejection = undefined as any;
+          handleFailure = undefined;
+        },
+        (error) => {
+          if (!dispose) {
+            throw new Error(failErrorMessage, { cause: error });
+          }
+          dispose = undefined;
+          if (handleFailure) {
+            try {
+              handleFailure(error);
+            } catch (error) {
+              throwInMicrotask(error);
+            }
+          } else {
+            throwInMicrotask(error);
+          }
+
+          // For GC purposes.
+          handleValue = undefined;
+          handleRejection = undefined as any;
+          handleFailure = undefined;
+        },
+      );
+      if (dispose === emptySymbol) {
+        dispose = disposeLocal;
+      }
+    } catch (error) {
+      if (!dispose) {
+        throwInMicrotask(Error(throwErrorMessage, { cause: error }));
         return;
       }
+      dispose = undefined;
+      if (handleFailure) {
+        try {
+          handleFailure(error);
+        } catch (error) {
+          throwInMicrotask(error);
+        }
+      } else {
+        throwInMicrotask(error);
+      }
+      return;
     }
-    return () => {
-      this.unsubscribe(subscriber);
-    };
+    if (dispose) {
+      return () => {
+        if (!dispose) {
+          return;
+        }
+        try {
+          const disposeLocal = dispose as () => void;
+          dispose = undefined;
+          disposeLocal();
+        } catch (error) {
+          throwInMicrotask(error);
+        }
+        // For GC purposes.
+        dispose = undefined;
+        handleValue = undefined;
+        handleRejection = undefined as any;
+        handleFailure = undefined;
+      };
+    }
   }
 
   /**

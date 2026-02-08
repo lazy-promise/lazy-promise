@@ -90,53 +90,6 @@ test("garbage collect teardown function when failed", async () => {
   await expectCollected(ref);
 });
 
-test("garbage collect produce function when resolved", async () => {
-  let resolve: (value: undefined) => void;
-  const ref = new WeakRef((resolveLocal: (value: undefined) => void) => {
-    resolve = resolveLocal;
-    return () => {};
-  });
-  const promise = new LazyPromise<undefined>(ref.deref()!);
-  promise.subscribe();
-  await expectNotCollected(ref);
-  resolve!(undefined);
-  await expectCollected(ref);
-});
-
-test("garbage collect produce function when rejected", async () => {
-  let reject: (error: undefined) => void;
-  const ref = new WeakRef(
-    (resolve: unknown, rejectLocal: (error: undefined) => void) => {
-      reject = rejectLocal;
-      return () => {};
-    },
-  );
-  const promise = new LazyPromise<undefined, undefined>(ref.deref()!);
-  promise.subscribe(undefined, () => {});
-  await expectNotCollected(ref);
-  reject!(undefined);
-  await expectCollected(ref);
-});
-
-test("garbage collect produce function when failed", async () => {
-  let fail: (error: unknown) => void;
-  const ref = new WeakRef(
-    (
-      resolve: unknown,
-      reject: unknown,
-      failLocal: (error: unknown) => void,
-    ) => {
-      fail = failLocal;
-      return () => {};
-    },
-  );
-  const promise = new LazyPromise<undefined, never>(ref.deref()!);
-  promise.subscribe(undefined, undefined, () => {});
-  await expectNotCollected(ref);
-  fail!(undefined);
-  await expectCollected(ref);
-});
-
 test("garbage collect subscriber callbacks when unsubscribed", async () => {
   const handleValue1 = new WeakRef(() => {});
   const handleRejection1 = new WeakRef(() => {});
