@@ -404,7 +404,7 @@ test("error in produce function after settling", () => {
     throw new Error("fail");
   }
   expect(error.message).toMatchInlineSnapshot(
-    `"You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when the lazy promise constructor threw an error that has been stored as .cause property."`,
+    `"A lazy promise constructor callback threw an error after having previously resolved the subscription. The error has been stored as this error's .cause property."`,
   );
   expect(error.cause).toMatchInlineSnapshot(`"oops"`);
 });
@@ -601,17 +601,17 @@ test("already resolved", () => {
     [
       [
         "resolve error",
-        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when resolve(...) was called with a value that has been stored as .cause property.",
-        2,
+        "Tried to resolve an already resolved lazy promise subscription.",
+        undefined,
       ],
       [
         "reject error",
-        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when reject(...) was called with an error that has been stored as .cause property.",
-        3,
+        "Tried to reject a resolved lazy promise subscription.",
+        undefined,
       ],
       [
         "fail error",
-        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when fail(...) was called with an error that has been stored as .cause property.",
+        "Tried to fail a resolved lazy promise subscription with an error that has been stored as this error's .cause property.",
         4,
       ],
     ]
@@ -651,17 +651,17 @@ test("already rejected", () => {
     [
       [
         "resolve error",
-        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when resolve(...) was called with a value that has been stored as .cause property.",
-        2,
+        "Tried to resolve a rejected lazy promise subscription.",
+        undefined,
       ],
       [
         "reject error",
-        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when reject(...) was called with an error that has been stored as .cause property.",
-        3,
+        "Tried to reject an already rejected lazy promise subscription.",
+        undefined,
       ],
       [
         "fail error",
-        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when fail(...) was called with an error that has been stored as .cause property.",
+        "Tried to fail a rejected lazy promise subscription with an error that has been stored as this error's .cause property.",
         4,
       ],
     ]
@@ -705,17 +705,17 @@ test("already failed", () => {
     [
       [
         "resolve error",
-        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when resolve(...) was called with a value that has been stored as .cause property.",
-        2,
+        "Tried to resolve a failed lazy promise subscription.",
+        undefined,
       ],
       [
         "reject error",
-        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when reject(...) was called with an error that has been stored as .cause property.",
-        3,
+        "Tried to reject a failed lazy promise subscription.",
+        undefined,
       ],
       [
         "fail error",
-        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when fail(...) was called with an error that has been stored as .cause property.",
+        "Tried to fail an already failed lazy promise subscription with an error that has been stored as this error's .cause property.",
         4,
       ],
     ]
@@ -772,17 +772,17 @@ test("unsubscribed", () => {
       ],
       [
         "resolve error",
-        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when resolve(...) was called with a value that has been stored as .cause property.",
-        2,
+        "Tried to resolve a lazy promise subscription after the teardown function was called.",
+        undefined,
       ],
       [
         "reject error",
-        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when reject(...) was called with an error that has been stored as .cause property.",
-        3,
+        "Tried to reject a lazy promise subscription after the teardown function was called.",
+        undefined,
       ],
       [
         "fail error",
-        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when fail(...) was called with an error that has been stored as .cause property.",
+        "Tried to fail a lazy promise subscription after the teardown function was called. The failure error has been stored as this error's .cause property.",
         4,
       ],
     ]
@@ -838,17 +838,17 @@ test("no teardown function", () => {
       ],
       [
         "resolve error",
-        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when resolve(...) was called with a value that has been stored as .cause property.",
-        2,
+        "Tried to asynchronously resolve a lazy promise subscription that does not have a teardown function.",
+        undefined,
       ],
       [
         "reject error",
-        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when reject(...) was called with an error that has been stored as .cause property.",
-        3,
+        "Tried to asynchronously reject a lazy promise subscription that does not have a teardown function.",
+        undefined,
       ],
       [
         "fail error",
-        "You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when fail(...) was called with an error that has been stored as .cause property.",
+        "Tried to asynchronously fail a lazy promise subscription that does not have a teardown function. The failure error has been stored as this error's .cause property.",
         4,
       ],
     ]

@@ -1,22 +1,64 @@
 const emptySymbol = Symbol("empty");
+const resolveSymbol = Symbol("resolve");
+const rejectSymbol = Symbol("reject");
+const failSymbol = Symbol("fail");
+const unsubscribedSymbol = Symbol("unsubscribed");
 declare const yieldableSymbol: unique symbol;
 declare const stabilizerSymbol: unique symbol;
 
-const disposedErrorMessage = (action: string) =>
-  `You cannot settle a lazy promise subscription which has been disposed. A subscription is disposed when it is resolved, rejected, failed, unsubscribed, or when the lazy promise constructor callback does not return a teardown function. This specific error occurred when ${action} that has been stored as .cause property.`;
+const actionStr = (
+  action: typeof resolveSymbol | typeof rejectSymbol | typeof failSymbol,
+) =>
+  action === resolveSymbol
+    ? `resolve`
+    : action === rejectSymbol
+      ? `reject`
+      : (action satisfies typeof failSymbol, `fail`);
 
-const resolveErrorMessage = disposedErrorMessage(
-  `resolve(...) was called with a value`,
-);
-const rejectErrorMessage = disposedErrorMessage(
-  `reject(...) was called with an error`,
-);
-const failErrorMessage = disposedErrorMessage(
-  `fail(...) was called with an error`,
-);
-const throwErrorMessage = disposedErrorMessage(
-  `the lazy promise constructor threw an error`,
-);
+const statusStr = (
+  action: typeof resolveSymbol | typeof rejectSymbol | typeof failSymbol,
+) =>
+  action === resolveSymbol
+    ? `resolved`
+    : action === rejectSymbol
+      ? `rejected`
+      : (action satisfies typeof failSymbol, `failed`);
+
+const alreadySettledErrorMessage = (
+  action: typeof resolveSymbol | typeof rejectSymbol | typeof failSymbol,
+  status: typeof resolveSymbol | typeof rejectSymbol | typeof failSymbol,
+) =>
+  `Tried to ${actionStr(action)} ${action === status ? `an already` : `a`} ${statusStr(status)} lazy promise subscription${action === failSymbol ? ` with an error that has been stored as this error's .cause property` : ``}.`;
+
+const threwErrorMessage = (
+  status: typeof resolveSymbol | typeof rejectSymbol | typeof failSymbol,
+) =>
+  `A lazy promise constructor callback threw an error after having previously ${statusStr(status)} the subscription. The error has been stored as this error's .cause property.`;
+
+const unsubscribedErrorMessage = (
+  action: typeof resolveSymbol | typeof rejectSymbol | typeof failSymbol,
+) =>
+  `Tried to ${actionStr(action)} a lazy promise subscription after the teardown function was called.${action === failSymbol ? ` The failure error has been stored as this error's .cause property.` : ``}`;
+
+const noDisposeErrorMessage = (
+  action: typeof resolveSymbol | typeof rejectSymbol | typeof failSymbol,
+) =>
+  `Tried to asynchronously ${actionStr(action)} a lazy promise subscription that does not have a teardown function.${action === failSymbol ? ` The failure error has been stored as this error's .cause property.` : ``}`;
+
+const disposedErrorMessage = (
+  action: typeof resolveSymbol | typeof rejectSymbol | typeof failSymbol,
+  status:
+    | typeof resolveSymbol
+    | typeof rejectSymbol
+    | typeof failSymbol
+    | typeof unsubscribedSymbol
+    | undefined,
+) =>
+  status === unsubscribedSymbol
+    ? unsubscribedErrorMessage(action)
+    : status === undefined
+      ? noDisposeErrorMessage(action)
+      : alreadySettledErrorMessage(action, status);
 
 // We throw failure errors as they are, but when there is an unhandled
 // rejection, we wrap it before throwing because (1) failure to handle a
@@ -96,13 +138,21 @@ export class LazyPromise<Value, Error = never> {
     handleFailure: ((error: unknown) => void) | void,
   ): (() => void) | undefined {
     let dispose: (() => void) | void | typeof emptySymbol = emptySymbol;
+    // Used for error messages.
+    let status:
+      | typeof resolveSymbol
+      | typeof rejectSymbol
+      | typeof failSymbol
+      | typeof unsubscribedSymbol
+      | undefined;
     try {
       const disposeLocal = this.produce(
         (value) => {
           if (!dispose) {
-            throw new Error(resolveErrorMessage, { cause: value });
+            throw new Error(disposedErrorMessage(resolveSymbol, status));
           }
           dispose = undefined;
+          status = resolveSymbol;
           if (handleValue) {
             try {
               handleValue(value);
@@ -118,9 +168,10 @@ export class LazyPromise<Value, Error = never> {
         },
         (error) => {
           if (!dispose) {
-            throw new Error(rejectErrorMessage, { cause: error });
+            throw new Error(disposedErrorMessage(rejectSymbol, status));
           }
           dispose = undefined;
+          status = rejectSymbol;
           if (handleRejection) {
             try {
               handleRejection(error);
@@ -138,9 +189,12 @@ export class LazyPromise<Value, Error = never> {
         },
         (error) => {
           if (!dispose) {
-            throw new Error(failErrorMessage, { cause: error });
+            throw new Error(disposedErrorMessage(failSymbol, status), {
+              cause: error,
+            });
           }
           dispose = undefined;
+          status = failSymbol;
           if (handleFailure) {
             try {
               handleFailure(error);
@@ -162,7 +216,17 @@ export class LazyPromise<Value, Error = never> {
       }
     } catch (error) {
       if (!dispose) {
-        throwInMicrotask(Error(throwErrorMessage, { cause: error }));
+        throwInMicrotask(
+          new Error(
+            threwErrorMessage(
+              status as
+                | typeof resolveSymbol
+                | typeof rejectSymbol
+                | typeof failSymbol,
+            ),
+            { cause: error },
+          ),
+        );
         return;
       }
       dispose = undefined;
@@ -182,15 +246,15 @@ export class LazyPromise<Value, Error = never> {
         if (!dispose) {
           return;
         }
+        const disposeLocal = dispose as () => void;
+        dispose = undefined;
+        status = unsubscribedSymbol;
         try {
-          const disposeLocal = dispose as () => void;
-          dispose = undefined;
           disposeLocal();
         } catch (error) {
           throwInMicrotask(error);
         }
         // For GC purposes.
-        dispose = undefined;
         handleValue = undefined;
         handleRejection = undefined as any;
         handleFailure = undefined;
