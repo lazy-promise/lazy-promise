@@ -1,5 +1,11 @@
-import { box, failed, LazyPromise, never, rejected } from "@lazy-promise/core";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import {
+  box,
+  LazyPromise,
+  never,
+  rejected,
+  TypedError,
+} from "@lazy-promise/core";
+import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
 const originalQueueMicrotask = queueMicrotask;
@@ -49,51 +55,49 @@ afterEach(() => {
 });
 
 test("types", () => {
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  const promise1 = new LazyPromise<"value a", "error a">(() => {});
+  const promise1 = new LazyPromise<"value a" | TypedError<"error a">>(() => {});
 
-  promise1.subscribe(undefined, () => {});
+  promise1.subscribe(() => {});
 
   /** @ts-expect-error */
   promise1.subscribe();
 
   /** @ts-expect-error */
-  promise1.subscribe(() => {});
+  promise1.subscribe(undefined, () => {});
 
   /** @ts-expect-error */
-  promise1.subscribe(() => {}, undefined);
+  promise1.subscribe(undefined);
 
-  const promise2 = new LazyPromise<"value a", never>(() => {});
+  const promise2 = new LazyPromise<"value a">(() => {});
 
   promise2.subscribe();
 
+  promise2.subscribe(undefined, () => {});
+
   promise2.subscribe(undefined);
 
-  promise2.subscribe(() => {});
+  expectTypeOf(box("a")).toEqualTypeOf<LazyPromise<"a">>();
 
-  promise2.subscribe(() => {}, undefined);
+  expectTypeOf(box()).toEqualTypeOf<LazyPromise<void>>();
 
-  // $ExpectType LazyPromise<"a", never>
-  const promise3 = box("a");
+  expectTypeOf(box(new LazyPromise<"value">(() => {}))).toEqualTypeOf<
+    LazyPromise<"value">
+  >();
 
-  // $ExpectType LazyPromise<void, never>
-  const promise4 = box();
+  expectTypeOf(
+    box(
+      (true as boolean)
+        ? "a"
+        : new LazyPromise<"value" | TypedError<"error">>(() => {}),
+    ),
+  ).toEqualTypeOf<LazyPromise<"a" | "value" | TypedError<"error">>>();
 
-  // $ExpectType LazyPromise<"value", "error">
-  const promise5 = box(new LazyPromise<"value", "error">(() => {}));
+  expectTypeOf(rejected("a")).toEqualTypeOf<LazyPromise<never>>();
 
-  // $ExpectType LazyPromise<"a" | "value", "error">
-  const promise6 = box(
-    (true as boolean) ? "a" : new LazyPromise<"value", "error">(() => {}),
-  );
+  expectTypeOf(rejected()).toEqualTypeOf<LazyPromise<never>>();
 
-  // $ExpectType LazyPromise<never, "a">
-  const promise7 = rejected("a");
-
-  // $ExpectType LazyPromise<never, void>
-  const promise8 = rejected();
-
-  /* eslint-enable @typescript-eslint/no-unused-vars */
+  // Check that typed errors are nominally typed.
+  expectTypeOf({ error: "a" }).not.toExtend<TypedError<string>>();
 });
 
 test("async resolve", () => {
@@ -142,21 +146,21 @@ test("sync resolve", () => {
 });
 
 test("async reject", () => {
-  const promise = new LazyPromise<unknown, string>((resolve, reject) => {
+  const promise = new LazyPromise<unknown>((resolve, reject) => {
     setTimeout(() => {
       reject("oops");
     }, 1000);
     return () => {};
   });
   promise.subscribe(undefined, (error) => {
-    log("handleRejection", error);
+    log("handleError", error);
   });
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
       [
-        "handleRejection",
+        "handleError",
         "oops",
       ],
     ]
@@ -164,13 +168,13 @@ test("async reject", () => {
 });
 
 test("sync reject", () => {
-  const promise = new LazyPromise<unknown, string>((resolve, reject) => {
+  const promise = new LazyPromise<unknown>((resolve, reject) => {
     log("produce");
     reject("oops");
   });
   expect(
     promise.subscribe(undefined, (error) => {
-      log("handleRejection", error);
+      log("handleError", error);
     }),
   ).toBe(undefined);
   expect(readLog()).toMatchInlineSnapshot(`
@@ -179,52 +183,7 @@ test("sync reject", () => {
         "produce",
       ],
       [
-        "handleRejection",
-        "oops",
-      ],
-    ]
-  `);
-});
-
-test("async fail", () => {
-  const promise = new LazyPromise<unknown, never>((resolve, reject, fail) => {
-    setTimeout(() => {
-      fail("oops");
-    }, 1000);
-    return () => {};
-  });
-  promise.subscribe(undefined, undefined, (error) => {
-    log("handleFailure", error);
-  });
-  vi.runAllTimers();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      "1000 ms passed",
-      [
-        "handleFailure",
-        "oops",
-      ],
-    ]
-  `);
-});
-
-test("sync fail", () => {
-  const promise = new LazyPromise<unknown, never>((resolve, reject, fail) => {
-    log("produce");
-    fail("oops");
-  });
-  expect(
-    promise.subscribe(undefined, undefined, (error) => {
-      log("handleFailure", error);
-    }),
-  ).toBe(undefined);
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "produce",
-      ],
-      [
-        "handleFailure",
+        "handleError",
         "oops",
       ],
     ]
@@ -232,7 +191,7 @@ test("sync fail", () => {
 });
 
 test("no teardown function", () => {
-  const promise = new LazyPromise<unknown, never>(() => {
+  const promise = new LazyPromise<unknown>(() => {
     log("produce");
   });
   expect(promise.subscribe()).toBe(undefined);
@@ -288,7 +247,7 @@ test("teardown function is not called if the lazy promise resolves", () => {
 });
 
 test("teardown function is not called if the lazy promise rejects", () => {
-  const promise = new LazyPromise<number, number>((resolve, reject) => {
+  const promise = new LazyPromise<number>((resolve, reject) => {
     setTimeout(() => {
       reject(1);
     }, 1000);
@@ -297,21 +256,6 @@ test("teardown function is not called if the lazy promise rejects", () => {
     };
   });
   const dispose = promise.subscribe(undefined, () => {});
-  vi.runAllTimers();
-  dispose!();
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
-});
-
-test("teardown function is not called if the lazy promise fails", () => {
-  const promise = new LazyPromise<number, never>((resolve, reject, fail) => {
-    setTimeout(() => {
-      fail(1);
-    }, 1000);
-    return () => {
-      log("dispose");
-    };
-  });
-  const dispose = promise.subscribe(undefined, undefined, () => {});
   vi.runAllTimers();
   dispose!();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
@@ -344,13 +288,13 @@ test("teardown function called by consumer", () => {
 test("error in produce function before settling", () => {
   new LazyPromise(() => {
     throw "oops";
-  }).subscribe(undefined, undefined, (error) => {
-    log("handleFailure", error);
+  }).subscribe(undefined, (error) => {
+    log("handleError", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleFailure",
+        "handleError",
         "oops",
       ],
     ]
@@ -358,14 +302,14 @@ test("error in produce function before settling", () => {
 
   new LazyPromise(() => {
     throw "oops1";
-  }).subscribe(undefined, undefined, (error) => {
-    log("handleFailure", error);
+  }).subscribe(undefined, (error) => {
+    log("handleError", error);
     throw "oops2";
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleFailure",
+        "handleError",
         "oops1",
       ],
     ]
@@ -416,8 +360,8 @@ test("error in teardown function", () => {
       throw "oops";
     };
   });
-  promise.subscribe(undefined, undefined, () => {
-    log("handleFailure 1");
+  promise.subscribe(undefined, () => {
+    log("handleError 1");
   })!();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -440,18 +384,16 @@ test("error in value handler function", () => {
     () => {
       throw "oops 1";
     },
-    undefined,
     () => {
-      log("handleFailure");
+      log("handleError");
     },
   );
   promise.subscribe(
     (value) => {
       log("handleValue", value);
     },
-    undefined,
     () => {
-      log("handleFailure");
+      log("handleError");
     },
   );
   vi.runAllTimers();
@@ -468,52 +410,14 @@ test("error in value handler function", () => {
 });
 
 test("error in error handler function", () => {
-  const promise = new LazyPromise<string, string>((resolve, reject) => {
+  const promise = new LazyPromise<string>((resolve, reject) => {
     setTimeout(() => {
       reject("error");
     }, 1000);
     return () => {};
   });
-  promise.subscribe(
-    undefined,
-    () => {
-      throw "oops 1";
-    },
-    () => {
-      log("handleFailure");
-    },
-  );
-  promise.subscribe(
-    undefined,
-    (error) => {
-      log("handleRejection", error);
-    },
-    () => {
-      log("handleFailure");
-    },
-  );
-  vi.runAllTimers();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      "1000 ms passed",
-      [
-        "handleRejection",
-        "error",
-      ],
-    ]
-  `);
-  expect(processMockMicrotaskQueue).toThrow("oops 1");
-});
-
-test("error in failure handler function", () => {
-  const promise = new LazyPromise<string, never>((resolve, reject, fail) => {
-    setTimeout(() => {
-      fail("error");
-    }, 1000);
-    return () => {};
-  });
-  promise.subscribe(undefined, undefined, (error) => {
-    log("handleFailure", error);
+  promise.subscribe(undefined, (error) => {
+    log("handleError", error);
     throw "oops";
   });
   vi.runAllTimers();
@@ -521,7 +425,7 @@ test("error in failure handler function", () => {
     [
       "1000 ms passed",
       [
-        "handleFailure",
+        "handleError",
         "error",
       ],
     ]
@@ -529,10 +433,10 @@ test("error in failure handler function", () => {
   expect(processMockMicrotaskQueue).toThrow("oops");
 });
 
-test("unhandled rejection", () => {
-  const promise = new LazyPromise<unknown, string>((resolve, reject) => {
+test("unhandled typed error", () => {
+  const promise = new LazyPromise<TypedError<"oops">>((resolve) => {
     setTimeout(() => {
-      reject("oops");
+      resolve(new TypedError("oops"));
     }, 1000);
     return () => {};
   });
@@ -550,15 +454,15 @@ test("unhandled rejection", () => {
     throw new Error("fail");
   }
   expect(error.message).toMatchInlineSnapshot(
-    `"Unhandled rejection. The original error has been stored as the .cause property."`,
+    `"Unhandled typed error. The original error has been stored as the .cause property."`,
   );
   expect(error.cause).toMatchInlineSnapshot(`"oops"`);
 });
 
-test("unhandled failure", () => {
-  const promise = new LazyPromise<unknown, never>((resolve, reject, fail) => {
+test("unhandled error", () => {
+  const promise = new LazyPromise<unknown>((resolve, reject) => {
     setTimeout(() => {
-      fail("oops");
+      reject("oops");
     }, 1000);
     return () => {};
   });
@@ -569,7 +473,7 @@ test("unhandled failure", () => {
 });
 
 test("already resolved", () => {
-  const promise = new LazyPromise<number, number>((resolve, reject, fail) => {
+  const promise = new LazyPromise<number>((resolve, reject) => {
     resolve(1);
     try {
       resolve(2);
@@ -587,14 +491,6 @@ test("already resolved", () => {
       }
       log("reject error", error.message, error.cause);
     }
-    try {
-      fail(4);
-    } catch (error) {
-      if (!(error instanceof Error)) {
-        throw new Error("fail");
-      }
-      log("fail error", error.message, error.cause);
-    }
   });
   promise.subscribe(undefined, () => {});
   expect(readLog()).toMatchInlineSnapshot(`
@@ -606,20 +502,15 @@ test("already resolved", () => {
       ],
       [
         "reject error",
-        "Tried to reject a resolved lazy promise subscription.",
-        undefined,
-      ],
-      [
-        "fail error",
-        "Tried to fail a resolved lazy promise subscription with an error that has been stored as this error's .cause property.",
-        4,
+        "Tried to reject a resolved lazy promise subscription with an error that has been stored as this error's .cause property.",
+        3,
       ],
     ]
   `);
 });
 
 test("already rejected", () => {
-  const promise = new LazyPromise<number, number>((resolve, reject, fail) => {
+  const promise = new LazyPromise<number>((resolve, reject) => {
     reject(1);
     try {
       resolve(2);
@@ -637,14 +528,6 @@ test("already rejected", () => {
       }
       log("reject error", error.message, error.cause);
     }
-    try {
-      fail(4);
-    } catch (error) {
-      if (!(error instanceof Error)) {
-        throw new Error("fail");
-      }
-      log("fail error", error.message, error.cause);
-    }
   });
   promise.subscribe(undefined, () => {});
   expect(readLog()).toMatchInlineSnapshot(`
@@ -656,74 +539,15 @@ test("already rejected", () => {
       ],
       [
         "reject error",
-        "Tried to reject an already rejected lazy promise subscription.",
-        undefined,
-      ],
-      [
-        "fail error",
-        "Tried to fail a rejected lazy promise subscription with an error that has been stored as this error's .cause property.",
-        4,
-      ],
-    ]
-  `);
-});
-
-test("already failed", () => {
-  const promise = new LazyPromise<number, number>((resolve, reject, fail) => {
-    fail(1);
-    try {
-      resolve(2);
-    } catch (error) {
-      if (!(error instanceof Error)) {
-        throw new Error("fail");
-      }
-      log("resolve error", error.message, error.cause);
-    }
-    try {
-      reject(3);
-    } catch (error) {
-      if (!(error instanceof Error)) {
-        throw new Error("fail");
-      }
-      log("reject error", error.message, error.cause);
-    }
-    try {
-      fail(4);
-    } catch (error) {
-      if (!(error instanceof Error)) {
-        throw new Error("fail");
-      }
-      log("fail error", error.message, error.cause);
-    }
-  });
-  promise.subscribe(
-    undefined,
-    () => {},
-    () => {},
-  );
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "resolve error",
-        "Tried to resolve a failed lazy promise subscription.",
-        undefined,
-      ],
-      [
-        "reject error",
-        "Tried to reject a failed lazy promise subscription.",
-        undefined,
-      ],
-      [
-        "fail error",
-        "Tried to fail an already failed lazy promise subscription with an error that has been stored as this error's .cause property.",
-        4,
+        "Tried to reject an already rejected lazy promise subscription with an error that has been stored as this error's .cause property.",
+        3,
       ],
     ]
   `);
 });
 
 test("unsubscribed", () => {
-  const promise = new LazyPromise<number, number>((resolve, reject, fail) => {
+  const promise = new LazyPromise<number>((resolve, reject) => {
     log("produce");
     setTimeout(() => {
       try {
@@ -742,26 +566,15 @@ test("unsubscribed", () => {
         }
         log("reject error", error.message, error.cause);
       }
-      try {
-        fail(4);
-      } catch (error) {
-        if (!(error instanceof Error)) {
-          throw new Error("fail");
-        }
-        log("fail error", error.message, error.cause);
-      }
     });
     return () => {};
   });
   promise.subscribe(
     (value) => {
-      log("handleValue 1", value);
+      log("handleValue", value);
     },
     (error) => {
-      log("handleRejection 1", error);
-    },
-    (error) => {
-      log("handleFailure 1", error);
+      log("handleError", error);
     },
   )!();
   vi.runAllTimers();
@@ -777,20 +590,15 @@ test("unsubscribed", () => {
       ],
       [
         "reject error",
-        "Tried to reject a lazy promise subscription after the teardown function was called.",
-        undefined,
-      ],
-      [
-        "fail error",
-        "Tried to fail a lazy promise subscription after the teardown function was called. The failure error has been stored as this error's .cause property.",
-        4,
+        "Tried to reject a lazy promise subscription after the teardown function was called. The rejection error has been stored as this error's .cause property.",
+        3,
       ],
     ]
   `);
 });
 
 test("no teardown function", () => {
-  const promise = new LazyPromise<number, number>((resolve, reject, fail) => {
+  const promise = new LazyPromise<number>((resolve, reject) => {
     log("produce");
     setTimeout(() => {
       try {
@@ -809,25 +617,14 @@ test("no teardown function", () => {
         }
         log("reject error", error.message, error.cause);
       }
-      try {
-        fail(4);
-      } catch (error) {
-        if (!(error instanceof Error)) {
-          throw new Error("fail");
-        }
-        log("fail error", error.message, error.cause);
-      }
     });
   });
   promise.subscribe(
     (value) => {
-      log("handleValue 1", value);
+      log("handleValue", value);
     },
     (error) => {
-      log("handleRejection 1", error);
-    },
-    (error) => {
-      log("handleFailure 1", error);
+      log("handleError", error);
     },
   );
   vi.runAllTimers();
@@ -843,13 +640,8 @@ test("no teardown function", () => {
       ],
       [
         "reject error",
-        "Tried to asynchronously reject a lazy promise subscription that does not have a teardown function.",
-        undefined,
-      ],
-      [
-        "fail error",
-        "Tried to asynchronously fail a lazy promise subscription that does not have a teardown function. The failure error has been stored as this error's .cause property.",
-        4,
+        "Tried to asynchronously reject a lazy promise subscription that does not have a teardown function. The rejection error has been stored as this error's .cause property.",
+        3,
       ],
     ]
   `);
@@ -883,43 +675,18 @@ test("rejected", () => {
   expect(promise instanceof LazyPromise).toMatchInlineSnapshot(`true`);
   expect(
     promise.subscribe(undefined, (error) => {
-      log("handleRejection", error);
+      log("handleError", error);
     }),
   ).toBe(undefined);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleRejection",
+        "handleError",
         "error",
       ],
     ]
   `);
   promise.subscribe(undefined, () => {
-    throw "oops";
-  });
-  expect(processMockMicrotaskQueue).toThrow("oops");
-  // @ts-expect-error
-  promise.subscribe();
-  expect(processMockMicrotaskQueue).toThrow("error");
-});
-
-test("failed", () => {
-  const promise = failed("error");
-  expect(promise instanceof LazyPromise).toMatchInlineSnapshot(`true`);
-  expect(
-    promise.subscribe(undefined, undefined, (error) => {
-      log("handleFailure", error);
-    }),
-  ).toBe(undefined);
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "handleFailure",
-        "error",
-      ],
-    ]
-  `);
-  promise.subscribe(undefined, undefined, () => {
     throw "oops";
   });
   expect(processMockMicrotaskQueue).toThrow("oops");
@@ -935,19 +702,16 @@ test("never", () => {
         log("handleValue");
       },
       () => {
-        log("handleRejection");
-      },
-      () => {
-        log("handleFailure");
+        log("handleError");
       },
     ),
   ).toBe(undefined);
 });
 
 test("pipe", () => {
-  const promise = new LazyPromise<"value", "error">(() => {});
+  const promise = new LazyPromise<"value">(() => {});
 
-  const getA = (promiseLocal: LazyPromise<"value", "error">) => {
+  const getA = (promiseLocal: LazyPromise<"value">) => {
     if (promiseLocal !== promise) {
       throw new Error();
     }
@@ -963,87 +727,92 @@ test("pipe", () => {
   expect(promise.pipe(getA)).toMatchInlineSnapshot(`"a"`);
   expect(promise.pipe(getA, addSuffix("b"))).toMatchInlineSnapshot(`"a-b"`);
 
-  // $ExpectType LazyPromise<"value", "error">
-  promise.pipe();
+  expectTypeOf(promise.pipe()).toEqualTypeOf<LazyPromise<"value">>();
 
-  // $ExpectType "a"
-  promise.pipe(getA);
+  expectTypeOf(promise.pipe(getA)).toEqualTypeOf<"a">();
 
-  // $ExpectType "a-b"
-  promise.pipe(getA, addSuffix("b"));
+  expectTypeOf(promise.pipe(getA, addSuffix("b"))).toEqualTypeOf<"a-b">();
 
-  // $ExpectType "a-b-c"
-  promise.pipe(getA, addSuffix("b"), addSuffix("c"));
+  expectTypeOf(
+    promise.pipe(getA, addSuffix("b"), addSuffix("c")),
+  ).toEqualTypeOf<"a-b-c">();
 
-  // $ExpectType "a-b-c-d"
-  promise.pipe(getA, addSuffix("b"), addSuffix("c"), addSuffix("d"));
+  expectTypeOf(
+    promise.pipe(getA, addSuffix("b"), addSuffix("c"), addSuffix("d")),
+  ).toEqualTypeOf<"a-b-c-d">();
 
-  // $ExpectType "a-b-c-d-e"
-  promise.pipe(
-    getA,
-    addSuffix("b"),
-    addSuffix("c"),
-    addSuffix("d"),
-    addSuffix("e"),
-  );
+  expectTypeOf(
+    promise.pipe(
+      getA,
+      addSuffix("b"),
+      addSuffix("c"),
+      addSuffix("d"),
+      addSuffix("e"),
+    ),
+  ).toEqualTypeOf<"a-b-c-d-e">();
 
-  // $ExpectType "a-b-c-d-e-f"
-  promise.pipe(
-    getA,
-    addSuffix("b"),
-    addSuffix("c"),
-    addSuffix("d"),
-    addSuffix("e"),
-    addSuffix("f"),
-  );
+  expectTypeOf(
+    promise.pipe(
+      getA,
+      addSuffix("b"),
+      addSuffix("c"),
+      addSuffix("d"),
+      addSuffix("e"),
+      addSuffix("f"),
+    ),
+  ).toEqualTypeOf<"a-b-c-d-e-f">();
 
-  // $ExpectType "a-b-c-d-e-f-g"
-  promise.pipe(
-    getA,
-    addSuffix("b"),
-    addSuffix("c"),
-    addSuffix("d"),
-    addSuffix("e"),
-    addSuffix("f"),
-    addSuffix("g"),
-  );
+  expectTypeOf(
+    promise.pipe(
+      getA,
+      addSuffix("b"),
+      addSuffix("c"),
+      addSuffix("d"),
+      addSuffix("e"),
+      addSuffix("f"),
+      addSuffix("g"),
+    ),
+  ).toEqualTypeOf<"a-b-c-d-e-f-g">();
 
-  // $ExpectType "a-b-c-d-e-f-g-h"
-  promise.pipe(
-    getA,
-    addSuffix("b"),
-    addSuffix("c"),
-    addSuffix("d"),
-    addSuffix("e"),
-    addSuffix("f"),
-    addSuffix("g"),
-    addSuffix("h"),
-  );
+  expectTypeOf(
+    promise.pipe(
+      getA,
+      addSuffix("b"),
+      addSuffix("c"),
+      addSuffix("d"),
+      addSuffix("e"),
+      addSuffix("f"),
+      addSuffix("g"),
+      addSuffix("h"),
+    ),
+  ).toEqualTypeOf<"a-b-c-d-e-f-g-h">();
 
-  // $ExpectType "a-b-c-d-e-f-g-h-i"
-  promise.pipe(
-    getA,
-    addSuffix("b"),
-    addSuffix("c"),
-    addSuffix("d"),
-    addSuffix("e"),
-    addSuffix("f"),
-    addSuffix("g"),
-    addSuffix("h"),
-    addSuffix("i"),
-  );
+  expectTypeOf(
+    promise.pipe(
+      getA,
+      addSuffix("b"),
+      addSuffix("c"),
+      addSuffix("d"),
+      addSuffix("e"),
+      addSuffix("f"),
+      addSuffix("g"),
+      addSuffix("h"),
+      addSuffix("i"),
+    ),
+  ).toEqualTypeOf<"a-b-c-d-e-f-g-h-i">();
 
-  // $ExpectType "a-b-c-d-e-f-g-h-i-j"
-  promise.pipe(
-    getA,
-    addSuffix("b"),
-    addSuffix("c"),
-    addSuffix("d"),
-    addSuffix("e"),
-    addSuffix("f"),
-    addSuffix("g"),
-    addSuffix("h"),
-    addSuffix("i"),
-    addSuffix("j"),
-  );
+  expectTypeOf(
+    promise.pipe(
+      getA,
+      addSuffix("b"),
+      addSuffix("c"),
+      addSuffix("d"),
+      addSuffix("e"),
+      addSuffix("f"),
+      addSuffix("g"),
+      addSuffix("h"),
+      addSuffix("i"),
+      addSuffix("j"),
+    ),
+  ).toEqualTypeOf<"a-b-c-d-e-f-g-h-i-j">();
 });

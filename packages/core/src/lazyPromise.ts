@@ -1,56 +1,56 @@
 const emptySymbol = Symbol("empty");
 const resolveSymbol = Symbol("resolve");
 const rejectSymbol = Symbol("reject");
-const failSymbol = Symbol("fail");
 const unsubscribedSymbol = Symbol("unsubscribed");
 declare const yieldableSymbol: unique symbol;
-declare const stabilizerSymbol: unique symbol;
+declare const valueTypeSymbol: unique symbol;
+declare const errorTypeSymbol: unique symbol;
 
-const actionStr = (
-  action: typeof resolveSymbol | typeof rejectSymbol | typeof failSymbol,
-) =>
+export class TypedError<const Error> {
+  constructor(public readonly error: Error) {}
+  declare private brand: any;
+}
+
+export type TypedErrorOrNever<Error> = Error extends never
+  ? never
+  : TypedError<Error>;
+
+const actionStr = (action: typeof resolveSymbol | typeof rejectSymbol) =>
   action === resolveSymbol
     ? `resolve`
-    : action === rejectSymbol
-      ? `reject`
-      : (action satisfies typeof failSymbol, `fail`);
+    : (action satisfies typeof rejectSymbol, `reject`);
 
-const statusStr = (
-  action: typeof resolveSymbol | typeof rejectSymbol | typeof failSymbol,
-) =>
+const statusStr = (action: typeof resolveSymbol | typeof rejectSymbol) =>
   action === resolveSymbol
     ? `resolved`
-    : action === rejectSymbol
-      ? `rejected`
-      : (action satisfies typeof failSymbol, `failed`);
+    : (action satisfies typeof rejectSymbol, `rejected`);
 
 const alreadySettledErrorMessage = (
-  action: typeof resolveSymbol | typeof rejectSymbol | typeof failSymbol,
-  status: typeof resolveSymbol | typeof rejectSymbol | typeof failSymbol,
+  action: typeof resolveSymbol | typeof rejectSymbol,
+  status: typeof resolveSymbol | typeof rejectSymbol,
 ) =>
-  `Tried to ${actionStr(action)} ${action === status ? `an already` : `a`} ${statusStr(status)} lazy promise subscription${action === failSymbol ? ` with an error that has been stored as this error's .cause property` : ``}.`;
+  `Tried to ${actionStr(action)} ${action === status ? `an already` : `a`} ${statusStr(status)} lazy promise subscription${action === rejectSymbol ? ` with an error that has been stored as this error's .cause property` : ``}.`;
 
 const threwErrorMessage = (
-  status: typeof resolveSymbol | typeof rejectSymbol | typeof failSymbol,
+  status: typeof resolveSymbol | typeof rejectSymbol,
 ) =>
   `A lazy promise constructor callback threw an error after having previously ${statusStr(status)} the subscription. The error has been stored as this error's .cause property.`;
 
 const unsubscribedErrorMessage = (
-  action: typeof resolveSymbol | typeof rejectSymbol | typeof failSymbol,
+  action: typeof resolveSymbol | typeof rejectSymbol,
 ) =>
-  `Tried to ${actionStr(action)} a lazy promise subscription after the teardown function was called.${action === failSymbol ? ` The failure error has been stored as this error's .cause property.` : ``}`;
+  `Tried to ${actionStr(action)} a lazy promise subscription after the teardown function was called.${action === rejectSymbol ? ` The rejection error has been stored as this error's .cause property.` : ``}`;
 
 const noDisposeErrorMessage = (
-  action: typeof resolveSymbol | typeof rejectSymbol | typeof failSymbol,
+  action: typeof resolveSymbol | typeof rejectSymbol,
 ) =>
-  `Tried to asynchronously ${actionStr(action)} a lazy promise subscription that does not have a teardown function.${action === failSymbol ? ` The failure error has been stored as this error's .cause property.` : ``}`;
+  `Tried to asynchronously ${actionStr(action)} a lazy promise subscription that does not have a teardown function.${action === rejectSymbol ? ` The rejection error has been stored as this error's .cause property.` : ``}`;
 
 const disposedErrorMessage = (
-  action: typeof resolveSymbol | typeof rejectSymbol | typeof failSymbol,
+  action: typeof resolveSymbol | typeof rejectSymbol,
   status:
     | typeof resolveSymbol
     | typeof rejectSymbol
-    | typeof failSymbol
     | typeof unsubscribedSymbol
     | undefined,
 ) =>
@@ -60,13 +60,13 @@ const disposedErrorMessage = (
       ? noDisposeErrorMessage(action)
       : alreadySettledErrorMessage(action, status);
 
-// We throw failure errors as they are, but when there is an unhandled
-// rejection, we wrap it before throwing because (1) failure to handle a
-// rejection is itself an error and (2) it's normal for rejection errors to be
-// something other than Error instances, and so to not have a stack trace.
-const wrapRejectionError = (error: unknown) =>
+// We throw rejection errors as they are, but when there is an unhandled typed
+// error, we wrap it before throwing because (1) failure to handle a typed error
+// is itself an error and (2) it's normal for typed errors to be something other
+// than Error instances, and so to not have a stack trace.
+const wrapTypedError = (error: any) =>
   new Error(
-    `Unhandled rejection. The original error has been stored as the .cause property.`,
+    `Unhandled typed error. The original error has been stored as the .cause property.`,
     { cause: error },
   );
 
@@ -101,13 +101,6 @@ class LazyPromiseIterator<TYield> implements Iterator<TYield> {
     };
   }
 
-  return(value: any): IteratorResult<TYield> {
-    return {
-      value,
-      done: true,
-    };
-  }
-
   throw(error: unknown): IteratorResult<TYield> {
     throw error;
   }
@@ -117,32 +110,29 @@ class LazyPromiseIterator<TYield> implements Iterator<TYield> {
  * A Promise-like primitive which is lazy/cancelable, has typed errors, and
  * emits synchronously instead of on the microtask queue.
  */
-export class LazyPromise<Value, Error = never> {
+export class LazyPromise<Value> {
   constructor(
     private produce: (
       resolve: (value: Value) => void,
-      reject: (error: Error) => void,
-      fail: (error: unknown) => void,
+      reject: (error: unknown) => void,
     ) => (() => void) | void,
   ) {}
 
   /**
-   * Subscribes to the lazy promise. Rejection handler must be provided if the
-   * error type is other than `never`.
+   * Subscribes to the lazy promise. Value handler is required if the value can
+   * be a TypedError.
    */
   subscribe(
-    handleValue: ((value: Value) => void) | void,
-    handleRejection: [Error] extends [never]
-      ? ((error: Error) => void) | void
-      : (error: Error) => void,
-    handleFailure: ((error: unknown) => void) | void,
+    handleValue: this[typeof errorTypeSymbol] extends never
+      ? ((value: Value) => void) | void
+      : (value: Value) => void,
+    handleError: ((error: unknown) => void) | void,
   ): (() => void) | undefined {
     let dispose: (() => void) | void | typeof emptySymbol = emptySymbol;
     // Used for error messages.
     let status:
       | typeof resolveSymbol
       | typeof rejectSymbol
-      | typeof failSymbol
       | typeof unsubscribedSymbol
       | undefined;
     try {
@@ -159,45 +149,25 @@ export class LazyPromise<Value, Error = never> {
             } catch (error) {
               throwInMicrotask(error);
             }
+          } else if (value instanceof TypedError) {
+            throwInMicrotask(wrapTypedError(value.error));
           }
 
           // For GC purposes.
-          handleValue = undefined;
-          handleRejection = undefined as any;
-          handleFailure = undefined;
+          handleValue = undefined as any;
+          handleError = undefined;
         },
         (error) => {
           if (!dispose) {
-            throw new Error(disposedErrorMessage(rejectSymbol, status));
-          }
-          dispose = undefined;
-          status = rejectSymbol;
-          if (handleRejection) {
-            try {
-              handleRejection(error);
-            } catch (error) {
-              throwInMicrotask(error);
-            }
-          } else {
-            throwInMicrotask(wrapRejectionError(error));
-          }
-
-          // For GC purposes.
-          handleValue = undefined;
-          handleRejection = undefined as any;
-          handleFailure = undefined;
-        },
-        (error) => {
-          if (!dispose) {
-            throw new Error(disposedErrorMessage(failSymbol, status), {
+            throw new Error(disposedErrorMessage(rejectSymbol, status), {
               cause: error,
             });
           }
           dispose = undefined;
-          status = failSymbol;
-          if (handleFailure) {
+          status = rejectSymbol;
+          if (handleError) {
             try {
-              handleFailure(error);
+              handleError(error);
             } catch (error) {
               throwInMicrotask(error);
             }
@@ -206,9 +176,8 @@ export class LazyPromise<Value, Error = never> {
           }
 
           // For GC purposes.
-          handleValue = undefined;
-          handleRejection = undefined as any;
-          handleFailure = undefined;
+          handleValue = undefined as any;
+          handleError = undefined;
         },
       );
       if (dispose === emptySymbol) {
@@ -219,10 +188,7 @@ export class LazyPromise<Value, Error = never> {
         throwInMicrotask(
           new Error(
             threwErrorMessage(
-              status as
-                | typeof resolveSymbol
-                | typeof rejectSymbol
-                | typeof failSymbol,
+              status as typeof resolveSymbol | typeof rejectSymbol,
             ),
             { cause: error },
           ),
@@ -230,9 +196,9 @@ export class LazyPromise<Value, Error = never> {
         return;
       }
       dispose = undefined;
-      if (handleFailure) {
+      if (handleError) {
         try {
-          handleFailure(error);
+          handleError(error);
         } catch (error) {
           throwInMicrotask(error);
         }
@@ -255,9 +221,8 @@ export class LazyPromise<Value, Error = never> {
           throwInMicrotask(error);
         }
         // For GC purposes.
-        handleValue = undefined;
-        handleRejection = undefined as any;
-        handleFailure = undefined;
+        handleValue = undefined as any;
+        handleError = undefined;
       };
     }
   }
@@ -266,34 +231,33 @@ export class LazyPromise<Value, Error = never> {
    * Pipes the lazy promise though the provided functions in the order that they
    * appear in, so `lazyPromise.pipe(a, b)` is `b(a(lazyPromise))`.
    *
-   * If you call `.pipe` on say `LazyPromise<1, never> | LazyPromise<2, never>`,
-   * you'll get an `Expected 0 arguments` TypeScript error. You can prevent it
-   * by wrapping the lazy promise in a `box` which will make its type
-   * `LazyPromise<1 | 2, never>`.
+   * If you call `.pipe` on say `LazyPromise<1> | LazyPromise<2>`, you'll get an
+   * `Expected 0 arguments` TypeScript error. You can prevent it by wrapping the
+   * lazy promise in a `box` which will make its type `LazyPromise<1 | 2>`.
    */
-  pipe(): LazyPromise<Value, Error>;
-  pipe<A>(a: (value: LazyPromise<Value, Error>) => A): A;
-  pipe<A, B>(a: (value: LazyPromise<Value, Error>) => A, b: (value: A) => B): B;
+  pipe(): LazyPromise<Value>;
+  pipe<A>(a: (value: LazyPromise<Value>) => A): A;
+  pipe<A, B>(a: (value: LazyPromise<Value>) => A, b: (value: A) => B): B;
   pipe<A, B, C>(
-    a: (value: LazyPromise<Value, Error>) => A,
+    a: (value: LazyPromise<Value>) => A,
     b: (value: A) => B,
     c: (value: B) => C,
   ): C;
   pipe<A, B, C, D>(
-    a: (value: LazyPromise<Value, Error>) => A,
+    a: (value: LazyPromise<Value>) => A,
     b: (value: A) => B,
     c: (value: B) => C,
     d: (value: C) => D,
   ): D;
   pipe<A, B, C, D, E>(
-    a: (value: LazyPromise<Value, Error>) => A,
+    a: (value: LazyPromise<Value>) => A,
     b: (value: A) => B,
     c: (value: B) => C,
     d: (value: C) => D,
     e: (value: D) => E,
   ): E;
   pipe<A, B, C, D, E, F>(
-    a: (value: LazyPromise<Value, Error>) => A,
+    a: (value: LazyPromise<Value>) => A,
     b: (value: A) => B,
     c: (value: B) => C,
     d: (value: C) => D,
@@ -301,7 +265,7 @@ export class LazyPromise<Value, Error = never> {
     f: (value: E) => F,
   ): F;
   pipe<A, B, C, D, E, F, G>(
-    a: (value: LazyPromise<Value, Error>) => A,
+    a: (value: LazyPromise<Value>) => A,
     b: (value: A) => B,
     c: (value: B) => C,
     d: (value: C) => D,
@@ -310,7 +274,7 @@ export class LazyPromise<Value, Error = never> {
     g: (value: F) => G,
   ): G;
   pipe<A, B, C, D, E, F, G, H>(
-    a: (value: LazyPromise<Value, Error>) => A,
+    a: (value: LazyPromise<Value>) => A,
     b: (value: A) => B,
     c: (value: B) => C,
     d: (value: C) => D,
@@ -320,7 +284,7 @@ export class LazyPromise<Value, Error = never> {
     h: (value: G) => H,
   ): H;
   pipe<A, B, C, D, E, F, G, H, I>(
-    a: (value: LazyPromise<Value, Error>) => A,
+    a: (value: LazyPromise<Value>) => A,
     b: (value: A) => B,
     c: (value: B) => C,
     d: (value: C) => D,
@@ -331,7 +295,7 @@ export class LazyPromise<Value, Error = never> {
     i: (value: H) => I,
   ): I;
   pipe<A, B, C, D, E, F, G, H, I, J>(
-    a: (value: LazyPromise<Value, Error>) => A,
+    a: (value: LazyPromise<Value>) => A,
     b: (value: A) => B,
     c: (value: B) => C,
     d: (value: C) => D,
@@ -349,33 +313,23 @@ export class LazyPromise<Value, Error = never> {
   [Symbol.iterator](): {
     next(
       ...args: ReadonlyArray<any>
-    ): IteratorResult<Yieldable<LazyPromise<Value, Error>>, Value>;
+    ): IteratorResult<Yieldable<LazyPromise<Value>>, Value>;
   } {
     return new LazyPromiseIterator(this as any);
   }
 
-  /**
-   * Fixes TS union inference. TS was confused by `[Error] extends [never]`
-   * check in the `subscribe` signature, and as a result the type of a generator
-   * function like
-   *
-   * ```
-   * function* () {
-   *   if (...) {
-   *     return rejected(1);
-   *   }
-   *   return box(2);
-   * }
-   * ```
-   *
-   * ignored the second return statement.
-   */
-  declare readonly [stabilizerSymbol]: Error;
+  declare readonly [valueTypeSymbol]: Value extends TypedError<any>
+    ? never
+    : Value;
+
+  declare readonly [errorTypeSymbol]: Value extends TypedError<infer Error>
+    ? Error
+    : never;
 }
 
 interface SettledLazyPromise {
   result: unknown;
-  subscribe: LazyPromise<any, any>["subscribe"];
+  subscribe: LazyPromise<any>["subscribe"];
 }
 
 function resolvedSubscribe(
@@ -390,17 +344,14 @@ function resolvedSubscribe(
 }
 
 /**
- * If the argument is a lazy promise, passes it through, otherwise wraps it in a
- * resolved lazy promise.
+ * If the argument is a lazy promise, passes it through, otherwise returns
+ * a lazy promise that synchronously resolves with it.
  */
 export const box: {
   <const Arg>(
     arg: Arg,
-  ): LazyPromise<
-    Arg extends LazyPromise<infer Value, any> ? Value : Arg,
-    Arg extends LazyPromise<any, infer Error> ? Error : never
-  >;
-  (): LazyPromise<void, never>;
+  ): LazyPromise<Arg extends LazyPromise<infer Value> ? Value : Arg>;
+  (): LazyPromise<void>;
 } = (arg?: any): any => {
   if (arg instanceof LazyPromise) {
     return arg;
@@ -413,8 +364,8 @@ export const box: {
 
 function rejectedSubscribe(
   this: SettledLazyPromise,
-  resolve: ((value: never) => void) | void,
-  reject: ((error: any) => void) | void,
+  resolve: any,
+  reject: ((error: unknown) => void) | void,
 ): undefined {
   if (reject) {
     try {
@@ -428,57 +379,25 @@ function rejectedSubscribe(
 }
 
 /**
- * Returns a LazyPromise which is already rejected.
+ * Returns a LazyPromise which synchronously rejects with the provided error.
  */
-export const rejected: {
-  <const Error>(error: Error): LazyPromise<never, Error>;
-  (): LazyPromise<never, void>;
-} = (error?: any): any => {
+export const rejected = (error?: unknown): LazyPromise<never> => {
   const instance = Object.create(LazyPromise.prototype) as SettledLazyPromise;
   instance.result = error;
   instance.subscribe = rejectedSubscribe;
-  return instance;
-};
-
-function failedSubscribe(
-  this: SettledLazyPromise,
-  resolve: ((value: never) => void) | void,
-  reject: ((error: never) => void) | void,
-  fail: ((error: unknown) => void) | void,
-): undefined {
-  if (fail) {
-    try {
-      fail(this.result);
-    } catch (error) {
-      throwInMicrotask(error);
-    }
-  } else {
-    throwInMicrotask(this.result);
-  }
-}
-
-/**
- * Returns a LazyPromise which is already failed.
- */
-export const failed = (error?: unknown): LazyPromise<never, never> => {
-  const instance = Object.create(LazyPromise.prototype) as SettledLazyPromise;
-  instance.result = error;
-  instance.subscribe = failedSubscribe;
   return instance as any;
 };
 
 const neverSubscribe = () => undefined;
 
 /**
- * A LazyPromise which never resolves, rejects or fails.
+ * A LazyPromise which never resolves or rejects.
  */
-export const never: LazyPromise<never, never> = Object.create(
-  LazyPromise.prototype,
-);
+export const never: LazyPromise<never> = Object.create(LazyPromise.prototype);
 never.subscribe = neverSubscribe;
 
-export type LazyPromiseValue<T> =
-  T extends LazyPromise<infer Value, unknown> ? Value : never;
+export type LazyPromiseValue<T extends LazyPromise<any>> =
+  T[typeof valueTypeSymbol];
 
-export type LazyPromiseError<T> =
-  T extends LazyPromise<unknown, infer Error> ? Error : never;
+export type LazyPromiseError<T extends LazyPromise<any>> =
+  T[typeof errorTypeSymbol];

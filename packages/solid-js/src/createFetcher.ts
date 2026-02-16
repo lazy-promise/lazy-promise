@@ -4,7 +4,7 @@ import { onCleanup, runWithOwner } from "solid-js";
 
 export const createFetcher =
   <S, T, R = unknown>(
-    callback: (k: S, info: ResourceFetcherInfo<T, R>) => LazyPromise<T, never>,
+    callback: (k: S, info: ResourceFetcherInfo<T, R>) => LazyPromise<T>,
   ): ResourceFetcher<S, T, R> =>
   (k: S, info: ResourceFetcherInfo<T, R>): T | Promise<T> => {
     const lazyPromise = callback(k, info);
@@ -22,18 +22,6 @@ export const createFetcher =
           }
           result = value;
           resolved = true;
-        },
-        (error: unknown) => {
-          const newError = new Error(
-            `The lazy promise returned by createFetcher(...) callback has rejected. The original error has been stored as the .cause property.`,
-            { cause: error },
-          );
-          if (reject) {
-            reject(newError);
-            return;
-          }
-          result = newError;
-          errored = true;
         },
         (error) => {
           if (reject) {

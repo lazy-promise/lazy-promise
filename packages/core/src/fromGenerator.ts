@@ -6,23 +6,15 @@ const emptySymbol = Symbol("empty");
 /**
  * Converts a generator function to a LazyPromise.
  */
-export const fromGenerator = <
-  TYield extends Yieldable<LazyPromise<any, any>>,
-  TReturn,
->(
-  generatorFunction: () => Generator<TYield, TReturn>,
-): LazyPromise<
-  TReturn,
-  TYield extends Yieldable<LazyPromise<any, infer Error>> ? Error : never
-> =>
-  new LazyPromise<any, any>((resolve, reject, fail) => {
+export const fromGenerator = <TReturn>(
+  generatorFunction: () => Generator<Yieldable<LazyPromise<any>>, TReturn>,
+): LazyPromise<TReturn> =>
+  new LazyPromise<any>((resolve, reject) => {
     const generator = generatorFunction();
     let unsubscribe: (() => void) | undefined | typeof emptySymbol =
       emptySymbol;
     let resolveValue: unknown = emptySymbol;
     let rejectError: unknown = emptySymbol;
-    let rejected = false;
-    let failError: unknown = emptySymbol;
 
     const handleValue = (value: any) => {
       // When possible, use the while loop to avoid increasing stack depth.
@@ -34,76 +26,48 @@ export const fromGenerator = <
         // eslint-disable-next-line no-use-before-define
         handleResult(generator.next(value));
       } catch (error) {
-        fail(error);
+        reject(error);
         return;
       }
     };
 
-    const handleRejection = (error: any) => {
-      rejectError = error;
+    const handleError = (error: any) => {
       // When possible, use the while loop to avoid increasing stack depth.
       if (unsubscribe === emptySymbol) {
-        rejected = true;
-        return;
-      }
-      try {
-        // eslint-disable-next-line no-use-before-define
-        handleResult((generator as Generator<TYield, void>).return());
-      } catch (error) {
-        fail(error);
-        return;
-      }
-    };
-
-    const handleFailure = (error: any) => {
-      // When possible, use the while loop to avoid increasing stack depth.
-      if (unsubscribe === emptySymbol) {
-        failError = error;
+        rejectError = error;
         return;
       }
       let result;
       try {
-        result = (generator as Generator<TYield, void>).throw(error);
+        result = generator.throw(error);
       } catch (error) {
-        fail(error);
+        reject(error);
         return;
       }
       // eslint-disable-next-line no-use-before-define
       handleResult(result);
     };
 
-    const handleResult = (result: IteratorResult<TYield, TReturn | void>) => {
+    const handleResult = (
+      result: IteratorResult<Yieldable<LazyPromise<any>>, TReturn | void>,
+    ) => {
       while (true) {
         if (result.done) {
-          if (rejectError !== emptySymbol) {
-            reject(rejectError);
-            return;
-          }
           resolve(result.value as any);
           return;
         }
         const source = result.value;
-        unsubscribe = source.subscribe(
-          handleValue,
-          handleRejection,
-          handleFailure,
-        );
+        unsubscribe = source.subscribe(handleValue, handleError);
         if (resolveValue !== emptySymbol) {
           unsubscribe = emptySymbol;
           result = generator.next(resolveValue);
           resolveValue = emptySymbol;
           continue;
         }
-        if (rejected) {
+        if (rejectError !== emptySymbol) {
           unsubscribe = emptySymbol;
-          result = (generator as Generator<TYield, void>).return();
-          rejected = false;
-          continue;
-        }
-        if (failError !== emptySymbol) {
-          unsubscribe = emptySymbol;
-          result = (generator as Generator<TYield, void>).throw(failError);
-          failError = emptySymbol;
+          result = generator.throw(rejectError);
+          rejectError = emptySymbol;
           continue;
         }
         return;

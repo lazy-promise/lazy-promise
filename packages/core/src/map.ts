@@ -1,53 +1,56 @@
-import { LazyPromise } from "./lazyPromise";
+import { LazyPromise, TypedError } from "./lazyPromise";
 
 /**
- * The LazyPromise equivalent of `promise.then(...)`. To make the resulting
- * promise reject, return `rejected(yourError)`.
+ * The LazyPromise equivalent of `promise.then(...)`.
  */
 export const map =
-  <Value, NewValue, NewError = never>(
-    callback: (value: Value) => NewValue | LazyPromise<NewValue, NewError>,
+  <Value, NewValue>(
+    callback: (
+      value: Value extends TypedError<any> ? never : Value,
+    ) => NewValue | LazyPromise<NewValue>,
   ) =>
-  <Error>(
-    source: LazyPromise<Value, Error>,
-  ): LazyPromise<NewValue, Error | NewError> =>
-    new LazyPromise(
-      (resolve: ((value: NewValue) => void) | undefined, reject, fail) => {
-        let unsubscribe: (() => void) | undefined;
-        const unsubscribeOuter = source.subscribe(
-          (value) => {
-            let newValueOrPromise;
-            try {
-              newValueOrPromise = callback(value);
-            } catch (error) {
-              if (!resolve) {
-                throw error;
-              }
-              fail(error);
-              return;
-            }
-            if (!resolve) {
-              return;
-            }
-            if (newValueOrPromise instanceof LazyPromise) {
-              unsubscribe = newValueOrPromise.subscribe(resolve, reject, fail);
-            } else {
-              resolve(newValueOrPromise);
-            }
-          },
-          reject,
-          fail,
-        );
-        if (!unsubscribe) {
-          if (unsubscribeOuter) {
-            unsubscribe = unsubscribeOuter;
-          } else {
-            return;
-          }
+  (
+    source: LazyPromise<Value>,
+  ): LazyPromise<
+    | NewValue
+    | (Value extends TypedError<infer Error> ? TypedError<Error> : never)
+  > =>
+    new LazyPromise<any>((resolve, reject) => {
+      let unsubscribe: (() => void) | undefined;
+      let disposed = false;
+      const unsubscribeOuter = source.subscribe((value) => {
+        if (value instanceof TypedError) {
+          resolve(value);
+          return;
         }
-        return () => {
-          resolve = undefined;
-          unsubscribe!();
-        };
-      },
-    );
+        let newValueOrPromise;
+        try {
+          newValueOrPromise = callback(value as any);
+        } catch (error) {
+          if (disposed) {
+            throw error;
+          }
+          reject(error);
+          return;
+        }
+        if (disposed) {
+          return;
+        }
+        if (newValueOrPromise instanceof LazyPromise) {
+          unsubscribe = newValueOrPromise.subscribe(resolve, reject);
+        } else {
+          resolve(newValueOrPromise);
+        }
+      }, reject);
+      if (!unsubscribe) {
+        if (unsubscribeOuter) {
+          unsubscribe = unsubscribeOuter;
+        } else {
+          return;
+        }
+      }
+      return () => {
+        disposed = true;
+        unsubscribe!();
+      };
+    });

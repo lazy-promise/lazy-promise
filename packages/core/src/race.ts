@@ -3,10 +3,10 @@ import { LazyPromise } from "./lazyPromise";
 /**
  * The LazyPromise equivalent of `Promise.race`.
  */
-export const race = <Value, Error>(
-  sources: Iterable<LazyPromise<Value, Error>>,
-): LazyPromise<Value, Error> =>
-  new LazyPromise<Value, Error>((resolve, reject, fail) => {
+export const race = <Value>(
+  sources: Iterable<LazyPromise<Value>>,
+): LazyPromise<Value> =>
+  new LazyPromise((resolve, reject) => {
     let abort = false;
     const disposables: (() => void)[] = [];
 
@@ -20,7 +20,7 @@ export const race = <Value, Error>(
       }
     };
 
-    const handleRejection = (error: Error) => {
+    const handleError = (error: unknown) => {
       if (!abort) {
         abort = true;
         reject(error);
@@ -30,22 +30,8 @@ export const race = <Value, Error>(
       }
     };
 
-    const handleFailure = (error: unknown) => {
-      if (!abort) {
-        abort = true;
-        fail(error);
-        for (let i = 0; i < disposables.length; i++) {
-          disposables[i]!();
-        }
-      }
-    };
-
     for (const source of sources) {
-      const unsubscribe = source.subscribe(
-        handleValue,
-        handleRejection,
-        handleFailure,
-      );
+      const unsubscribe = source.subscribe(handleValue, handleError);
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (abort) {
         unsubscribe?.();

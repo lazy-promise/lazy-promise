@@ -3,12 +3,7 @@ module.exports = {
   // Only lint ts/tsx files. Setting up eslint for checking JS files proved too
   // messy.
   ignorePatterns: ["*.js", "*.jsx", "*.mjs", "*.cjs"],
-  plugins: [
-    "prefer-arrow",
-    "eslint-plugin-only-warn",
-    "eslint-plugin-import",
-    "eslint-plugin-expect-type",
-  ],
+  plugins: ["prefer-arrow", "eslint-plugin-only-warn", "eslint-plugin-import"],
   extends: [
     "eslint:recommended",
     "plugin:@typescript-eslint/base",
@@ -16,7 +11,6 @@ module.exports = {
     "prettier",
     "plugin:eslint-comments/recommended",
     "turbo",
-    "plugin:eslint-plugin-expect-type/recommended",
   ],
   rules: {
     // All the lint rules here are marked as "error" as opposed to "warning",

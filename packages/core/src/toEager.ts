@@ -1,33 +1,17 @@
 import type { LazyPromise } from "./lazyPromise";
 
-const wrapRejectionError = (error: unknown) =>
-  new Error(
-    `The lazy promise passed to toEager(...) has rejected. The original error has been stored as the .cause property.`,
-    { cause: error },
-  );
-
 /**
- * Converts a LazyPromise to a Promise. The LazyPromise is expected to not
- * reject, and failures are passed on as Promise rejections. If you'd like
- * LazyPromise rejections to also be passed on as Promise rejections, pipe the
- * lazy promise through `catchRejection(failed)`.
- *
- * You can pass an AbortSignal in the options object.
+ * Converts a LazyPromise to a Promise. You can pass an AbortSignal in the
+ * options object.
  */
 export const toEager = <Value>(
-  lazyPromise: LazyPromise<Value, never>,
+  lazyPromise: LazyPromise<Value>,
   options?: { readonly signal?: AbortSignal },
 ): Promise<Value> =>
   new Promise((resolve, reject) => {
     const signal = options?.signal;
     if (!signal) {
-      lazyPromise.subscribe(
-        resolve,
-        (error) => {
-          reject(wrapRejectionError(error));
-        },
-        reject,
-      );
+      lazyPromise.subscribe(resolve, reject);
       return;
     }
     if (signal.aborted) {
@@ -45,19 +29,9 @@ export const toEager = <Value>(
       if (listener) {
         signal.removeEventListener("abort", listener);
       }
-      reject(wrapRejectionError(error));
-    };
-    const handleFailure = (error: unknown) => {
-      if (listener) {
-        signal.removeEventListener("abort", listener);
-      }
       reject(error);
     };
-    const unsubscribe = lazyPromise.subscribe(
-      handleResolve,
-      handleReject,
-      handleFailure,
-    );
+    const unsubscribe = lazyPromise.subscribe(handleResolve, handleReject);
     if (!unsubscribe) {
       return;
     }

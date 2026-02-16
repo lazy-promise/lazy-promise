@@ -6,7 +6,7 @@ import { LazyPromise } from "./lazyPromise";
  */
 export const inIdleCallback = (
   options?: IdleRequestOptions,
-): LazyPromise<IdleDeadline, never> =>
+): LazyPromise<IdleDeadline> =>
   new LazyPromise((resolve) => {
     const id = requestIdleCallback(resolve, options);
     return () => {

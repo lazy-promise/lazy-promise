@@ -60,16 +60,14 @@ const bumpStackLevel = <T>(callback: () => T) => {
  */
 export const log =
   (label?: string | number) =>
-  <Value, Error>(
-    lazyPromise: LazyPromise<Value, Error>,
-  ): LazyPromise<Value, Error> => {
+  <Value>(lazyPromise: LazyPromise<Value>): LazyPromise<Value> => {
     /* eslint-disable no-console */
 
     const counter = instanceCountMap.get(label) ?? 0;
     const id = counter + 1;
     instanceCountMap.set(label, id);
     const prefix = [...(label === undefined ? [] : [`[${label}]`]), `[${id}]`];
-    return new LazyPromise((resolve, reject, fail) => {
+    return new LazyPromise((resolve, reject) => {
       console.log(...prefix, `[subscribe]`);
       const unsubscribe = bumpStackLevel(() =>
         lazyPromise.subscribe(
@@ -83,12 +81,6 @@ export const log =
             console.log(...prefix, `[reject]`, error);
             bumpStackLevel(() => {
               reject(error);
-            });
-          },
-          (error) => {
-            console.log(...prefix, `[fail]`, error);
-            bumpStackLevel(() => {
-              fail(error);
             });
           },
         ),

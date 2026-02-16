@@ -4,8 +4,7 @@ import { LazyPromise } from "./lazyPromise";
  * Returns a lazy promise that resolves with a value of type `void` in a
  * setImmediate callback (deprecated outside of Node).
  *
- * To make a lazy promise settle (resolve, reject or fail) via setImmediate,
- * pipe it though
+ * To make a lazy promise settle via setImmediate, pipe it though
  *
  * ```
  * finalize(inImmediate)
@@ -17,7 +16,7 @@ import { LazyPromise } from "./lazyPromise";
  * map((value) => inImmediate().pipe(map(() => value)))
  * ```
  */
-export const inImmediate = (): LazyPromise<void, never> =>
+export const inImmediate = (): LazyPromise<void> =>
   new LazyPromise((resolve) => {
     const id = setImmediate(resolve);
     return () => {

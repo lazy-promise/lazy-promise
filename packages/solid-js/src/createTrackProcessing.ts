@@ -2,9 +2,9 @@ import { finalize, LazyPromise } from "@lazy-promise/core";
 import type { Accessor } from "solid-js";
 import { createMemo, createSignal } from "solid-js";
 
-export type TrackProcessing = <Value, Error>(
-  lazyPromise: LazyPromise<Value, Error>,
-) => LazyPromise<Value, Error>;
+export type TrackProcessing = <Value>(
+  lazyPromise: LazyPromise<Value>,
+) => LazyPromise<Value>;
 
 /**
  * A utility useful for things like loading indicators. Returns a tuple
@@ -28,8 +28,8 @@ export const createTrackProcessing = (): [
   const processing = createMemo(() => count() > 0);
   return [
     processing,
-    <Value, Error>(lazyPromise: LazyPromise<Value, Error>) =>
-      new LazyPromise<Value, Error>((resolve, reject, fail) => {
+    <Value>(lazyPromise: LazyPromise<Value>) =>
+      new LazyPromise<Value>((resolve, reject) => {
         setCount((count) => count + 1);
         const unsubscribe = lazyPromise
           .pipe(
@@ -37,7 +37,7 @@ export const createTrackProcessing = (): [
               setCount((count) => count - 1);
             }),
           )
-          .subscribe(resolve, reject, fail);
+          .subscribe(resolve, reject);
         return () => {
           setCount((count) => count - 1);
           unsubscribe?.();

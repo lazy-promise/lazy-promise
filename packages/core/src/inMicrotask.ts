@@ -4,8 +4,7 @@ import { LazyPromise } from "./lazyPromise";
  * Returns a lazy promise that resolves in a microtask with a value of type
  * `void`.
  *
- * To make an existing lazy promise settle (resolve, reject or fail) in a
- * microtask, pipe it though
+ * To make an existing lazy promise settle in a microtask, pipe it though
  *
  * ```
  * finalize(inMicrotask)
@@ -17,7 +16,7 @@ import { LazyPromise } from "./lazyPromise";
  * map((value) => inMicrotask().pipe(map(() => value)))
  * ```
  */
-export const inMicrotask = (): LazyPromise<void, never> =>
+export const inMicrotask = (): LazyPromise<void> =>
   new LazyPromise((resolve) => {
     let disposed = false;
     queueMicrotask(() => {

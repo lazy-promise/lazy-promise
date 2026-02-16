@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import { box, failed, LazyPromise, log, rejected } from "@lazy-promise/core";
+import { box, LazyPromise, log, rejected } from "@lazy-promise/core";
 import { afterEach, expect, test, vi } from "vitest";
 
 const logContents: unknown[] = [];
@@ -55,32 +55,13 @@ test("rejection", () => {
   rejected(1)
     .pipe(log("rejection case"))
     .subscribe(undefined, (error) => {
-      console.log("handleRejection", error);
+      console.log("handleError", error);
     });
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "[rejection case] [1] [subscribe]",
       "· [rejection case] [1] [reject] 1",
-      "· · handleRejection 1",
-    ]
-  `);
-});
-
-test("failure", () => {
-  vi.spyOn(console, "log").mockImplementation((...args) =>
-    logContents.push(args.map(String).join(" ")),
-  );
-
-  failed(1)
-    .pipe(log("failure case"))
-    .subscribe(undefined, undefined, (error) => {
-      console.log("handleFailure", error);
-    });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      "[failure case] [1] [subscribe]",
-      "· [failure case] [1] [fail] 1",
-      "· · handleFailure 1",
+      "· · handleError 1",
     ]
   `);
 });

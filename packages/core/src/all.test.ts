@@ -1,5 +1,12 @@
-import { all, box, LazyPromise, never, rejected } from "@lazy-promise/core";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import {
+  all,
+  box,
+  LazyPromise,
+  never,
+  rejected,
+  TypedError,
+} from "@lazy-promise/core";
+import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
 const originalQueueMicrotask = queueMicrotask;
@@ -49,29 +56,40 @@ afterEach(() => {
 });
 
 test("types", () => {
-  /* eslint-disable @typescript-eslint/no-unused-vars */
+  expectTypeOf(all([])).toEqualTypeOf<LazyPromise<[]>>();
 
-  // $ExpectType LazyPromise<[], never>
-  const promise1 = all([]);
+  expectTypeOf(
+    all([
+      new LazyPromise<"value a">(() => {}),
+      new LazyPromise<"value b">(() => {}),
+    ]),
+  ).toEqualTypeOf<LazyPromise<["value a", "value b"]>>();
 
-  // $ExpectType LazyPromise<["value a", "value b"], "error a" | "error b">
-  const promise2 = all([
-    new LazyPromise<"value a", "error a">(() => {}),
-    new LazyPromise<"value b", "error b">(() => {}),
-  ]);
+  expectTypeOf(
+    all([
+      new LazyPromise<"value a" | TypedError<"error a">>(() => {}),
+      new LazyPromise<"value b" | TypedError<"error b">>(() => {}),
+    ]),
+  ).toEqualTypeOf<
+    LazyPromise<
+      ["value a", "value b"] | TypedError<"error a"> | TypedError<"error b">
+    >
+  >();
 
-  // $ExpectType LazyPromise<never, "error a">
-  const promise3 = all([
-    new LazyPromise<"value a", "error a">(() => {}),
-    new LazyPromise<never, never>(() => {}),
-  ]);
+  expectTypeOf(
+    all([
+      new LazyPromise<"value a" | TypedError<"error a">>(() => {}),
+      new LazyPromise<never>(() => {}),
+    ]),
+  ).toEqualTypeOf<LazyPromise<TypedError<"error a">>>();
 
-  // $ExpectType LazyPromise<"value a"[], "error a">
-  const promise4 = all(
-    new Set([new LazyPromise<"value a", "error a">(() => {})]),
-  );
+  expectTypeOf(
+    all(
+      new Set([new LazyPromise<"value a" | TypedError<"error a">>(() => {})]),
+    ),
+  ).toEqualTypeOf<LazyPromise<TypedError<"error a"> | "value a"[]>>();
 
-  /* eslint-enable @typescript-eslint/no-unused-vars */
+  expectTypeOf(all(new Set([]))).toEqualTypeOf<LazyPromise<never[]>>();
 });
 
 test("empty iterable", () => {
@@ -167,28 +185,30 @@ test("async resolve", () => {
   `);
 });
 
-test("rejection of one of the sources should reject result", () => {
+test("typed error from of one of the sources should be passed on as result", () => {
   const promise = all([
     new LazyPromise<"a">(() => () => {
       log("dispose a");
     }),
-    new LazyPromise<"b", "oops">((resolve, reject) => {
+    new LazyPromise<"b" | TypedError<"oops">>((resolve) => {
       setTimeout(() => {
-        reject("oops");
+        resolve(new TypedError("oops"));
       }, 1000);
       return () => {};
     }),
   ]);
-  promise.subscribe(undefined, (error) => {
-    log("handleRejection", error);
+  promise.subscribe((value) => {
+    log("handleValue", value);
   });
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
       [
-        "handleRejection",
-        "oops",
+        "handleValue",
+        TypedError {
+          "error": "oops",
+        },
       ],
       [
         "dispose a",
@@ -197,31 +217,27 @@ test("rejection of one of the sources should reject result", () => {
   `);
 });
 
-test("failure of one of the sources should fail result", () => {
+test("rejection of one of the sources should reject result", () => {
   const promise = all([
     new LazyPromise<"a">(() => () => {
       log("dispose a");
     }),
-    new LazyPromise<"b", "oops">((resolve, reject, fail) => {
+    new LazyPromise<"b">((resolve, reject) => {
       setTimeout(() => {
-        fail("oops");
+        reject("oops");
       }, 1000);
       return () => {};
     }),
   ]);
-  promise.subscribe(
-    undefined,
-    () => {},
-    (error) => {
-      log("handleFailure", error);
-    },
-  );
+  promise.subscribe(undefined, (error) => {
+    log("handleError", error);
+  });
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
       [
-        "handleFailure",
+        "handleError",
         "oops",
       ],
       [
@@ -254,7 +270,7 @@ test("internally disposed when a source rejects, internal disposal should preven
     }),
   ]);
   promise.subscribe(undefined, (error) => {
-    log("handleRejection", error);
+    log("handleError", error);
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -262,7 +278,7 @@ test("internally disposed when a source rejects, internal disposal should preven
         "produce a",
       ],
       [
-        "handleRejection",
+        "handleError",
         "b",
       ],
       [
@@ -310,7 +326,7 @@ test("internally disposed when a source rejects, a source resolve is ignored whe
       resolveA = resolve;
       return () => {};
     }),
-    new LazyPromise<never, "b">((resolve, reject) => {
+    new LazyPromise<never>((resolve, reject) => {
       setTimeout(() => {
         log("call reject b");
         reject("b");
@@ -342,12 +358,12 @@ test("internally disposed when a source rejects, a source resolve is ignored whe
 test("internally disposed when a source rejects, a source reject is ignored when internally disposed", () => {
   let rejectA: (error: "a") => void;
   const promise = all([
-    new LazyPromise<never, "a">((resolve, reject) => {
+    new LazyPromise<never>((resolve, reject) => {
       log("produce a");
       rejectA = reject;
       return () => {};
     }),
-    new LazyPromise<never, "b">((resolve, reject) => {
+    new LazyPromise<never>((resolve, reject) => {
       setTimeout(() => {
         log("call reject b");
         reject("b");
@@ -376,85 +392,11 @@ test("internally disposed when a source rejects, a source reject is ignored when
   `);
 });
 
-test("internally disposed when a source rejects, a source failure is ignored when internally disposed", () => {
-  let failA: (error: unknown) => void;
-  const promise = all([
-    new LazyPromise<never, "a">((resolve, reject, fail) => {
-      log("produce a");
-      failA = fail;
-      return () => {};
-    }),
-    new LazyPromise<never, "b">((resolve, reject) => {
-      setTimeout(() => {
-        log("call reject b");
-        reject("b");
-      }, 1000);
-      return () => {};
-    }),
-  ]);
-  promise.subscribe(undefined, () => {
-    log("call fail a");
-    failA("oops");
-  });
-  vi.runAllTimers();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "produce a",
-      ],
-      "1000 ms passed",
-      [
-        "call reject b",
-      ],
-      [
-        "call fail a",
-      ],
-    ]
-  `);
-});
-
-test("internally disposed when a source fails, a source reject is ignored when internally disposed", () => {
-  let rejectA: (error: "oops 1") => void;
-  const promise = all([
-    new LazyPromise<never, "oops 1">((resolve, reject) => {
-      rejectA = reject;
-      return () => {};
-    }),
-    new LazyPromise<never>((resolve, reject, fail) => {
-      setTimeout(() => {
-        log("call fail b");
-        fail("oops 2");
-      }, 1000);
-      return () => {};
-    }),
-  ]);
-  promise.subscribe(
-    undefined,
-    () => {},
-    () => {
-      log("call reject a");
-      rejectA("oops 1");
-    },
-  );
-  vi.runAllTimers();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      "1000 ms passed",
-      [
-        "call fail b",
-      ],
-      [
-        "call reject a",
-      ],
-    ]
-  `);
-});
-
 test("internally disposed when unsubscribed, a source reject is ignored when internally disposed", () => {
   let rejectA: ((error: "a") => void) | undefined;
   let rejectB: ((error: "b") => void) | undefined;
   const promise = all([
-    new LazyPromise<never, "a">((resolve, reject) => {
+    new LazyPromise<never>((resolve, reject) => {
       log("produce a");
       rejectA = reject;
       return () => {
@@ -462,7 +404,7 @@ test("internally disposed when unsubscribed, a source reject is ignored when int
         rejectB?.("b");
       };
     }),
-    new LazyPromise<never, "b">((resolve, reject) => {
+    new LazyPromise<never>((resolve, reject) => {
       log("produce b");
       rejectB = reject;
       return () => {

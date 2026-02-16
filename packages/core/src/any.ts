@@ -1,34 +1,41 @@
-import type { LazyPromiseError, LazyPromiseValue } from "./lazyPromise";
-import { LazyPromise } from "./lazyPromise";
+import type {
+  LazyPromiseError,
+  LazyPromiseValue,
+  TypedErrorOrNever,
+} from "./lazyPromise";
+import { LazyPromise, TypedError } from "./lazyPromise";
 import type { NeverIfContainsNever } from "./utils";
 
 /**
- * The LazyPromise equivalent of `Promise.any`. If all sources reject, rejects
- * with an array of errors. If one source fails, fails, passing on the error.
+ * Acts as `Promise.any` with respect to typed errors. If all sources resolve
+ * with a typed error, resolves with a typed error wrapping an array of
+ * unwrapped errors. If any of the sources rejects with an untyped error,
+ * rejects with that error.
  */
 export const any: {
-  <Sources extends LazyPromise<unknown, unknown>[]>(sources: {
-    [Key in keyof Sources]: Sources[Key];
-  }): LazyPromise<
-    LazyPromiseValue<Sources[number]>,
-    NeverIfContainsNever<{
-      [Key in keyof Sources]: LazyPromiseError<Sources[Key]>;
-    }>
+  <Sources extends LazyPromise<any>[]>(
+    sources: [...Sources],
+  ): LazyPromise<
+    | LazyPromiseValue<Sources[number]>
+    | TypedErrorOrNever<
+        NeverIfContainsNever<{
+          [Key in keyof Sources]: LazyPromiseError<Sources[Key]>;
+        }>
+      >
   >;
-  <Value, Error>(
-    sources: Iterable<LazyPromise<Value, Error>>,
-  ): LazyPromise<Value, Error[]>;
-} = <Value, Error>(
-  sources: Iterable<LazyPromise<Value, Error>>,
-): LazyPromise<Value, Error[]> =>
-  new LazyPromise<Value, Error[]>((resolve, reject, fail) => {
+  <Value = never, Error = never>(
+    sources: Iterable<LazyPromise<Value | TypedError<Error>>>,
+  ): LazyPromise<
+    Value | TypedErrorOrNever<Error extends never ? never : Error[]>
+  >;
+} = (sources: Iterable<LazyPromise<any>>): LazyPromise<any> =>
+  new LazyPromise((resolve, reject) => {
     // false means we haven't subscribed to all sources.
     let initialized = false;
-    // A sparse array. undefined if the subscription was cancelled or the
-    // promise has resolved.
-    let errors: Error[] | undefined = [];
+    // A sparse array.
+    let errors: any[] | undefined = [];
     const disposables: (() => void)[] = [];
-    let rejectedCount = 0;
+    let errorCount = 0;
     // if initialized = true, i is the number of sources.
     let i = 0;
     for (const source of sources) {
@@ -36,6 +43,14 @@ export const any: {
       const unsubscribe = source.subscribe(
         (value) => {
           if (errors) {
+            if (value instanceof TypedError) {
+              errors[sourceIndex] = value.error;
+              errorCount++;
+              if (initialized && errorCount === i) {
+                resolve(new TypedError(errors));
+              }
+              return;
+            }
             errors = undefined;
             resolve(value);
             for (let j = 0; j < disposables.length; j++) {
@@ -45,17 +60,8 @@ export const any: {
         },
         (error) => {
           if (errors) {
-            errors[sourceIndex] = error;
-            rejectedCount++;
-            if (initialized && rejectedCount === i) {
-              reject(errors);
-            }
-          }
-        },
-        (error) => {
-          if (errors) {
             errors = undefined;
-            fail(error);
+            reject(error);
             for (let j = 0; j < disposables.length; j++) {
               disposables[j]!();
             }
@@ -73,8 +79,8 @@ export const any: {
       i++;
     }
     initialized = true;
-    if (rejectedCount === i) {
-      reject(errors);
+    if (errorCount === i) {
+      resolve(new TypedError(errors));
       return;
     }
     if (disposables.length) {

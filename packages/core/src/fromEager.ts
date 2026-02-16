@@ -32,41 +32,20 @@ class FromEagerOptions {
 }
 
 /**
- * Converts a Promise to a LazyPromise. If the callback throws or the Promise it
- * returns rejects, the LazyPromise fails. If you would like it to reject
- * instead, redirect errors to the rejection channel using `catchFailure`:
- *
- * '''
- * // `fromEager` returns a `LazyPromise<..., never>`.
- * fromEager(...).pipe(
- *   // The resulting lazy will have type `LazyPromise<..., unknown>`.
- *   catchFailure(rejected),
- * );
- * '''
- *
- * The callback can use an AbortSignal passed in the options object.
+ * Converts a Promise to a LazyPromise. The callback can use an AbortSignal
+ * passed in the options object.
  */
-export const fromEager = <PromiseValue = never>(
-  callback: (options: {
-    readonly signal: AbortSignal;
-  }) => PromiseLike<PromiseValue>,
-): LazyPromise<
-  PromiseValue extends LazyPromise<infer Value, any> ? Value : PromiseValue,
-  PromiseValue extends LazyPromise<any, infer Error> ? Error : never
-> =>
-  new LazyPromise<any, any>((resolve, reject, fail) => {
+export const fromEager = <Value = never>(
+  callback: (options: { readonly signal: AbortSignal }) => PromiseLike<Value>,
+): LazyPromise<Value> =>
+  new LazyPromise((resolve, reject) => {
     const options = new FromEagerOptions();
     let nativePromiseDisposed = false;
     let unsubscribe: (() => void) | undefined;
-    // If the callback throws, we fail (it cannot be AbortError at this point).
+    // If the callback throws, we reject (it cannot be AbortError at this point).
     callback(options).then(
       (value) => {
         if (nativePromiseDisposed) {
-          return;
-        }
-        if (value instanceof LazyPromise) {
-          nativePromiseDisposed = true;
-          unsubscribe = value.subscribe(resolve, reject, fail);
           return;
         }
         resolve(value);
@@ -78,7 +57,7 @@ export const fromEager = <PromiseValue = never>(
           }
           return;
         }
-        fail(error);
+        reject(error);
       },
     );
     return () => {

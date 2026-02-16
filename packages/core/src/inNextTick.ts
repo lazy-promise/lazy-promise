@@ -4,8 +4,7 @@ import { LazyPromise } from "./lazyPromise";
  * Returns a lazy promise that resolves with a value of type `void` in
  * process.nextTick (Node-only).
  *
- * To make a lazy promise settle (resolve, reject or fail) via nextTick, pipe it
- * though
+ * To make a lazy promise settle via nextTick, pipe it though
  *
  * ```
  * finalize(inNextTick)
@@ -17,7 +16,7 @@ import { LazyPromise } from "./lazyPromise";
  * map((value) => inNextTick().pipe(map(() => value)))
  * ```
  */
-export const inNextTick = (): LazyPromise<void, never> =>
+export const inNextTick = (): LazyPromise<void> =>
   new LazyPromise((resolve) => {
     let disposed = false;
     process.nextTick(() => {

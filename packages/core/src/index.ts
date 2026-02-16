@@ -1,7 +1,7 @@
 export { all } from "./all";
 export { any } from "./any";
-export { catchFailure } from "./catchFailure";
-export { catchRejection } from "./catchRejection";
+export { catchError } from "./catchError";
+export { catchTypedError } from "./catchTypedError";
 export { finalize } from "./finalize";
 export { fromEager } from "./fromEager";
 export { fromGenerator } from "./fromGenerator";
@@ -11,7 +11,7 @@ export { inImmediate } from "./inImmediate";
 export { inMicrotask } from "./inMicrotask";
 export { inNextTick } from "./inNextTick";
 export { inTimeout } from "./inTimeout";
-export { box, failed, LazyPromise, never, rejected } from "./lazyPromise";
+export { box, LazyPromise, never, rejected, TypedError } from "./lazyPromise";
 export type { LazyPromiseError, LazyPromiseValue } from "./lazyPromise";
 export { log } from "./log";
 export { map } from "./map";

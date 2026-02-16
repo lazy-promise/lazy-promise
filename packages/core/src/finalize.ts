@@ -1,20 +1,19 @@
-import { LazyPromise } from "./lazyPromise";
+import { LazyPromise, TypedError } from "./lazyPromise";
 
 /**
  * The LazyPromise equivalent of `promise.finally(...)`. The callback is called
- * if the source promise resolves, rejects, or fails.
+ * if the source promise resolves or rejects, but not if it's unsubscribed
+ * before settling.
  */
 export const finalize =
-  <CallbackReturn>(callback: () => CallbackReturn) =>
-  <Value, Error>(
-    source: LazyPromise<Value, Error>,
+  <NewValue>(callback: () => NewValue | LazyPromise<NewValue>) =>
+  <Value>(
+    source: LazyPromise<Value>,
   ): LazyPromise<
-    Value,
-    CallbackReturn extends LazyPromise<any, infer NewError>
-      ? Error | NewError
-      : Error
+    | Value
+    | (NewValue extends TypedError<infer Error> ? TypedError<Error> : never)
   > =>
-    new LazyPromise((resolve, reject, fail) => {
+    new LazyPromise<any>((resolve, reject) => {
       let disposed = false;
       let unsubscribe: (() => void) | undefined;
       const handleSettle =
@@ -27,28 +26,31 @@ export const finalize =
             if (disposed) {
               throw error;
             }
-            fail(error);
+            reject(error);
             return;
           }
           if (disposed) {
             return;
           }
           if (valueOrPromise instanceof LazyPromise) {
-            unsubscribe = valueOrPromise.subscribe(
-              () => {
-                settle(arg);
-              },
-              reject,
-              fail,
-            );
-          } else {
-            settle(arg);
+            unsubscribe = valueOrPromise.subscribe((value) => {
+              if (value instanceof TypedError) {
+                resolve(value);
+                return;
+              }
+              settle(arg);
+            }, reject);
+            return;
           }
+          if (valueOrPromise instanceof TypedError) {
+            resolve(valueOrPromise);
+            return;
+          }
+          settle(arg);
         };
       const unsubscribeOuter = source.subscribe(
         handleSettle(resolve),
-        handleSettle(reject as any),
-        handleSettle(fail),
+        handleSettle(reject),
       );
       if (!unsubscribe) {
         if (unsubscribeOuter) {

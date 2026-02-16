@@ -20,7 +20,7 @@ Simply subscribes to a lazy promise and unsubscribes when the scope is disposed.
 useLazyPromise(yourLazyPromise);
 ```
 
-Since this function takes a lazy promise with error type `never`, type system will catch any unhandled rejections. All callbacks are run outside the scope and so are untracked:
+Since this function takes a lazy promise that cannot resolve with a TypedError, type system will catch any unhandled typed errors. All callbacks are run outside the scope and so are untracked:
 
 ```
 createEffect(() => {
@@ -35,14 +35,14 @@ createEffect(() => {
 });
 ```
 
-To error out the scope, fail the lazy promise:
+To error out the scope, reject the lazy promise:
 
 ```
 useLazyPromise(
   yourLazyPromise.pipe(
-    catchRejection(error => {
+    catchTypedError(error => {
       // Trigger the error boundary.
-      throw error;
+      throw new Error("oops");
     })
   )
 )
@@ -88,7 +88,7 @@ Creates a fetcher that you can pass to `createResource` instead of the usual asy
 const [accessor] = createResource(createFetcher(() => yourLazyPromise));
 ```
 
-The fetcher will subscribe/unsubscribe to the lazy promise as needed. As with `useLazyPromise`, the lazy promise is required to have error type `never`, callbacks are run outside the scope, and failing the lazy promise errors out the scope. If you pass the fetcher as the second argument of `createResource`, you'll need to help TypeScript along (but since this is not a type assertion, this will not affect correctness):
+The fetcher will subscribe/unsubscribe to the lazy promise as needed. As with `useLazyPromise`, rejecting the lazy promise errors out the scope. If you pass the fetcher as the second argument of `createResource`, you'll need to help TypeScript along (but since this is not a type assertion, this will not affect correctness):
 
 ```
 const [count, setCount] = createSignal(0);
