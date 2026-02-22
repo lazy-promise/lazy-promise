@@ -8,7 +8,7 @@ const emptySymbol = Symbol("empty");
  */
 export const fromGenerator = <TReturn>(
   generatorFunction: () => Generator<Yieldable<LazyPromise<any>>, TReturn>,
-): LazyPromise<TReturn> =>
+): LazyPromise<TReturn extends LazyPromise<infer Value> ? Value : TReturn> =>
   new LazyPromise<any>((resolve, reject) => {
     const generator = generatorFunction();
     let unsubscribe: (() => void) | undefined | typeof emptySymbol =
@@ -76,8 +76,7 @@ export const fromGenerator = <TReturn>(
 
     handleResult(generator.next());
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (!unsubscribe) {
+    if (typeof unsubscribe !== "function") {
       return;
     }
 

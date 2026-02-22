@@ -1,5 +1,7 @@
 import { LazyPromise, TypedError } from "./lazyPromise";
 
+const emptySymbol = Symbol("empty");
+
 /**
  * The LazyPromise equivalent of `promise.then(...)`.
  */
@@ -16,41 +18,31 @@ export const map =
     | (Value extends TypedError<infer Error> ? TypedError<Error> : never)
   > =>
     new LazyPromise<any>((resolve, reject) => {
-      let unsubscribe: (() => void) | undefined;
-      let disposed = false;
-      const unsubscribeOuter = source.subscribe((value) => {
+      let dispose: (() => void) | undefined | typeof emptySymbol = emptySymbol;
+      dispose = source.subscribe((value) => {
         if (value instanceof TypedError) {
           resolve(value);
           return;
         }
-        let newValueOrPromise;
+        let newValue;
         try {
-          newValueOrPromise = callback(value as any);
-        } catch (error) {
-          if (disposed) {
-            throw error;
+          newValue = callback(value as any);
+        } catch (callbackError) {
+          if (dispose) {
+            reject(callbackError);
           }
-          reject(error);
           return;
         }
-        if (disposed) {
-          return;
-        }
-        if (newValueOrPromise instanceof LazyPromise) {
-          unsubscribe = newValueOrPromise.subscribe(resolve, reject);
-        } else {
-          resolve(newValueOrPromise);
+        if (dispose) {
+          resolve(newValue);
         }
       }, reject);
-      if (!unsubscribe) {
-        if (unsubscribeOuter) {
-          unsubscribe = unsubscribeOuter;
-        } else {
-          return;
-        }
+      if (dispose) {
+        return () => {
+          (dispose as () => void)();
+          // If the promise was unsubscribed from the callback, discard the
+          // callback's return value or error.
+          dispose = undefined;
+        };
       }
-      return () => {
-        disposed = true;
-        unsubscribe!();
-      };
     });

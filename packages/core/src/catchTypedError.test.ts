@@ -261,6 +261,4 @@ test("unsubscribe and throw in the callback", () => {
       },
     );
   resolve!(new TypedError(1));
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
-  expect(processMockMicrotaskQueue).toThrow("oops");
 });

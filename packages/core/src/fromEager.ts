@@ -35,15 +35,28 @@ class FromEagerOptions {
  * Converts a Promise to a LazyPromise. The callback can use an AbortSignal
  * passed in the options object.
  */
-export const fromEager = <Value = never>(
-  callback: (options: { readonly signal: AbortSignal }) => PromiseLike<Value>,
-): LazyPromise<Value> =>
-  new LazyPromise((resolve, reject) => {
+export const fromEager = <Value>(
+  callback: (options: { readonly signal: AbortSignal }) => Value,
+): LazyPromise<
+  Value extends Promise<infer PromiseValue>
+    ? PromiseValue extends LazyPromise<infer LazyPromiseValue>
+      ? LazyPromiseValue
+      : PromiseValue
+    : Value extends LazyPromise<infer LazyPromiseValue>
+      ? LazyPromiseValue
+      : Value
+> =>
+  new LazyPromise<any>((resolve, reject) => {
     const options = new FromEagerOptions();
     let nativePromiseDisposed = false;
     let unsubscribe: (() => void) | undefined;
     // If the callback throws, we reject (it cannot be AbortError at this point).
-    callback(options).then(
+    const callbackReturn = callback(options);
+    if (!(callbackReturn instanceof Promise)) {
+      resolve(callbackReturn);
+      return;
+    }
+    callbackReturn.then(
       (value) => {
         if (nativePromiseDisposed) {
           return;

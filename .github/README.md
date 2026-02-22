@@ -72,6 +72,8 @@ Aside from some small naming differences, LazyPromise API mirrors that of Promis
 | `Promise<Value>`                  | `LazyPromise<Value, Error>`                  |
 | `Awaited<T>`                      | `LazyPromiseValue<T>`, `LazyPromiseError<T>` |
 
+LazyPromise API does not just resemble the native Promise API, but follows all of its subtleties unless stated otherwise. For example, if you call the `resolve` handle of a native `Promise` with a `Promise<string>` as an argument, you'll end up with `Promise<string>`, not `Promise<Promise<string>>`. LazyPromise is similarly flattened, a consequence being that one cannot create such a thing as `LazyPromise<LazyPromise<...>>`.
+
 Your typical code could look something like this (types of all values and errors will be inferred, and callbacks are guaranteed to not be called once you unsubscribe):
 
 ```ts

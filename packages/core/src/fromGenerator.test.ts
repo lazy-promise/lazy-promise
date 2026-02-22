@@ -78,9 +78,7 @@ test("types", () => {
       }
       return new LazyPromise<"a">(() => {});
     }),
-  ).toEqualTypeOf<
-    LazyPromise<LazyPromise<TypedError<"error1">> | LazyPromise<"a">>
-  >();
+  ).toEqualTypeOf<LazyPromise<"a" | TypedError<"error1">>>();
 
   expectTypeOf(
     fromGenerator(function* () {

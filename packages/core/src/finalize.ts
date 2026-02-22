@@ -1,5 +1,7 @@
 import { LazyPromise, TypedError } from "./lazyPromise";
 
+const emptySymbol = Symbol("empty");
+
 /**
  * The LazyPromise equivalent of `promise.finally(...)`. The callback is called
  * if the source promise resolves or rejects, but not if it's unsubscribed
@@ -14,53 +16,73 @@ export const finalize =
     | (NewValue extends TypedError<infer Error> ? TypedError<Error> : never)
   > =>
     new LazyPromise<any>((resolve, reject) => {
-      let disposed = false;
-      let unsubscribe: (() => void) | undefined;
-      const handleSettle =
-        <Arg>(settle: (arg: Arg) => void) =>
-        (arg: Arg) => {
-          let valueOrPromise;
+      let dispose: (() => void) | undefined | typeof emptySymbol = emptySymbol;
+      dispose = source.subscribe(
+        (value) => {
+          let callbackResult;
           try {
-            valueOrPromise = callback();
-          } catch (error) {
-            if (disposed) {
-              throw error;
+            callbackResult = callback();
+          } catch (callbackError) {
+            if (dispose) {
+              reject(callbackError);
             }
-            reject(error);
             return;
           }
-          if (disposed) {
+          if (!dispose) {
             return;
           }
-          if (valueOrPromise instanceof LazyPromise) {
-            unsubscribe = valueOrPromise.subscribe((value) => {
-              if (value instanceof TypedError) {
-                resolve(value);
-                return;
-              }
-              settle(arg);
-            }, reject);
+          if (callbackResult instanceof LazyPromise) {
+            resolve(
+              new LazyPromise((resolve, reject) =>
+                callbackResult.subscribe((innerValue) => {
+                  resolve(
+                    innerValue instanceof TypedError ? innerValue : value,
+                  );
+                }, reject),
+              ),
+            );
             return;
           }
-          if (valueOrPromise instanceof TypedError) {
-            resolve(valueOrPromise);
+          resolve(
+            callbackResult instanceof TypedError ? callbackResult : value,
+          );
+        },
+        (error) => {
+          let callbackResult;
+          try {
+            callbackResult = callback();
+          } catch (callbackError) {
+            if (dispose) {
+              reject(callbackError);
+            }
             return;
           }
-          settle(arg);
-        };
-      const unsubscribeOuter = source.subscribe(
-        handleSettle(resolve),
-        handleSettle(reject),
+          if (!dispose) {
+            return;
+          }
+          if (callbackResult instanceof LazyPromise) {
+            resolve(
+              new LazyPromise((resolve, reject) =>
+                callbackResult.subscribe((innerValue) => {
+                  if (innerValue instanceof TypedError) {
+                    resolve(innerValue);
+                    return;
+                  }
+                  reject(error);
+                }, reject),
+              ),
+            );
+            return;
+          }
+          reject(error);
+        },
       );
-      if (!unsubscribe) {
-        if (unsubscribeOuter) {
-          unsubscribe = unsubscribeOuter;
-        } else {
-          return;
-        }
+      if (dispose) {
+        return () => {
+          (dispose as () => void)();
+          // If the promise was unsubscribed from the callback, discard the
+          // callback's return value or error.
+          dispose = undefined;
+        };
       }
-      return () => {
-        disposed = true;
-        unsubscribe!();
-      };
     });

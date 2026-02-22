@@ -1,5 +1,7 @@
 import { LazyPromise } from "./lazyPromise";
 
+const emptySymbol = Symbol("empty");
+
 /**
  * The LazyPromise equivalent of `promise.catch(...)`.
  */
@@ -7,37 +9,27 @@ export const catchError =
   <NewValue>(callback: (error: unknown) => NewValue | LazyPromise<NewValue>) =>
   <Value>(source: LazyPromise<Value>): LazyPromise<Value | NewValue> =>
     new LazyPromise((resolve, reject) => {
-      let unsubscribe: (() => void) | undefined;
-      let disposed = false;
-      const unsubscribeOuter = source.subscribe(resolve, (error) => {
-        let newValueOrPromise: NewValue | LazyPromise<NewValue>;
+      let dispose: (() => void) | undefined | typeof emptySymbol = emptySymbol;
+      dispose = source.subscribe(resolve, (error) => {
+        let newValue;
         try {
-          newValueOrPromise = callback(error);
+          newValue = callback(error);
         } catch (callbackError) {
-          if (disposed) {
-            throw callbackError;
+          if (dispose) {
+            reject(callbackError);
           }
-          reject(callbackError);
           return;
         }
-        if (disposed) {
-          return;
-        }
-        if (newValueOrPromise instanceof LazyPromise) {
-          unsubscribe = newValueOrPromise.subscribe(resolve, reject);
-        } else {
-          resolve(newValueOrPromise);
+        if (dispose) {
+          resolve(newValue);
         }
       });
-      if (!unsubscribe) {
-        if (unsubscribeOuter) {
-          unsubscribe = unsubscribeOuter;
-        } else {
-          return;
-        }
+      if (dispose) {
+        return () => {
+          (dispose as () => void)();
+          // If the promise was unsubscribed from the callback, discard the
+          // callback's return value or error.
+          dispose = undefined;
+        };
       }
-      return () => {
-        disposed = true;
-        unsubscribe!();
-      };
     });

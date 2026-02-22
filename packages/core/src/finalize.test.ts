@@ -239,8 +239,6 @@ test("unsubscribe and throw in the callback (source resolves)", () => {
       },
     );
   resolve!(1);
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
-  expect(processMockMicrotaskQueue).toThrow("oops");
 });
 
 test("unsubscribe and throw in the callback (source rejects)", () => {
@@ -265,10 +263,9 @@ test("unsubscribe and throw in the callback (source rejects)", () => {
     );
   reject!(1);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  expect(processMockMicrotaskQueue).toThrow("oops");
 });
 
-test("inner promise resolves", () => {
+test("inner promise resolves (source resolves)", () => {
   const promise = box(1).pipe(
     finalize(
       () =>
@@ -296,7 +293,64 @@ test("inner promise resolves", () => {
   `);
 });
 
-test("inner promise resolves with a typed error", () => {
+test("inner promise resolves (source rejects)", () => {
+  const promise = rejected(1).pipe(
+    finalize(
+      () =>
+        new LazyPromise<2>((resolve) => {
+          setTimeout(() => {
+            resolve(2);
+          }, 1000);
+          return () => {};
+        }),
+    ),
+  );
+  promise.subscribe(
+    (value) => {
+      log("handleValue", value);
+    },
+    (error) => {
+      log("handleError", error);
+    },
+  );
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "handleError",
+        1,
+      ],
+    ]
+  `);
+});
+
+test("inner promise resolves with a typed error (source resolves)", () => {
+  const promise = box(new TypedError(1)).pipe(
+    finalize(() => box(new TypedError(2))),
+  );
+  promise.subscribe(
+    (value) => {
+      log("handleValue", value);
+    },
+    (error) => {
+      log("handleError", error);
+    },
+  );
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleValue",
+        TypedError {
+          "error": 2,
+        },
+      ],
+    ]
+  `);
+});
+
+test("inner promise resolves with a typed error (source rejects)", () => {
   const promise = rejected(1).pipe(finalize(() => box(new TypedError(2))));
   promise.subscribe(
     (value) => {

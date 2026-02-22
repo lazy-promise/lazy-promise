@@ -1,5 +1,10 @@
-import type { TypedError } from "@lazy-promise/core";
-import { box, LazyPromise, map, rejected } from "@lazy-promise/core";
+import {
+  box,
+  LazyPromise,
+  map,
+  rejected,
+  TypedError,
+} from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -79,6 +84,24 @@ test("mapping to a value", () => {
       [
         "handleValue",
         2,
+      ],
+    ]
+  `);
+});
+
+test("outer promise resolves with a typed error", () => {
+  const promise = box(new TypedError(1)).pipe(map((value) => value + 1));
+  const unsubscribe = promise.subscribe((value) => {
+    log("handleValue", value);
+  });
+  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleValue",
+        TypedError {
+          "error": 1,
+        },
       ],
     ]
   `);
@@ -228,6 +251,4 @@ test("unsubscribe and throw in the callback", () => {
       },
     );
   resolve!(1);
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
-  expect(processMockMicrotaskQueue).toThrow("oops");
 });

@@ -1,7 +1,9 @@
 const emptySymbol = Symbol("empty");
 const resolveSymbol = Symbol("resolve");
 const rejectSymbol = Symbol("reject");
-const unsubscribedSymbol = Symbol("unsubscribed");
+const wrongWaySymbol = Symbol("wrongWay");
+const unsubscribeSymbol = Symbol("unsubscribed");
+const produceSymbol = Symbol("produce");
 declare const yieldableSymbol: unique symbol;
 declare const valueTypeSymbol: unique symbol;
 declare const errorTypeSymbol: unique symbol;
@@ -10,10 +12,6 @@ export class TypedError<const Error> {
   constructor(public readonly error: Error) {}
   declare private brand: any;
 }
-
-export type TypedErrorOrNever<Error> = Error extends never
-  ? never
-  : TypedError<Error>;
 
 const actionStr = (action: typeof resolveSymbol | typeof rejectSymbol) =>
   action === resolveSymbol
@@ -46,15 +44,20 @@ const noDisposeErrorMessage = (
 ) =>
   `Tried to asynchronously ${actionStr(action)} a lazy promise subscription that does not have a teardown function.${action === rejectSymbol ? ` The rejection error has been stored as this error's .cause property.` : ``}`;
 
+const redundantDisposeErrorMessage = (
+  action: typeof resolveSymbol | typeof rejectSymbol,
+) =>
+  `A lazy promise constructor callback returned a teardown function after having ${statusStr(action)} the subscription.${action === rejectSymbol ? ` The rejection error has been stored as this error's .cause property.` : ``}`;
+
 const disposedErrorMessage = (
   action: typeof resolveSymbol | typeof rejectSymbol,
   status:
     | typeof resolveSymbol
     | typeof rejectSymbol
-    | typeof unsubscribedSymbol
-    | undefined,
+    | typeof unsubscribeSymbol
+    | void,
 ) =>
-  status === unsubscribedSymbol
+  status === unsubscribeSymbol
     ? unsubscribedErrorMessage(action)
     : status === undefined
       ? noDisposeErrorMessage(action)
@@ -106,17 +109,225 @@ class LazyPromiseIterator<TYield> implements Iterator<TYield> {
   }
 }
 
+class Subscription<Value> {
+  dispose:
+    | typeof emptySymbol // Initial value.
+    // Teardown function has been invoked from `produce` of an inner promise. In
+    // this case we let `produce` finish, but discard any value or error it
+    // settles to, and then call the returned teardown function if any.
+    | typeof wrongWaySymbol
+    | typeof resolveSymbol // Subscription has been resolved.
+    | typeof rejectSymbol // Subscription has been rejected.
+    | (() => void) // `produce` returned a teardown function.
+    | void // `produce` returned `void`.
+    // Teardown function has been invoked and no `produce` function is running.
+    | typeof unsubscribeSymbol = emptySymbol;
+
+  constructor(
+    public handleValue: ((value: Value) => void) | void,
+    public handleError: ((error: unknown) => void) | void,
+  ) {}
+
+  subscribe(
+    produce: (
+      // eslint-disable-next-line no-use-before-define
+      resolve: (value: Value | LazyPromise<Value>) => void,
+      reject: (error: unknown) => void,
+    ) => (() => void) | void,
+  ) {
+    while (true) {
+      let resolvedWithAPromise = false;
+      try {
+        const dispose = produce(
+          (value) => {
+            if (resolvedWithAPromise === true) {
+              throw new Error(
+                disposedErrorMessage(resolveSymbol, resolveSymbol),
+              );
+            }
+            if (
+              this.dispose === resolveSymbol ||
+              this.dispose === rejectSymbol ||
+              this.dispose === unsubscribeSymbol ||
+              !this.dispose
+            ) {
+              throw new Error(
+                disposedErrorMessage(resolveSymbol, this.dispose),
+              );
+            }
+            // eslint-disable-next-line no-use-before-define
+            if (value instanceof LazyPromise) {
+              resolvedWithAPromise = true;
+              if (this.dispose === emptySymbol) {
+                // Use the while loop to avoid increasing stack depth.
+                produce = value[produceSymbol];
+                return;
+              }
+              if (this.dispose === wrongWaySymbol) {
+                return;
+              }
+              // If we're here, `resolve` was called asynchronously and
+              // `this.dispose` is `() => void`.
+              this.dispose = emptySymbol;
+              this.subscribe(value[produceSymbol]);
+              return;
+            }
+            if (this.dispose === wrongWaySymbol) {
+              this.dispose = resolveSymbol;
+              return;
+            }
+            // Here `this.dispose` is `emptySymbol` or `() => void`.
+            this.dispose = resolveSymbol;
+            if (this.handleValue) {
+              try {
+                this.handleValue(value);
+              } catch (error) {
+                throwInMicrotask(error);
+              }
+            } else if (value instanceof TypedError) {
+              throwInMicrotask(wrapTypedError(value.error));
+            }
+
+            // For GC purposes.
+            this.handleValue = undefined;
+            this.handleError = undefined;
+          },
+          (error) => {
+            if (resolvedWithAPromise === true) {
+              throw new Error(
+                disposedErrorMessage(rejectSymbol, resolveSymbol),
+                { cause: error },
+              );
+            }
+            if (
+              this.dispose === resolveSymbol ||
+              this.dispose === rejectSymbol ||
+              this.dispose === unsubscribeSymbol ||
+              !this.dispose
+            ) {
+              throw new Error(
+                disposedErrorMessage(rejectSymbol, this.dispose),
+                { cause: error },
+              );
+            }
+            if (this.dispose === wrongWaySymbol) {
+              this.dispose = rejectSymbol;
+              return;
+            }
+            // Here `this.dispose` is `emptySymbol` or `() => void`.
+            this.dispose = rejectSymbol;
+
+            if (this.handleError) {
+              try {
+                this.handleError(error);
+              } catch (error) {
+                throwInMicrotask(error);
+              }
+            } else {
+              throwInMicrotask(error);
+            }
+
+            // For GC purposes.
+            this.handleValue = undefined;
+            this.handleError = undefined;
+          },
+        );
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        if (resolvedWithAPromise) {
+          if (dispose) {
+            throwInMicrotask(
+              new Error(redundantDisposeErrorMessage(resolveSymbol)),
+            );
+          }
+          continue;
+        }
+        if (this.dispose === resolveSymbol || this.dispose === rejectSymbol) {
+          if (dispose) {
+            throwInMicrotask(
+              new Error(redundantDisposeErrorMessage(resolveSymbol)),
+            );
+          }
+          return;
+        }
+        if (this.dispose === wrongWaySymbol) {
+          this.dispose = unsubscribeSymbol;
+          try {
+            dispose?.();
+          } catch (error) {
+            throwInMicrotask(error);
+          }
+          return;
+        }
+        if (this.dispose === emptySymbol) {
+          this.dispose = dispose;
+          // For GC purposes.
+          if (!dispose) {
+            this.handleValue = undefined;
+            this.handleError = undefined;
+          }
+        }
+      } catch (error) {
+        if ((resolvedWithAPromise as boolean) === true) {
+          throwInMicrotask(
+            new Error(threwErrorMessage(resolveSymbol), {
+              cause: error,
+            }),
+          );
+          return;
+        }
+        if (this.dispose === resolveSymbol || this.dispose === rejectSymbol) {
+          throwInMicrotask(
+            new Error(threwErrorMessage(this.dispose), {
+              cause: error,
+            }),
+          );
+          return;
+        }
+        if (this.dispose === wrongWaySymbol) {
+          this.dispose = rejectSymbol;
+          return;
+        }
+        // Here `this.dispose` is `emptySymbol` or `() => void`.
+        this.dispose = rejectSymbol;
+
+        if (this.handleError) {
+          try {
+            this.handleError(error);
+          } catch (error) {
+            throwInMicrotask(error);
+          }
+        } else {
+          throwInMicrotask(error);
+        }
+
+        // For GC purposes.
+        this.handleValue = undefined;
+        this.handleError = undefined;
+      }
+      return;
+    }
+  }
+}
+
 /**
  * A Promise-like primitive which is lazy/cancelable, has typed errors, and
  * emits synchronously instead of on the microtask queue.
  */
 export class LazyPromise<Value> {
+  [produceSymbol]: (
+    // eslint-disable-next-line no-use-before-define
+    resolve: (value: Value | LazyPromise<Value>) => void,
+    reject: (error: unknown) => void,
+  ) => (() => void) | void;
+
   constructor(
-    private produce: (
-      resolve: (value: Value) => void,
+    produce: (
+      resolve: (value: Value | LazyPromise<Value>) => void,
       reject: (error: unknown) => void,
     ) => (() => void) | void,
-  ) {}
+  ) {
+    this[produceSymbol] = produce;
+  }
 
   /**
    * Subscribes to the lazy promise. Value handler is required if the value can
@@ -128,101 +339,35 @@ export class LazyPromise<Value> {
       : (value: Value) => void,
     handleError: ((error: unknown) => void) | void,
   ): (() => void) | undefined {
-    let dispose: (() => void) | void | typeof emptySymbol = emptySymbol;
-    // Used for error messages.
-    let status:
-      | typeof resolveSymbol
-      | typeof rejectSymbol
-      | typeof unsubscribedSymbol
-      | undefined;
-    try {
-      const disposeLocal = this.produce(
-        (value) => {
-          if (!dispose) {
-            throw new Error(disposedErrorMessage(resolveSymbol, status));
-          }
-          dispose = undefined;
-          status = resolveSymbol;
-          if (handleValue) {
-            try {
-              handleValue(value);
-            } catch (error) {
-              throwInMicrotask(error);
-            }
-          } else if (value instanceof TypedError) {
-            throwInMicrotask(wrapTypedError(value.error));
-          }
+    const subscription = new Subscription(handleValue, handleError);
 
-          // For GC purposes.
-          handleValue = undefined as any;
-          handleError = undefined;
-        },
-        (error) => {
-          if (!dispose) {
-            throw new Error(disposedErrorMessage(rejectSymbol, status), {
-              cause: error,
-            });
-          }
-          dispose = undefined;
-          status = rejectSymbol;
-          if (handleError) {
-            try {
-              handleError(error);
-            } catch (error) {
-              throwInMicrotask(error);
-            }
-          } else {
+    // For GC purposes.
+    handleValue = undefined as any;
+    handleError = undefined;
+
+    subscription.subscribe(this[produceSymbol]);
+    if (typeof subscription.dispose === "function") {
+      return () => {
+        if (typeof subscription.dispose === "function") {
+          const dispose = subscription.dispose;
+          subscription.dispose = unsubscribeSymbol;
+          try {
+            dispose();
+          } catch (error) {
             throwInMicrotask(error);
           }
 
           // For GC purposes.
-          handleValue = undefined as any;
-          handleError = undefined;
-        },
-      );
-      if (dispose === emptySymbol) {
-        dispose = disposeLocal;
-      }
-    } catch (error) {
-      if (!dispose) {
-        throwInMicrotask(
-          new Error(
-            threwErrorMessage(
-              status as typeof resolveSymbol | typeof rejectSymbol,
-            ),
-            { cause: error },
-          ),
-        );
-        return;
-      }
-      dispose = undefined;
-      if (handleError) {
-        try {
-          handleError(error);
-        } catch (error) {
-          throwInMicrotask(error);
+          subscription.handleValue = undefined;
+          subscription.handleError = undefined;
         }
-      } else {
-        throwInMicrotask(error);
-      }
-      return;
-    }
-    if (dispose) {
-      return () => {
-        if (!dispose) {
-          return;
+        if (subscription.dispose === emptySymbol) {
+          subscription.dispose = wrongWaySymbol;
+
+          // For GC purposes.
+          subscription.handleValue = undefined;
+          subscription.handleError = undefined;
         }
-        const disposeLocal = dispose as () => void;
-        dispose = undefined;
-        status = unsubscribedSymbol;
-        try {
-          disposeLocal();
-        } catch (error) {
-          throwInMicrotask(error);
-        }
-        // For GC purposes.
-        handleValue = undefined as any;
-        handleError = undefined;
       };
     }
   }
@@ -327,22 +472,6 @@ export class LazyPromise<Value> {
     : never;
 }
 
-interface SettledLazyPromise {
-  result: unknown;
-  subscribe: LazyPromise<any>["subscribe"];
-}
-
-function resolvedSubscribe(
-  this: SettledLazyPromise,
-  resolve: ((value: any) => void) | void,
-): undefined {
-  try {
-    resolve?.(this.result);
-  } catch (error) {
-    throwInMicrotask(error);
-  }
-}
-
 /**
  * If the argument is a lazy promise, passes it through, otherwise returns
  * a lazy promise that synchronously resolves with it.
@@ -356,48 +485,34 @@ export const box: {
   if (arg instanceof LazyPromise) {
     return arg;
   }
-  const instance = Object.create(LazyPromise.prototype) as SettledLazyPromise;
-  instance.result = arg;
-  instance.subscribe = resolvedSubscribe;
-  return instance;
+  return new LazyPromise((resolve) => {
+    resolve(arg);
+  });
 };
-
-function rejectedSubscribe(
-  this: SettledLazyPromise,
-  resolve: any,
-  reject: ((error: unknown) => void) | void,
-): undefined {
-  if (reject) {
-    try {
-      reject(this.result);
-    } catch (error) {
-      throwInMicrotask(error);
-    }
-  } else {
-    throwInMicrotask(this.result);
-  }
-}
 
 /**
  * Returns a LazyPromise which synchronously rejects with the provided error.
  */
-export const rejected = (error?: unknown): LazyPromise<never> => {
-  const instance = Object.create(LazyPromise.prototype) as SettledLazyPromise;
-  instance.result = error;
-  instance.subscribe = rejectedSubscribe;
-  return instance as any;
-};
-
-const neverSubscribe = () => undefined;
+export const rejected = (error?: unknown): LazyPromise<never> =>
+  new LazyPromise((resolve, reject) => {
+    reject(error);
+  });
 
 /**
  * A LazyPromise which never resolves or rejects.
  */
-export const never: LazyPromise<never> = Object.create(LazyPromise.prototype);
-never.subscribe = neverSubscribe;
+export const never: LazyPromise<never> = new LazyPromise(() => {});
 
+/**
+ * Infers the type of the value the lazy promise resolves to, excluding typed
+ * errors.
+ */
 export type LazyPromiseValue<T extends LazyPromise<any>> =
   T[typeof valueTypeSymbol];
 
+/**
+ * Infers the type parameter of `TypedError` that the lazy promise can resolve
+ * to.
+ */
 export type LazyPromiseError<T extends LazyPromise<any>> =
   T[typeof errorTypeSymbol];

@@ -1,5 +1,5 @@
 import type { LazyPromise } from "@lazy-promise/core";
-import { fromEager, map } from "@lazy-promise/core";
+import { box, fromEager, map, TypedError } from "@lazy-promise/core";
 import { afterEach, expect, expectTypeOf, test } from "vitest";
 
 const logContents: unknown[] = [];
@@ -59,6 +59,30 @@ test("types", () => {
   expectTypeOf(fromEager(async () => "a" as const)).toEqualTypeOf<
     LazyPromise<"a">
   >();
+
+  expectTypeOf(
+    fromEager(async () => {
+      if (true as boolean) {
+        return box(new TypedError("error1"));
+      }
+      return "a";
+    }),
+  ).toEqualTypeOf<LazyPromise<"a" | TypedError<"error1">>>();
+
+  expectTypeOf(
+    fromEager(() => {
+      if (true as boolean) {
+        return "a";
+      }
+      if (true as boolean) {
+        return box("b");
+      }
+      if (true as boolean) {
+        return new Promise<"c">(() => {});
+      }
+      return new Promise<LazyPromise<"d">>(() => {});
+    }),
+  ).toEqualTypeOf<LazyPromise<"a" | "b" | "c" | "d">>();
 
   expectTypeOf(fromEager(() => Promise.reject(1))).toEqualTypeOf<
     LazyPromise<never>

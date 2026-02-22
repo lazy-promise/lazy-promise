@@ -1,10 +1,8 @@
-import type {
-  LazyPromiseError,
-  LazyPromiseValue,
-  TypedErrorOrNever,
-} from "./lazyPromise";
+import type { LazyPromiseError, LazyPromiseValue } from "./lazyPromise";
 import { LazyPromise, TypedError } from "./lazyPromise";
 import type { NeverIfContainsNever } from "./utils";
+
+type TypedErrorOrNever<Error> = Error extends never ? never : TypedError<Error>;
 
 /**
  * Acts as `Promise.any` with respect to typed errors. If all sources resolve
