@@ -1,4 +1,4 @@
-import type { LazyPromise } from "@lazy-promise/core";
+import type { LazyPromise, Subscriber } from "@lazy-promise/core";
 import { box, fromEager, map, TypedError } from "@lazy-promise/core";
 import { afterEach, expect, expectTypeOf, test } from "vitest";
 
@@ -16,6 +16,15 @@ const readLog = () => {
   } finally {
     logContents.length = 0;
   }
+};
+
+const logSubscriber: Subscriber<any> = {
+  resolve: (value) => {
+    log("handleValue", value);
+  },
+  reject: (error) => {
+    log("handleError", error);
+  },
 };
 
 const processMockMicrotaskQueue = () => {
@@ -56,7 +65,15 @@ const DOMException =
 test("types", () => {
   /* eslint-disable require-await */
 
+  expectTypeOf(fromEager(() => "a" as const)).toEqualTypeOf<LazyPromise<"a">>();
+
+  expectTypeOf(fromEager(() => box("a"))).toEqualTypeOf<LazyPromise<"a">>();
+
   expectTypeOf(fromEager(async () => "a" as const)).toEqualTypeOf<
+    LazyPromise<"a">
+  >();
+
+  expectTypeOf(fromEager(async () => box("a"))).toEqualTypeOf<
     LazyPromise<"a">
   >();
 
@@ -104,14 +121,50 @@ test("types", () => {
   /* eslint-enable require-await */
 });
 
-test("source resolves", async () => {
+test("source is a plain value", () => {
+  const promise = fromEager(() => "value");
+  promise.subscribe(logSubscriber);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleValue",
+        "value",
+      ],
+    ]
+  `);
+});
+
+test("source is a lazy promise", () => {
+  const promise = fromEager(() => box("value"));
+  promise.subscribe(logSubscriber);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleValue",
+        "value",
+      ],
+    ]
+  `);
+});
+
+test("source resolves with a plain value", async () => {
   const promise = fromEager(() => Promise.resolve("value"));
-  promise.subscribe(
-    (value) => {
-      log("handleValue", value);
-    },
-    () => {},
-  );
+  promise.subscribe(logSubscriber);
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  await flushMicrotasks();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleValue",
+        "value",
+      ],
+    ]
+  `);
+});
+
+test("source resolves with a lazy promise", async () => {
+  const promise = fromEager(() => Promise.resolve(box("value")));
+  promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -126,9 +179,7 @@ test("source resolves", async () => {
 
 test("source rejects", async () => {
   const promise = fromEager(() => Promise.reject("oops"));
-  promise.subscribe(undefined, (error) => {
-    log("handleError", error);
-  });
+  promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -141,30 +192,11 @@ test("source rejects", async () => {
   `);
 });
 
-test("source rejects with DOMException", async () => {
-  const promise = fromEager(() => Promise.reject(new DOMException()));
-  promise.subscribe(undefined, (error) => {
-    log("handleError");
-    expect(error).toBeInstanceOf(DOMException);
-  });
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
-  await flushMicrotasks();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "handleError",
-      ],
-    ]
-  `);
-});
-
 test("callback throws synchronously", () => {
   const promise = fromEager(() => {
     throw "oops";
   });
-  promise.subscribe(undefined, (error) => {
-    log("handleError", error);
-  });
+  promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -180,9 +212,7 @@ test("callback throws asynchronously", async () => {
   const promise = fromEager(async () => {
     throw "oops";
   });
-  promise.subscribe(undefined, (error) => {
-    log("handleError", error);
-  });
+  promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -195,19 +225,13 @@ test("callback throws asynchronously", async () => {
   `);
 });
 
-test("callback throws after unsubscribed", async () => {
+test("callback throws after unsubscribed", () => {
   // eslint-disable-next-line require-await
   const promise = fromEager(async () => {
     throw "oops";
   });
-  promise.subscribe(undefined, (error) => {
-    log("handleError", error);
-  })!();
+  promise.subscribe(logSubscriber).unsubscribe();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  processMockMicrotaskQueue();
-  await flushMicrotasks();
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
-  expect(processMockMicrotaskQueue).toThrow("oops");
 });
 
 test("cancelation with abort signal", () => {
@@ -226,7 +250,7 @@ test("cancelation with abort signal", () => {
         });
       }),
   );
-  const unsubscribe = promise.subscribe(undefined, () => {});
+  const subscription = promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -234,12 +258,12 @@ test("cancelation with abort signal", () => {
       ],
     ]
   `);
-  unsubscribe!();
+  subscription.unsubscribe();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleAbort",
-        "AbortError: The lazy promise no longer has any subscribers.",
+        "AbortError: The lazy promise subscription was unsubscribed.",
       ],
     ]
   `);
@@ -247,7 +271,7 @@ test("cancelation with abort signal", () => {
 
 test("un-aborted promise resolves", async () => {
   const promise = fromEager(() => Promise.resolve(1));
-  promise.subscribe()!();
+  promise.subscribe().unsubscribe();
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });

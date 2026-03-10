@@ -1,4 +1,15 @@
+import type { InnerSubscriber, Producer } from "./lazyPromise";
 import { LazyPromise } from "./lazyPromise";
+
+const callback = (innerSubscriber: InnerSubscriber<void>) => {
+  innerSubscriber.resolve();
+};
+
+class InNextTickProducer implements Producer<void> {
+  produce(innerSubscriber: InnerSubscriber<void>) {
+    process.nextTick(callback, innerSubscriber);
+  }
+}
 
 /**
  * Returns a lazy promise that resolves with a value of type `void` in
@@ -17,14 +28,4 @@ import { LazyPromise } from "./lazyPromise";
  * ```
  */
 export const inNextTick = (): LazyPromise<void> =>
-  new LazyPromise((resolve) => {
-    let disposed = false;
-    process.nextTick(() => {
-      if (!disposed) {
-        resolve();
-      }
-    });
-    return () => {
-      disposed = true;
-    };
-  });
+  new LazyPromise(new InNextTickProducer());

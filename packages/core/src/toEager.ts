@@ -1,4 +1,35 @@
-import type { LazyPromise } from "./lazyPromise";
+import type { LazyPromise, Subscriber, Subscription } from "./lazyPromise";
+
+class ToEagerSubscriberListener
+  implements Subscriber<any>, EventListenerObject
+{
+  subscription?: Subscription;
+  settled = false;
+
+  constructor(
+    public resolveNative: (value: any) => void,
+    public rejectNative: (error: any) => void,
+    public signal: AbortSignal,
+  ) {}
+
+  resolve(value: any) {
+    this.settled = true;
+    this.signal.removeEventListener("abort", this);
+    this.resolveNative(value);
+  }
+
+  reject(error: any) {
+    this.settled = true;
+    this.signal.removeEventListener("abort", this);
+    this.rejectNative(error);
+  }
+
+  handleEvent() {
+    this.signal.removeEventListener("abort", this);
+    this.subscription!.unsubscribe();
+    this.rejectNative(this.signal.reason);
+  }
+}
 
 /**
  * Converts a LazyPromise to a Promise. You can pass an AbortSignal in the
@@ -11,40 +42,23 @@ export const toEager = <Value>(
   new Promise((resolve, reject) => {
     const signal = options?.signal;
     if (!signal) {
-      lazyPromise.subscribe(resolve, reject);
+      lazyPromise.subscribe({ resolve, reject });
+      return;
+    }
+    signal.throwIfAborted();
+    const subscriberListener = new ToEagerSubscriberListener(
+      resolve,
+      reject,
+      signal,
+    );
+    const subscription = lazyPromise.subscribe(subscriberListener);
+    if (subscriberListener.settled) {
       return;
     }
     if (signal.aborted) {
-      reject(signal.reason);
-      return;
+      subscription.unsubscribe();
+      throw signal.reason;
     }
-    let listener: (() => void) | undefined = undefined;
-    const handleResolve = (value: Value) => {
-      if (listener) {
-        signal.removeEventListener("abort", listener);
-      }
-      resolve(value);
-    };
-    const handleReject = (error: unknown) => {
-      if (listener) {
-        signal.removeEventListener("abort", listener);
-      }
-      reject(error);
-    };
-    const unsubscribe = lazyPromise.subscribe(handleResolve, handleReject);
-    if (!unsubscribe) {
-      return;
-    }
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (signal.aborted) {
-      unsubscribe();
-      reject(signal.reason);
-      return;
-    }
-    listener = () => {
-      signal.removeEventListener("abort", listener!);
-      unsubscribe();
-      reject(signal.reason);
-    };
-    signal.addEventListener("abort", listener);
+    subscriberListener.subscription = subscription;
+    signal.addEventListener("abort", subscriberListener);
   });

@@ -1,88 +1,139 @@
-import type { Yieldable } from "./lazyPromise";
+import type {
+  Flatten,
+  InnerSubscriber,
+  InnerSubscription,
+  Producer,
+  Subscriber,
+  Subscription,
+  Yieldable,
+} from "./lazyPromise";
 import { LazyPromise } from "./lazyPromise";
 
 const emptySymbol = Symbol("empty");
+
+class FromGeneratorSubscriberSubscription<TReturn>
+  implements Subscriber<any>, InnerSubscription
+{
+  // The value that a yielded promise resolved to.
+  value: any = emptySymbol;
+  // The error that a yielded promise rejected with.
+  error: any = emptySymbol;
+  subscription: Subscription | undefined;
+  unsubscribed = false;
+
+  constructor(
+    public innerSubscriber: InnerSubscriber<any>,
+    public generator: Generator<Yieldable, TReturn, any>,
+  ) {}
+
+  resolve(value: any) {
+    // When possible, use the while loop to avoid increasing stack depth.
+    if (this.subscription === undefined) {
+      this.value = value;
+      return;
+    }
+    try {
+      // May throw.
+      const generatorResult = this.generator.next(value);
+      if (this.unsubscribed) {
+        return;
+      }
+      this.subscription = undefined;
+      // May throw.
+      this.next(generatorResult);
+    } catch (error) {
+      this.innerSubscriber.reject(error);
+    }
+  }
+
+  reject(error: any) {
+    // When possible, use the while loop to avoid increasing stack depth.
+    if (this.subscription === undefined) {
+      this.error = error;
+      return;
+    }
+    try {
+      // May throw.
+      const generatorResult = this.generator.throw(error);
+      if (this.unsubscribed) {
+        return;
+      }
+      this.subscription = undefined;
+      // May throw.
+      this.next(generatorResult);
+    } catch (error) {
+      this.innerSubscriber.reject(error);
+    }
+  }
+
+  // May throw.
+  next(generatorResult: IteratorResult<Yieldable, TReturn | void>) {
+    while (true) {
+      if (generatorResult.done) {
+        this.innerSubscriber.resolve(generatorResult.value);
+        return;
+      }
+      const subscription = generatorResult.value.subscribe(this);
+      if (this.unsubscribed) {
+        subscription.unsubscribe();
+        return;
+      }
+      if (this.value !== emptySymbol) {
+        // May throw.
+        generatorResult = this.generator.next(this.value);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        if (this.unsubscribed) {
+          return;
+        }
+        this.subscription = undefined;
+        this.value = emptySymbol;
+        continue;
+      }
+      if (this.error !== emptySymbol) {
+        // May throw.
+        generatorResult = this.generator.throw(this.error);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        if (this.unsubscribed) {
+          return;
+        }
+        this.subscription = undefined;
+        this.error = emptySymbol;
+        continue;
+      }
+      this.subscription = subscription;
+      return;
+    }
+  }
+
+  unsubscribe() {
+    this.unsubscribed = true;
+    this.subscription?.unsubscribe();
+  }
+}
+
+class FromGeneratorProducer<TReturn> implements Producer<any> {
+  constructor(public generatorFunction: () => Generator<Yieldable, TReturn>) {}
+
+  produce(innerSubscriber: InnerSubscriber<any>) {
+    // This may throw and cause promise rejection.
+    const generator = (0, this.generatorFunction)();
+    const innerSubscription = new FromGeneratorSubscriberSubscription(
+      innerSubscriber,
+      generator,
+    );
+    // This may throw and cause promise rejection.
+    innerSubscription.next(
+      // This may throw and cause promise rejection.
+      generator.next(),
+    );
+    return innerSubscription;
+  }
+}
 
 /**
  * Converts a generator function to a LazyPromise.
  */
 export const fromGenerator = <TReturn>(
-  generatorFunction: () => Generator<Yieldable<LazyPromise<any>>, TReturn>,
-): LazyPromise<TReturn extends LazyPromise<infer Value> ? Value : TReturn> =>
-  new LazyPromise<any>((resolve, reject) => {
-    const generator = generatorFunction();
-    let unsubscribe: (() => void) | undefined | typeof emptySymbol =
-      emptySymbol;
-    let resolveValue: unknown = emptySymbol;
-    let rejectError: unknown = emptySymbol;
-
-    const handleValue = (value: any) => {
-      // When possible, use the while loop to avoid increasing stack depth.
-      if (unsubscribe === emptySymbol) {
-        resolveValue = value;
-        return;
-      }
-      try {
-        // eslint-disable-next-line no-use-before-define
-        handleResult(generator.next(value));
-      } catch (error) {
-        reject(error);
-        return;
-      }
-    };
-
-    const handleError = (error: any) => {
-      // When possible, use the while loop to avoid increasing stack depth.
-      if (unsubscribe === emptySymbol) {
-        rejectError = error;
-        return;
-      }
-      let result;
-      try {
-        result = generator.throw(error);
-      } catch (error) {
-        reject(error);
-        return;
-      }
-      // eslint-disable-next-line no-use-before-define
-      handleResult(result);
-    };
-
-    const handleResult = (
-      result: IteratorResult<Yieldable<LazyPromise<any>>, TReturn | void>,
-    ) => {
-      while (true) {
-        if (result.done) {
-          resolve(result.value as any);
-          return;
-        }
-        const source = result.value;
-        unsubscribe = source.subscribe(handleValue, handleError);
-        if (resolveValue !== emptySymbol) {
-          unsubscribe = emptySymbol;
-          result = generator.next(resolveValue);
-          resolveValue = emptySymbol;
-          continue;
-        }
-        if (rejectError !== emptySymbol) {
-          unsubscribe = emptySymbol;
-          result = generator.throw(rejectError);
-          rejectError = emptySymbol;
-          continue;
-        }
-        return;
-      }
-    };
-
-    handleResult(generator.next());
-
-    if (typeof unsubscribe !== "function") {
-      return;
-    }
-
-    return () => {
-      if (unsubscribe !== emptySymbol) {
-        unsubscribe?.();
-      }
-    };
-  });
+  generatorFunction: () => Generator<Yieldable, TReturn>,
+): LazyPromise<Flatten<TReturn>> =>
+  new LazyPromise<any>(new FromGeneratorProducer(generatorFunction));

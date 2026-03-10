@@ -10,14 +10,16 @@ export const useLazyPromise: <Value>(
   lazyPromise: Value extends TypedError<any> ? never : LazyPromise<Value>,
 ) => void = (lazyPromise) => {
   const owner = getOwner();
-  const unsubscribe = runWithOwner(null, () =>
-    lazyPromise.subscribe(undefined as any, (error) => {
-      runWithOwner(owner, () => {
-        throw error;
-      });
-    }),
+  const subscription = runWithOwner(null, () =>
+    lazyPromise.subscribe({
+      reject: (error: unknown) => {
+        runWithOwner(owner, () => {
+          throw error;
+        });
+      },
+    } as any),
   );
-  if (unsubscribe) {
-    onCleanup(unsubscribe);
-  }
+  onCleanup(() => {
+    subscription?.unsubscribe();
+  });
 };

@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 
+import type { Subscriber } from "@lazy-promise/core";
 import { box, LazyPromise, log, rejected } from "@lazy-promise/core";
 import { afterEach, expect, test, vi } from "vitest";
 
@@ -11,6 +12,15 @@ const readLog = () => {
   } finally {
     logContents.length = 0;
   }
+};
+
+const logSubscriber: Subscriber<any> = {
+  resolve: (value) => {
+    console.log("handleValue", value);
+  },
+  reject: (error) => {
+    console.log("handleError", error);
+  },
 };
 
 afterEach(() => {
@@ -29,14 +39,12 @@ test("base case", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  new LazyPromise((resolve) => {
+  new LazyPromise((subscriber) => {
     console.log("subscribing");
-    resolve(1);
+    subscriber.resolve(1);
   })
     .pipe(log("base case"))
-    .subscribe((value) => {
-      console.log("handleValue", value);
-    });
+    .subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "[base case] [1] [subscribe]",
@@ -52,11 +60,7 @@ test("rejection", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  rejected(1)
-    .pipe(log("rejection case"))
-    .subscribe(undefined, (error) => {
-      console.log("handleError", error);
-    });
+  rejected(1).pipe(log("rejection case")).subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "[rejection case] [1] [subscribe]",
@@ -71,11 +75,12 @@ test("unsubscribe", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  new LazyPromise(() => () => {
+  new LazyPromise<never>(() => () => {
     console.log("unsubscribing");
   })
     .pipe(log("unsubscribe case"))
-    .subscribe()!();
+    .subscribe()
+    .unsubscribe();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "[unsubscribe case] [1] [subscribe]",
@@ -90,12 +95,11 @@ test("unsubscribe (no teardown function)", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  const unsubscribe = new LazyPromise(() => {
+  new LazyPromise<never>(() => {
     console.log("subscribing");
   })
     .pipe(log("unsubscribe (no teardown function) case"))
     .subscribe();
-  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "[unsubscribe (no teardown function) case] [1] [subscribe]",
@@ -165,10 +169,12 @@ test("patched console.log", () => {
 
   box()
     .pipe(log("label"))
-    .subscribe(() => {
-      console.log("a", "b");
-      console.log(1, "a");
-      console.log();
+    .subscribe({
+      resolve: () => {
+        console.log("a", "b");
+        console.log(1, "a");
+        console.log();
+      },
     });
 
   expect(readLog()).toMatchInlineSnapshot(`

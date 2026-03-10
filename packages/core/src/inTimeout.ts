@@ -1,4 +1,31 @@
+import type {
+  InnerSubscriber,
+  InnerSubscription,
+  Producer,
+} from "./lazyPromise";
 import { LazyPromise } from "./lazyPromise";
+
+class InTimeoutSubscription implements InnerSubscription {
+  constructor(public id: ReturnType<typeof setTimeout>) {}
+
+  unsubscribe() {
+    clearTimeout(this.id);
+  }
+}
+
+const callback = (innerSubscriber: InnerSubscriber<void>) => {
+  innerSubscriber.resolve();
+};
+
+class InTimeoutProducer implements Producer<void> {
+  constructor(public ms?: number) {}
+
+  produce(innerSubscriber: InnerSubscriber<void>) {
+    return new InTimeoutSubscription(
+      setTimeout(callback, this.ms, innerSubscriber),
+    );
+  }
+}
 
 /**
  * Takes optional duration in ms, and returns a lazy promise that resolves with
@@ -17,9 +44,4 @@ import { LazyPromise } from "./lazyPromise";
  * ```
  */
 export const inTimeout = (ms?: number): LazyPromise<void> =>
-  new LazyPromise((resolve) => {
-    const id = setTimeout(resolve, ms);
-    return () => {
-      clearTimeout(id);
-    };
-  });
+  new LazyPromise(new InTimeoutProducer(ms));

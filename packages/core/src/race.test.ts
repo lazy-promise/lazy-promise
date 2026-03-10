@@ -1,3 +1,4 @@
+import type { InnerSubscriber, Subscriber } from "@lazy-promise/core";
 import { box, LazyPromise, never, race, rejected } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
@@ -21,6 +22,15 @@ const readLog = () => {
   } finally {
     logContents.length = 0;
   }
+};
+
+const logSubscriber: Subscriber<any> = {
+  resolve: (value) => {
+    log("handleValue", value);
+  },
+  reject: (error) => {
+    log("handleError", error);
+  },
 };
 
 const processMockMicrotaskQueue = () => {
@@ -50,15 +60,7 @@ afterEach(() => {
 
 test("empty iterable", () => {
   const promise = race([]);
-  const unsubscribe = promise.subscribe(
-    (value) => {
-      log("handleValue", value);
-    },
-    () => {
-      log("handleError");
-    },
-  );
-  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
+  promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
@@ -73,15 +75,39 @@ test("sync resolve", () => {
     box("b" as const),
     new LazyPromise<never>(() => {
       log("produce c");
-      return () => {
-        log("dispose c");
-      };
     }),
   ]);
-  const unsubscribe = promise.subscribe((value) => {
-    log("handleValue", value);
-  });
-  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
+  promise.subscribe(logSubscriber);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce a",
+      ],
+      [
+        "handleValue",
+        "b",
+      ],
+      [
+        "dispose a",
+      ],
+    ]
+  `);
+});
+
+test("value as one of the sources", () => {
+  const promise = race([
+    new LazyPromise<never>(() => {
+      log("produce a");
+      return () => {
+        log("dispose a");
+      };
+    }),
+    "b",
+    new LazyPromise<never>(() => {
+      log("produce c");
+    }),
+  ]);
+  promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -100,13 +126,11 @@ test("sync resolve", () => {
 
 test("non-array iterable", () => {
   const promise = race(new Set([box("a")]));
-  promise.subscribe((value) => {
-    log("resolve", value);
-  });
+  promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "resolve",
+        "handleValue",
         "a",
       ],
     ]
@@ -115,24 +139,23 @@ test("non-array iterable", () => {
 
 test("never", () => {
   const promise = race([never]);
-  const unsubscribe = promise.subscribe();
-  expect(unsubscribe).toMatchInlineSnapshot(`undefined`);
+  promise.subscribe();
 });
 
 test("async resolve", () => {
   const promise = race([
-    new LazyPromise<"a">((resolve) => {
+    new LazyPromise<"a">((subscriber) => {
       const timeoutId = setTimeout(() => {
-        resolve("a");
+        subscriber.resolve("a");
       }, 1000);
       return () => {
         log("dispose a");
         clearTimeout(timeoutId);
       };
     }),
-    new LazyPromise<"b">((resolve) => {
+    new LazyPromise<"b">((subscriber) => {
       const timeoutId = setTimeout(() => {
-        resolve("b");
+        subscriber.resolve("b");
       }, 2000);
       return () => {
         log("dispose b");
@@ -140,9 +163,7 @@ test("async resolve", () => {
       };
     }),
   ]);
-  promise.subscribe((value) => {
-    log("handleValue", value);
-  });
+  promise.subscribe(logSubscriber);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -174,9 +195,7 @@ test("sync error", () => {
       };
     }),
   ]);
-  promise.subscribe(undefined, (error) => {
-    log("handleError", error);
-  });
+  promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -195,18 +214,18 @@ test("sync error", () => {
 
 test("async error", () => {
   const promise = race([
-    new LazyPromise<never>((resolve, reject) => {
+    new LazyPromise<never>((subscriber) => {
       const timeoutId = setTimeout(() => {
-        reject("a");
+        subscriber.reject("a");
       }, 1000);
       return () => {
         log("dispose a");
         clearTimeout(timeoutId);
       };
     }),
-    new LazyPromise<"b">((resolve) => {
+    new LazyPromise<"b">((subscriber) => {
       const timeoutId = setTimeout(() => {
-        resolve("b");
+        subscriber.resolve("b");
       }, 2000);
       return () => {
         log("dispose b");
@@ -214,9 +233,7 @@ test("async error", () => {
       };
     }),
   ]);
-  promise.subscribe(undefined, (error) => {
-    log("handleError", error);
-  });
+  promise.subscribe(logSubscriber);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -234,20 +251,20 @@ test("async error", () => {
 
 test("unsubscribe", () => {
   const promise = race([
-    new LazyPromise(() => {
+    new LazyPromise<never>(() => {
       log("produce a");
       return () => {
         log("dispose a");
       };
     }),
-    new LazyPromise(() => {
+    new LazyPromise<never>(() => {
       log("produce b");
       return () => {
         log("dispose b");
       };
     }),
   ]);
-  const unsubscribe = promise.subscribe();
+  const subscription = promise.subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -258,7 +275,7 @@ test("unsubscribe", () => {
       ],
     ]
   `);
-  unsubscribe!();
+  subscription.unsubscribe();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -272,24 +289,24 @@ test("unsubscribe", () => {
 });
 
 test("internally disposed when a source resolves, a source resolve is ignored when internally disposed", () => {
-  let resolveA: (value: "a") => void;
+  let subscriberA: InnerSubscriber<"a">;
   const promise = race([
-    new LazyPromise<"a">((resolve) => {
-      resolveA = resolve;
-      return () => {};
+    new LazyPromise<"a">((subscriber) => {
+      subscriberA = subscriber;
     }),
-    new LazyPromise<"b">((resolve) => {
+    new LazyPromise<"b">((subscriber) => {
       setTimeout(() => {
         log("resolve b");
-        resolve("b");
+        subscriber.resolve("b");
       }, 1000);
-      return () => {};
     }),
   ]);
-  promise.subscribe((value) => {
-    log("handleValue", value);
-    log("resolve a");
-    resolveA("a");
+  promise.subscribe({
+    resolve: (value) => {
+      log("handleValue", value);
+      log("resolve a");
+      subscriberA.resolve("a");
+    },
   });
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -310,24 +327,24 @@ test("internally disposed when a source resolves, a source resolve is ignored wh
 });
 
 test("internally disposed when a source rejects, a source resolve is ignored when internally disposed", () => {
-  let resolveA: (value: "a") => void;
+  let subscriberA: InnerSubscriber<"a">;
   const promise = race([
-    new LazyPromise<"a">((resolve) => {
-      resolveA = resolve;
-      return () => {};
+    new LazyPromise<"a">((subscriber) => {
+      subscriberA = subscriber;
     }),
-    new LazyPromise<never>((resolve, reject) => {
+    new LazyPromise<never>((subscriber) => {
       setTimeout(() => {
         log("reject b");
-        reject("b");
+        subscriber.reject("b");
       }, 1000);
-      return () => {};
     }),
   ]);
-  promise.subscribe(undefined, (error) => {
-    log("handleError", error);
-    log("resolve a");
-    resolveA("a");
+  promise.subscribe({
+    reject: (error) => {
+      log("handleError", error);
+      log("resolve a");
+      subscriberA.resolve("a");
+    },
   });
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -348,28 +365,25 @@ test("internally disposed when a source rejects, a source resolve is ignored whe
 });
 
 test("internally disposed when a source resolves, a source reject is ignored when internally disposed", () => {
-  let rejectA: (error: "a") => void;
+  let subscriberA: InnerSubscriber<never>;
   const promise = race([
-    new LazyPromise<never>((resolve, reject) => {
-      rejectA = reject;
-      return () => {};
+    new LazyPromise<never>((subscriber) => {
+      subscriberA = subscriber;
     }),
-    new LazyPromise<"b">((resolve) => {
+    new LazyPromise<"b">((subscriber) => {
       setTimeout(() => {
         log("resolve b");
-        resolve("b");
+        subscriber.resolve("b");
       }, 1000);
-      return () => {};
     }),
   ]);
-  promise.subscribe(
-    (value) => {
+  promise.subscribe({
+    resolve: (value) => {
       log("handleValue", value);
       log("reject a");
-      rejectA("a");
+      subscriberA.reject("a");
     },
-    () => {},
-  );
+  });
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -389,36 +403,29 @@ test("internally disposed when a source resolves, a source reject is ignored whe
 });
 
 test("internally disposed by the teardown function, a source resolve is ignored when internally disposed", () => {
-  let resolveA: ((value: "a") => void) | undefined;
-  let resolveB: ((value: "b") => void) | undefined;
+  let subscriberA: InnerSubscriber<"a"> | undefined;
+  let subscriberB: InnerSubscriber<"b"> | undefined;
   const promise = race([
-    new LazyPromise<"a">((resolve) => {
+    new LazyPromise<"a">((subscriber) => {
       log("produce a");
-      resolveA = resolve;
+      subscriberA = subscriber;
       return () => {
         log("dispose a");
-        resolveA = undefined;
-        resolveB?.("b");
+        subscriberA = undefined;
+        subscriberB?.resolve("b");
       };
     }),
-    new LazyPromise<"b">((resolve) => {
+    new LazyPromise<"b">((subscriber) => {
       log("produce b");
-      resolveB = resolve;
+      subscriberB = subscriber;
       return () => {
         log("dispose b");
-        resolveB = undefined;
-        resolveA?.("a");
+        subscriberB = undefined;
+        subscriberA?.resolve("a");
       };
     }),
   ]);
-  promise.subscribe(
-    (value) => {
-      log("handleValue", value);
-    },
-    () => {
-      log("handleError");
-    },
-  )!();
+  promise.subscribe(logSubscriber).unsubscribe();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [

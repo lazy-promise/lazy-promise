@@ -1,4 +1,13 @@
+import type { InnerSubscriber, Producer } from "./lazyPromise";
 import { LazyPromise } from "./lazyPromise";
+
+class InMicrotaskProducer implements Producer<void> {
+  produce(innerSubscriber: InnerSubscriber<void>) {
+    queueMicrotask(() => {
+      innerSubscriber.resolve();
+    });
+  }
+}
 
 /**
  * Returns a lazy promise that resolves in a microtask with a value of type
@@ -17,14 +26,4 @@ import { LazyPromise } from "./lazyPromise";
  * ```
  */
 export const inMicrotask = (): LazyPromise<void> =>
-  new LazyPromise((resolve) => {
-    let disposed = false;
-    queueMicrotask(() => {
-      if (!disposed) {
-        resolve();
-      }
-    });
-    return () => {
-      disposed = true;
-    };
-  });
+  new LazyPromise(new InMicrotaskProducer());

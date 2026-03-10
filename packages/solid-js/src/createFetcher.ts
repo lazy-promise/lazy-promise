@@ -13,9 +13,9 @@ export const createFetcher =
     let result: unknown;
     let resolve: ((value: T) => void) | undefined;
     let reject: ((error: unknown) => void) | undefined;
-    const unsubscribe = runWithOwner(null, () =>
-      lazyPromise.subscribe(
-        (value) => {
+    const subscription = runWithOwner(null, () =>
+      lazyPromise.subscribe({
+        resolve: (value) => {
           if (resolve) {
             resolve(value);
             return;
@@ -23,7 +23,7 @@ export const createFetcher =
           result = value;
           resolved = true;
         },
-        (error) => {
+        reject: (error) => {
           if (reject) {
             reject(error);
             return;
@@ -31,7 +31,7 @@ export const createFetcher =
           result = error;
           errored = true;
         },
-      ),
+      }),
     )!;
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (resolved) {
@@ -41,7 +41,9 @@ export const createFetcher =
     if (errored) {
       throw result;
     }
-    onCleanup(unsubscribe);
+    onCleanup(() => {
+      subscription.unsubscribe();
+    });
     return new Promise((resolveLocal, rejectLocal) => {
       resolve = resolveLocal;
       reject = rejectLocal;

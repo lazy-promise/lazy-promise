@@ -12,7 +12,14 @@ export { inMicrotask } from "./inMicrotask";
 export { inNextTick } from "./inNextTick";
 export { inTimeout } from "./inTimeout";
 export { box, LazyPromise, never, rejected, TypedError } from "./lazyPromise";
-export type { LazyPromiseError, LazyPromiseValue } from "./lazyPromise";
+export type {
+  Flatten,
+  InnerSubscriber,
+  InnerSubscription,
+  Producer,
+  Subscriber,
+  Subscription,
+} from "./lazyPromise";
 export { log } from "./log";
 export { map } from "./map";
 export { race } from "./race";

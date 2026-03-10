@@ -1,12 +1,20 @@
 # LazyPromise
 
-A LazyPromise is like a Promise, with three differences:
+A LazyPromise is like a Promise, except
 
-- It's lazy and cancelable
+- It's stateless
 
-- It has optional typed errors
+- It's cancelable
 
-- It emits synchronously instead of on the microtask queue.
+- It supports typed errors
+
+- It emits synchronously instead of in a microtask.
+
+Alternatively, a LazyPromise is like a single-shot Observable, except
+
+- Its API is tailored for the single-shot use-case
+
+- It gracefully handles synchronous re-entry.
 
 ## Philosophy
 
@@ -28,15 +36,15 @@ npm install @lazy-promise/core
 
 ## Usage
 
-You create a LazyPromise like you create a Promise, except you can optionally return a teardown function, for example:
+You create a LazyPromise like you create a native Promise, except you have a `subscriber` object instead of `resolve, reject` pair, and you can optionally return a teardown function:
 
 ```ts
-const lazyPromise = new LazyPromise<"a", "error1">((resolve, reject) => {
+const lazyPromise = new LazyPromise<"value">((subscriber) => {
   const timeoutId = setTimeout(() => {
-    if (Math.random() > 0.5) {
-      resolve("a");
+    if (...) {
+      subscriber.resolve("value");
     } else {
-      reject("error1");
+      subscriber.reject("error");
     }
   }, 1000);
   return () => {
@@ -45,99 +53,57 @@ const lazyPromise = new LazyPromise<"a", "error1">((resolve, reject) => {
 });
 ```
 
-Unlike a promise, a lazy promise doesn't do anything until you subscribe to it:
+Unlike a Promise and like an Observable, a LazyPromise is stateless. Conceptually, it is simply the function you passed to the constructor, with a wrapper around it that's only there to enforce a few invariants:
+
+- Nothing gets emitted after you unsubscribe
+
+- If something does get emitted, that only happens once
+
+- The teardown function is run at most once, and only if nothing was emitted
+
+- There can be no higher-order LazyPromise (a LazyPromise that resolves to a LazyPromise).
+
+Just like a function doesn't do anything until you call it, a LazyPromise doesn't do anything until you subscribe to it:
 
 ```ts
-// `unsubscribe` is an idempotent `() => void` function.
-const unsubscribe = lazyPromise.subscribe(handleValue, handleRejection);
+const subscription = lazyPromise.subscribe({resolve: (value) =>..., reject: (error) => ...});
 ```
 
-Besides being lazy, LazyPromise is cancelable: if the subscriber count goes down to zero before the promise has had time to fire, the teardown function will be called and we'll be back to square one.
-
-If a lazy promise does fire, then like a regular promise it will remember forever the value or error, and give it to whoever tries to subscribe in the future.
-
-Aside from some small naming differences, LazyPromise API mirrors that of Promise:
-
-| Promise api                       | LazyPromise equivalent                       |
-| :-------------------------------- | :------------------------------------------- |
-| `promise.then(foo)`               | `lazyPromise.pipe(map(foo))`                 |
-| `promise.catch(foo)`              | `lazyPromise.pipe(catchRejection(foo))`      |
-| `promise.finally(foo)`            | `lazyPromise.pipe(finalize(foo))`            |
-| `Promise.resolve(valueOrPromise)` | `box(valueOrLazyPromise)`                    |
-| `Promise.reject(error)`           | `rejected(error)`                            |
-| `new Promise<never>(() => {})`    | `never`                                      |
-| `Promise.all(...)`                | `all(...)`                                   |
-| `Promise.any(...)`                | `any(...)`                                   |
-| `Promise.race(...)`               | `race(...)`                                  |
-| `Promise<Value>`                  | `LazyPromise<Value, Error>`                  |
-| `Awaited<T>`                      | `LazyPromiseValue<T>`, `LazyPromiseError<T>` |
-
-LazyPromise API does not just resemble the native Promise API, but follows all of its subtleties unless stated otherwise. For example, if you call the `resolve` handle of a native `Promise` with a `Promise<string>` as an argument, you'll end up with `Promise<string>`, not `Promise<Promise<string>>`. LazyPromise is similarly flattened, a consequence being that one cannot create such a thing as `LazyPromise<LazyPromise<...>>`.
-
-Your typical code could look something like this (types of all values and errors will be inferred, and callbacks are guaranteed to not be called once you unsubscribe):
+To cancel the subscription, you call
 
 ```ts
-lazyPromise.pipe(
-  // Mirrors the behavior of `promise.catch(...)`.
-  catchRejection((error) => {
-    // To turn the error into a value, return that value.
-    //
-    // To turn the error into another error, return `rejected(newError)`.
-    //
-    // To perform some side effect and have the resulting promise never fire,
-    // return `never`.
-    ...
-  }),
-  // Mirrors the behavior of `promise.then(...)`.
-  map((value) => ...),
-).subscribe(
-  // This handler is always optional.
-  (value) => ...,
-  // TypeScript will only want you to provide this handler if by now the type
-  // of `error` is other than `never`.
-  (error) => ...,
-);
+// This method is idempotent.
+subscription.unsubscribe();
 ```
 
-## A few things to know
+Aside from some superficial differences, LazyPromise API mirrors that of native Promise:
 
-- The teardown function will not be called if the promise settles (it's either-or).
+| Promise api                       | LazyPromise equivalent              |
+| :-------------------------------- | :---------------------------------- |
+| `promise.then(foo)`               | `lazyPromise.pipe(map(foo))`        |
+| `promise.catch(foo)`              | `lazyPromise.pipe(catchError(foo))` |
+| `promise.finally(foo)`            | `lazyPromise.pipe(finalize(foo))`   |
+| `Promise.resolve(valueOrPromise)` | `box(valueOrLazyPromise)`           |
+| `Promise.reject(error)`           | `rejected(error)`                   |
+| `new Promise<never>(() => {})`    | `never`                             |
+| `Promise.all(...)`                | `all(...)`                          |
+| `Promise.any(...)`                | `any(...)`                          |
+| `Promise.race(...)`               | `race(...)`                         |
+| `Awaited<T>`                      | `Flatten<T>`                        |
 
-- Illegal operations, such as settling an already settled lazy promise, throw an error rather than failing silently.
+LazyPromise API does not just resemble the native Promise API, but follows all its subtleties unless stated otherwise in the docs. In particular, if you call the `resolve` handle of a native `Promise` with a `Promise<string>` as an argument, you'll end up with `Promise<string>`, not `Promise<Promise<string>>`. LazyPromise is similarly flattened.
 
-- Instead of an unsubscribe handle, `.subscribe(...)` may return `undefined` when there is nothing to tear down.
+## Typed errors
 
-## Failure channel
+Whereas untyped errors are represented by rejections, typed errors are represented by instances of `TypedError<YourError>` class that a lazy promise resolves to. `new TypedError(<your error>)` creates an object that simply stores `<your error>` as its `.error` property, and is treated differently from other values by LazyPromise API:
 
-Since the type system doesn't know what errors a function can throw, you don't reject a lazy promise by throwing an error, but only by calling `reject`. It's still possible however that an error will be thrown due to a bug, and for that there exists a third "failure" channel, which is much like the rejection channel, but deals with untyped errors, for instance failed assertions.
+- If you subscribe to a lazy promise that can resolve to a typed error, the type system will want you to provide a `resolve` handler.
 
-```ts
-// `handleFailure` is always optional and has signature `(error: unknown) => void`.
-lazyPromise.subscribe(handleValue, handleRejection, handleFailure);
-```
+- `map`, `all`, and `race` operators pass typed errors through, the same way they pass through rejections.
 
-Besides throwing in the callbacks you pass to LazyPromise constructor, `fromEager`, `map`, etc., you can also fail a lazy promise using the `fail` handle:
+- There is an operator `catchTypedError` that does for typed errors what `catchError` does for rejections.
 
-```ts
-// `fail` has signature `(error: unknown) => void`.
-const lazyPromise = new LazyPromise((resolve, reject, fail) => {
-  // Throwing here is the same as calling `fail`.
-
-  // If you throw in setTimeout, LazyPromise will have no way of
-  // knowing about it, so `fail` has to be called explicitly.
-  setTimeout(() => {
-    try {
-      ...
-    } catch (error) {
-      fail(error);
-    }
-  });
-});
-```
-
-There are `catchFailure` and `failed` utilities analogous to `catchRejection` and `rejected`.
-
-The failure channel makes typed errors an optional feature: you can easily use the library with all your promises typed as `LazyPromise<Value, never>`.
+Typed errors are optional in the sense that you can forget about them if you don't use `TypedError` class, but there is one exception to that, and that's the `any` operator. When one of the promises passed to the native `Promise.any` rejects because of a bug, the bug ends up unnoticed if another of the input promises resolves. The lazy promise version of `any` works like `Promise.any` when it comes to typed errors, but rejects if even one of the inputs rejects.
 
 ## Utilities
 
@@ -149,25 +115,26 @@ The failure channel makes typed errors an optional feature: you can easily use t
   try {
     return 1;
   } finally {
-    await x;
+    await nativePromise;
   }
   ```
 
-  this would produce a promise that waits for `x`, then resolves with 1, discarding the value that `x` resolved to. In the same way, piping a lazy promise through `finalize(() => inTimeout(ms))` delays it by `ms`, or piping it through `finalize(inMicrotask)` makes it settle in a microtask.
+  this would produce a promise that waits for `nativePromise`, then resolves with 1, discarding the value that `nativePromise` resolved to. In the same way, piping a lazy promise through `finalize(() => inTimeout(ms))` delays it by `ms`, and piping it through `finalize(inMicrotask)` makes it settle in a microtask.
 
 - `log` function wraps a lazy promise without changing its behavior, and console.logs everything that happens to it: `lazyPromise.pipe(log("your label"))`.
 
 ## Async-await syntax
 
-You cannot `await` a lazy promise, but you can return one from an async function, and that makes it easy to have typed errors when working with Promise-based APIs:
+You cannot `await` a lazy promise, but there is nothing stopping you from returning a `TypedError` from an async function, and that makes it easy to have typed errors when working with Promise-based APIs:
 
 ```ts
-// Type inferred as LazyPromise<"a", "error1">
-const lazyPromise = fromEager(async () => {
-  if (await someNativePromise) {
-    return rejected("error1");
+// Type inferred as LazyPromise<Data | TypedError<number>>
+const lazyPromise = fromEager(async ({ signal }) => {
+  const response = await fetch("https://...", { signal });
+  if (!response.ok) {
+    return new TypedError(response.status);
   }
-  return "a";
+  return (await response.json()) as Data;
 });
 ```
 
@@ -176,34 +143,18 @@ const lazyPromise = fromEager(async () => {
 This is a full LazyPromise equivalent of async-await. Just use generator functions instead of async functions, and `yield*` instead of `await`:
 
 ```ts
-// Type inferred as LazyPromise<"a-mapped", "error1">
+// Type inferred as LazyPromise<"b">
 const lazyPromise = fromGenerator(function* () {
   // Type inferred as "a"
-  const value = yield* new LazyPromise<"a", "error1">(() => {});
-  return `${value}-mapped` as const;
+  const value = yield* new LazyPromise<"a">(...);
+  return "b" as const;
 });
 ```
 
-The one difference is that there is no flattening. If you just wrote `return lazyPromise`, `fromGenerator` would produce `LazyPromise<LazyPromise<...>>`, so instead you should write `return yield* lazyPromise` (the equivalent of `return await nativePromise`).
+When you `yield*` to a lazy promise and that lazy promise rejects, the same thing happens as when you `await` a native promise and the native promise rejects: there is an error thrown which you can catch. Typed errors, on the other hand, are treated as any other values that a lazy promise can resolve to.
 
-When you `yield*` to a lazy promise of type `LazyPromise<never, ...>` such as `rejected(...)` or `never`, you get a value of type `never`, in other words the execution stops. To help TypeScript type inference, add a `return` statement in front of `yield*`:
+Consistently with the `finalize` operator, a `finally` block does not execute if the lazy promise returned by `fromGenerator` is torn down before reaching it. If you don't `yield*` inside `try`/`catch`, you keep the guarantee that `finally` will run no matter what.
 
-```ts
-// Type inferred as LazyPromise<"b", "error1">
-const lazyPromise = fromGenerator(function* () {
-  // Type inferred as "a" | "b"
-  const value = yield* new LazyPromise<"a" | "b", never>(() => {});
-  if (value === "a") {
-    // Adding `return` doesn't change the return type of the function
-    // since we're returning `never`, but helps TS narrow down the type
-    // of `value` down below.
-    return yield* rejected("error1");
-  }
-  // Type inferred as "b"
-  return value;
-});
-```
+## Class-based API
 
-When you `yield*` to a lazy promise and that lazy promise fails, the same thing happens as when you `await` a native promise that rejects: there is an error thrown which you can catch.
-
-As with the `finalize` operator, the `finally` block always executes unless the lazy promise returned by `fromGenerator` is torn down before reaching it. If you don't `yield*` inside `try`/`catch`, you keep the guarantee that `finally` will run no matter what.
+To get maximum performance, for instance when working on a library, you can avoid creating functions by using class instances in their place. Instead of passing a callback to `LazyPromise` constructor, you can pass a `Producer` instance with `.produce` method on it, and instead of returning a teardown function, you can return an `InnerSubscription` instance with `.unsubscribe` method.

@@ -1,35 +1,50 @@
+import type {
+  Flatten,
+  InnerSubscriber,
+  Producer,
+  Subscriber,
+} from "./lazyPromise";
 import { LazyPromise } from "./lazyPromise";
 
-const emptySymbol = Symbol("empty");
+class CatchErrorSubscriber implements Subscriber<any> {
+  constructor(
+    public innerSubscriber: InnerSubscriber<any>,
+    public callback: (value: any) => any,
+  ) {}
+
+  resolve(value: any) {
+    this.innerSubscriber.resolve(value);
+  }
+
+  reject(error: any) {
+    let newValue;
+    try {
+      newValue = (0, this.callback)(error);
+    } catch (callbackError) {
+      this.innerSubscriber.reject(callbackError);
+      return;
+    }
+    this.innerSubscriber.resolve(newValue);
+  }
+}
+
+class CatchErrorProducer implements Producer<any> {
+  constructor(
+    public source: LazyPromise<any>,
+    public callback: (value: any) => any,
+  ) {}
+
+  produce(innerSubscriber: InnerSubscriber<any>) {
+    return this.source.subscribe(
+      new CatchErrorSubscriber(innerSubscriber, this.callback),
+    );
+  }
+}
 
 /**
  * The LazyPromise equivalent of `promise.catch(...)`.
  */
 export const catchError =
-  <NewValue>(callback: (error: unknown) => NewValue | LazyPromise<NewValue>) =>
-  <Value>(source: LazyPromise<Value>): LazyPromise<Value | NewValue> =>
-    new LazyPromise((resolve, reject) => {
-      let dispose: (() => void) | undefined | typeof emptySymbol = emptySymbol;
-      dispose = source.subscribe(resolve, (error) => {
-        let newValue;
-        try {
-          newValue = callback(error);
-        } catch (callbackError) {
-          if (dispose) {
-            reject(callbackError);
-          }
-          return;
-        }
-        if (dispose) {
-          resolve(newValue);
-        }
-      });
-      if (dispose) {
-        return () => {
-          (dispose as () => void)();
-          // If the promise was unsubscribed from the callback, discard the
-          // callback's return value or error.
-          dispose = undefined;
-        };
-      }
-    });
+  <NewValue>(callback: (error: unknown) => NewValue) =>
+  <Value>(source: LazyPromise<Value>): LazyPromise<Value | Flatten<NewValue>> =>
+    new LazyPromise(new CatchErrorProducer(source, callback));

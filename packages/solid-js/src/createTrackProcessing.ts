@@ -29,18 +29,18 @@ export const createTrackProcessing = (): [
   return [
     processing,
     <Value>(lazyPromise: LazyPromise<Value>) =>
-      new LazyPromise<Value>((resolve, reject) => {
+      new LazyPromise<Value>((subscriber) => {
         setCount((count) => count + 1);
-        const unsubscribe = lazyPromise
+        const subscription = lazyPromise
           .pipe(
             finalize(() => {
               setCount((count) => count - 1);
             }),
           )
-          .subscribe(resolve, reject);
+          .subscribe(subscriber);
         return () => {
           setCount((count) => count - 1);
-          unsubscribe?.();
+          subscription.unsubscribe();
         };
       }),
   ];

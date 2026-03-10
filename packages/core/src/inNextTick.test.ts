@@ -1,3 +1,4 @@
+import type { Subscriber } from "@lazy-promise/core";
 import { inNextTick } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
@@ -13,6 +14,15 @@ const readLog = () => {
   } finally {
     logContents.length = 0;
   }
+};
+
+const logSubscriber: Subscriber<any> = {
+  resolve: (value) => {
+    log("handleValue", value);
+  },
+  reject: (error) => {
+    log("handleError", error);
+  },
 };
 
 beforeEach(() => {
@@ -35,9 +45,7 @@ afterEach(() => {
 });
 
 test("resolve", () => {
-  inNextTick().subscribe((value) => {
-    log("handleValue", value);
-  });
+  inNextTick().subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -51,9 +59,7 @@ test("resolve", () => {
 });
 
 test("cancel", () => {
-  inNextTick().subscribe(() => {
-    log("handleValue");
-  })!();
+  inNextTick().subscribe(logSubscriber).unsubscribe();
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });

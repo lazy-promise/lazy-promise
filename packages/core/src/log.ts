@@ -67,32 +67,30 @@ export const log =
     const id = counter + 1;
     instanceCountMap.set(label, id);
     const prefix = [...(label === undefined ? [] : [`[${label}]`]), `[${id}]`];
-    return new LazyPromise((resolve, reject) => {
+    return new LazyPromise((subscriber) => {
       console.log(...prefix, `[subscribe]`);
-      const unsubscribe = bumpStackLevel(() =>
-        lazyPromise.subscribe(
-          (value) => {
+      const subscription = bumpStackLevel(() =>
+        lazyPromise.subscribe({
+          resolve: (value) => {
             console.log(...prefix, `[resolve]`, value);
             bumpStackLevel(() => {
-              resolve(value);
+              subscriber.resolve(value);
             });
           },
-          (error) => {
+          reject: (error) => {
             console.log(...prefix, `[reject]`, error);
             bumpStackLevel(() => {
-              reject(error);
+              subscriber.reject(error);
             });
           },
-        ),
+        }),
       );
-      if (unsubscribe) {
-        return () => {
-          console.log(...prefix, `[unsubscribe]`);
-          bumpStackLevel(() => {
-            unsubscribe();
-          });
-        };
-      }
+      return () => {
+        console.log(...prefix, `[unsubscribe]`);
+        bumpStackLevel(() => {
+          subscription.unsubscribe();
+        });
+      };
     });
 
     /* eslint-enable no-console */

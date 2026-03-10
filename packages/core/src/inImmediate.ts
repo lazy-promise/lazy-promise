@@ -1,4 +1,27 @@
+import type {
+  InnerSubscriber,
+  InnerSubscription,
+  Producer,
+} from "./lazyPromise";
 import { LazyPromise } from "./lazyPromise";
+
+class InImmediateSubscription implements InnerSubscription {
+  constructor(public id: ReturnType<typeof setImmediate>) {}
+
+  unsubscribe() {
+    clearImmediate(this.id);
+  }
+}
+
+const callback = (innerSubscriber: InnerSubscriber<void>) => {
+  innerSubscriber.resolve();
+};
+
+class InImmediateProducer implements Producer<void> {
+  produce(innerSubscriber: InnerSubscriber<void>) {
+    return new InImmediateSubscription(setImmediate(callback, innerSubscriber));
+  }
+}
 
 /**
  * Returns a lazy promise that resolves with a value of type `void` in a
@@ -17,9 +40,4 @@ import { LazyPromise } from "./lazyPromise";
  * ```
  */
 export const inImmediate = (): LazyPromise<void> =>
-  new LazyPromise((resolve) => {
-    const id = setImmediate(resolve);
-    return () => {
-      clearImmediate(id);
-    };
-  });
+  new LazyPromise(new InImmediateProducer());
