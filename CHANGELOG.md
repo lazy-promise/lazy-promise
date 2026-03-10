@@ -1,5 +1,19 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.21](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.21)
+
+- LazyPromise is now stateless.
+
+- Automatic flattening.
+
+- Typed error channel replaced with TypedError.
+
+- Class-based API.
+
+- `all` and `any` now also accept an object.
+
+- `rejected` renamed to `rejecting`.
+
 ## [@lazy-promise/core@0.0.20](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.20)
 
 - `noopUnsubscribe` removed in favor of undefined unsubscribe handle.
