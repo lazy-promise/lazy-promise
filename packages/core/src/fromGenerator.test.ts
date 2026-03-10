@@ -5,7 +5,7 @@ import {
   LazyPromise,
   map,
   never,
-  rejected,
+  rejecting,
   TypedError,
 } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
@@ -98,7 +98,7 @@ test("types", () => {
 
   expectTypeOf(
     fromGenerator(function* () {
-      yield* rejected(1);
+      yield* rejecting(1);
     }),
   ).toEqualTypeOf<LazyPromise<void>>();
 
@@ -330,7 +330,7 @@ test("multiple yields", () => {
 test("yield to a sync rejected (uncaught)", () => {
   fromGenerator(function* () {
     log("in generator");
-    yield* rejected("a");
+    yield* rejecting("a");
   }).subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -349,7 +349,7 @@ test("yield to a sync rejected (caught)", () => {
   fromGenerator(function* () {
     log("in generator");
     try {
-      yield* rejected("a");
+      yield* rejecting("a");
     } catch (e) {
       log("in catch");
       expect(e).toMatchInlineSnapshot(`"a"`);
@@ -607,9 +607,9 @@ test("override rejection with another rejection in finally clause (sync)", () =>
   const promise = fromGenerator(function* () {
     log("in generator");
     try {
-      return yield* rejected("a");
+      return yield* rejecting("a");
     } finally {
-      yield* rejected("b");
+      yield* rejecting("b");
     }
   });
   promise.subscribe(logSubscriber);
@@ -663,7 +663,7 @@ test("override rejection with throw in finally clause (sync)", () => {
   const promise = fromGenerator(function* () {
     log("in generator");
     try {
-      return yield* rejected("a");
+      return yield* rejecting("a");
     } finally {
       // eslint-disable-next-line no-unsafe-finally
       throw "b";
@@ -825,7 +825,7 @@ test("unsubscribe in generator after sync reject", () => {
       }, 1000);
     });
     try {
-      yield* rejected(1);
+      yield* rejecting(1);
     } catch {
       // eslint-disable-next-line no-use-before-define
       subscription.unsubscribe();
@@ -946,7 +946,7 @@ test("stack overflow with rejected lazy promises", () => {
   fromGenerator(function* () {
     for (let i = 0; i < maxStackDepth + 10; i++) {
       try {
-        yield* rejected();
+        yield* rejecting();
         // eslint-disable-next-line no-empty
       } catch (e) {}
     }

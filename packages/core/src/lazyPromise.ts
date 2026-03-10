@@ -427,7 +427,7 @@ class RejectingProducer implements Producer<never> {
 /**
  * Returns a LazyPromise which synchronously rejects with the provided error.
  */
-export const rejected = (error?: unknown): LazyPromise<never> =>
+export const rejecting = (error?: unknown): LazyPromise<never> =>
   new LazyPromise(new RejectingProducer(error));
 
 class NeverProducer implements Producer<never> {

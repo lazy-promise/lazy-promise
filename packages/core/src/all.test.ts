@@ -3,7 +3,7 @@ import {
   all,
   box,
   LazyPromise,
-  rejected,
+  rejecting,
   TypedError,
 } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
@@ -310,7 +310,7 @@ test("internally disposed when a source in an iterable rejects, internal disposa
         log("dispose a");
       };
     }),
-    rejected("b"),
+    rejecting("b"),
     new LazyPromise<string>(() => {
       log("produce c");
     }),
@@ -340,7 +340,7 @@ test("internally disposed when a source in an object rejects, internal disposal 
         log("dispose a");
       };
     }),
-    b: rejected("b"),
+    b: rejecting("b"),
     c: new LazyPromise<string>(() => {
       log("produce c");
     }),

@@ -3,7 +3,7 @@ import {
   box,
   LazyPromise,
   map,
-  rejected,
+  rejecting,
   TypedError,
 } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
@@ -112,7 +112,7 @@ test("outer promise resolves with a typed error", () => {
 });
 
 test("outer promise rejects", () => {
-  const promise = rejected("oops").pipe(map(() => undefined));
+  const promise = rejecting("oops").pipe(map(() => undefined));
   promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -138,7 +138,7 @@ test("inner promise resolves", () => {
 });
 
 test("inner promise rejects", () => {
-  const promise = box(1).pipe(map(() => rejected("oops")));
+  const promise = box(1).pipe(map(() => rejecting("oops")));
   promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [

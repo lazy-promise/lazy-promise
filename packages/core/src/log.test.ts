@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 
 import type { Subscriber } from "@lazy-promise/core";
-import { box, LazyPromise, log, rejected } from "@lazy-promise/core";
+import { box, LazyPromise, log, rejecting } from "@lazy-promise/core";
 import { afterEach, expect, test, vi } from "vitest";
 
 const logContents: unknown[] = [];
@@ -60,7 +60,7 @@ test("rejection", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  rejected(1).pipe(log("rejection case")).subscribe(logSubscriber);
+  rejecting(1).pipe(log("rejection case")).subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "[rejection case] [1] [subscribe]",

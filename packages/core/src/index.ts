@@ -11,7 +11,7 @@ export { inImmediate } from "./inImmediate";
 export { inMicrotask } from "./inMicrotask";
 export { inNextTick } from "./inNextTick";
 export { inTimeout } from "./inTimeout";
-export { box, LazyPromise, never, rejected, TypedError } from "./lazyPromise";
+export { box, LazyPromise, never, rejecting, TypedError } from "./lazyPromise";
 export type {
   Flatten,
   InnerSubscriber,

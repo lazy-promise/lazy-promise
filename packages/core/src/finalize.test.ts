@@ -3,7 +3,7 @@ import {
   box,
   finalize,
   LazyPromise,
-  rejected,
+  rejecting,
   TypedError,
 } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
@@ -105,7 +105,7 @@ test("source resolves", () => {
 });
 
 test("source rejects", () => {
-  const promise = rejected(1).pipe(
+  const promise = rejecting(1).pipe(
     finalize(() => {
       log("finalize");
     }),
@@ -156,7 +156,7 @@ test("callback throws", () => {
     ]
   `);
 
-  rejected(1)
+  rejecting(1)
     .pipe(
       finalize(() => {
         throw "oops 2";
@@ -260,7 +260,7 @@ test("inner promise resolves (source resolves)", () => {
 });
 
 test("inner promise resolves (source rejects)", () => {
-  const promise = rejected(1).pipe(
+  const promise = rejecting(1).pipe(
     finalize(
       () =>
         new LazyPromise<2>((subscriber) => {
@@ -302,7 +302,7 @@ test("inner promise resolves with a typed error (source resolves)", () => {
 });
 
 test("inner promise resolves with a typed error (source rejects)", () => {
-  const promise = rejected(1).pipe(finalize(() => box(new TypedError(2))));
+  const promise = rejecting(1).pipe(finalize(() => box(new TypedError(2))));
   promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -317,7 +317,7 @@ test("inner promise resolves with a typed error (source rejects)", () => {
 });
 
 test("inner promise rejects", () => {
-  const promise = rejected(1).pipe(finalize(() => rejected(2)));
+  const promise = rejecting(1).pipe(finalize(() => rejecting(2)));
   promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [

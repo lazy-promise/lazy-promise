@@ -84,7 +84,7 @@ Aside from some superficial differences, LazyPromise API mirrors that of native 
 | `promise.catch(foo)`              | `lazyPromise.pipe(catchError(foo))` |
 | `promise.finally(foo)`            | `lazyPromise.pipe(finalize(foo))`   |
 | `Promise.resolve(valueOrPromise)` | `box(valueOrLazyPromise)`           |
-| `Promise.reject(error)`           | `rejected(error)`                   |
+| `Promise.reject(error)`           | `rejecting(error)`                  |
 | `new Promise<never>(() => {})`    | `never`                             |
 | `Promise.all(...)`                | `all(...)`                          |
 | `Promise.any(...)`                | `any(...)`                          |

@@ -1,5 +1,5 @@
 import type { InnerSubscriber, Subscriber } from "@lazy-promise/core";
-import { box, LazyPromise, never, race, rejected } from "@lazy-promise/core";
+import { box, LazyPromise, never, race, rejecting } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -187,7 +187,7 @@ test("sync error", () => {
         log("dispose a");
       };
     }),
-    rejected("b" as const),
+    rejecting("b" as const),
     new LazyPromise<never>(() => {
       log("produce c");
       return () => {

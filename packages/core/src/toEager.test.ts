@@ -1,5 +1,5 @@
 import type { InnerSubscriber } from "@lazy-promise/core";
-import { box, LazyPromise, rejected, toEager } from "@lazy-promise/core";
+import { box, LazyPromise, rejecting, toEager } from "@lazy-promise/core";
 import { afterEach, expect, test } from "vitest";
 
 const logContents: unknown[] = [];
@@ -37,7 +37,7 @@ test("no signal, resolve", async () => {
 });
 
 test("no signal, reject", async () => {
-  await expect(() => toEager(rejected("oops"))).rejects.toMatchInlineSnapshot(
+  await expect(() => toEager(rejecting("oops"))).rejects.toMatchInlineSnapshot(
     `"oops"`,
   );
 });
@@ -74,7 +74,7 @@ test("signal, async resolve", async () => {
 
 test("signal, sync reject", async () => {
   await expect(() =>
-    toEager(rejected("oops"), { signal: new AbortController().signal }),
+    toEager(rejecting("oops"), { signal: new AbortController().signal }),
   ).rejects.toMatchInlineSnapshot(`"oops"`);
 });
 

@@ -8,7 +8,7 @@ import {
   box,
   LazyPromise,
   never,
-  rejected,
+  rejecting,
   TypedError,
 } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
@@ -110,9 +110,9 @@ test("types", () => {
     ),
   ).toEqualTypeOf<LazyPromise<"a" | "value" | TypedError<"error">>>();
 
-  expectTypeOf(rejected("a")).toEqualTypeOf<LazyPromise<never>>();
+  expectTypeOf(rejecting("a")).toEqualTypeOf<LazyPromise<never>>();
 
-  expectTypeOf(rejected()).toEqualTypeOf<LazyPromise<never>>();
+  expectTypeOf(rejecting()).toEqualTypeOf<LazyPromise<never>>();
 
   // Check that typed errors are nominally typed.
   expectTypeOf({ error: "a" }).not.toExtend<TypedError<string>>();
@@ -853,7 +853,7 @@ test("box", () => {
 });
 
 test("rejected", () => {
-  const promise = rejected("error");
+  const promise = rejecting("error");
   expect(promise instanceof LazyPromise).toMatchInlineSnapshot(`true`);
   promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
