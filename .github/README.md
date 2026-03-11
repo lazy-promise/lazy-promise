@@ -10,12 +10,6 @@ A LazyPromise is like a Promise, except
 
 - It emits synchronously instead of in a microtask.
 
-Alternatively, a LazyPromise is like a single-shot Observable, except
-
-- Its API is tailored for the single-shot use-case
-
-- It gracefully handles synchronous re-entry.
-
 ## Philosophy
 
 The ingredients that went into the cauldron were as follows:
