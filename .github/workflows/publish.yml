@@ -22,7 +22,7 @@ jobs:
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          pnpm whoami || { echo "NPM authentication failed"; exit 1; }
+          pnpm whoami
           pnpm config set "//registry.npmjs.org/:_authToken" "${NPM_TOKEN}"
           pnpm --recursive --parallel exec bash ../../scripts/publish.sh
           git push --tags
