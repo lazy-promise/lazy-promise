@@ -267,7 +267,7 @@ export interface Producer<Value> {
 }
 
 /**
- * A Promise-like primitive which is stateless, cancelable, supports typed
+ * A Promise-like primitive which is lazy, cancelable, supports typed
  * errors, and emits synchronously instead of in a microtask.
  */
 export class LazyPromise<out Value> {

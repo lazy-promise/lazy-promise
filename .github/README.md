@@ -2,13 +2,9 @@
 
 A LazyPromise is like a Promise, except
 
-- It's stateless
+- Like an Observable (or more exactly a Single in RxJava), it's lazy, cancelable, and emits synchronously instead of in a microtask.
 
-- It's cancelable
-
-- It supports typed errors
-
-- It emits synchronously instead of in a microtask.
+- It supports typed errors.
 
 ## Philosophy
 
@@ -16,7 +12,7 @@ The ingredients that went into the cauldron were as follows:
 
 - A primitive-based approach: make the simplest possible primitive for the job without attempting to think of all possible use-cases.
 
-- The good and bad parts of the experience of using RxJS. You can't beat Observable for simplicity, but you've got the diamond problem (see 5th section "Reactive Algorithms" in [this article](https://milomg.dev/2022-12-01/reactivity)) and [undesirable behavior in the case of sync reentry](https://github.com/ReactiveX/rxjs/issues/5174). LazyPromise is what you get if you take an Observable, make it impossible to misuse it for what the Signals were built to do, and then take advantage of the reduced scope to make it reentry-proof.
+- The good and bad parts of the experience of using RxJS. You can't beat Observable for simplicity, but you've got the [diamond problem](https://stackblitz.com/edit/rxjs-diamond-problem-s8cy9zzb?devToolsHeight=33&file=index.ts) and [undesirable behavior in the case of sync reentry](https://stackblitz.com/edit/rxjs-sync-reentry-vxjr9fhr?devToolsHeight=33&file=index.ts). LazyPromise is what you get if you take an Observable, make it impossible to misuse it for what the Signals were built to do, and then take advantage of the reduced scope to make it reentry-proof.
 
 - Desire to avoid mandatory microtasks. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it (this breaks modularity). Without microtasks, you're in full control over what runs in what order.
 
@@ -47,7 +43,7 @@ const lazyPromise = new LazyPromise<"value">((subscriber) => {
 });
 ```
 
-Unlike a Promise and like an Observable, a LazyPromise is stateless. Conceptually, it is simply the function you passed to the constructor, with a wrapper around it that's only there to enforce a few invariants:
+Whereas a native Promise executes eagerly and retains the result once it settles, a LazyPromise behaves like an Observable. The way to think of it is `new LazyPromise(foo)` is simply `foo` with a wrapper around it that's only there to enforce a few invariants:
 
 - Nothing gets emitted after you unsubscribe
 

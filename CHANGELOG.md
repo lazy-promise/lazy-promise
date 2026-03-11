@@ -2,7 +2,7 @@
 
 ## [@lazy-promise/core@0.0.21](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.21)
 
-- LazyPromise is now stateless.
+- LazyPromise no longer stores and multicasts the result.
 
 - Automatic flattening.
 
@@ -10,7 +10,11 @@
 
 - Class-based API.
 
-- `all` and `any` now also accept an object.
+- Operators other than `log` now use class-based API internally.
+
+- `all` and `any` now optionally accept an object.
+
+- `all`, `any` and `race` can now handle not just promises but also plain values as inputs.
 
 - `rejected` renamed to `rejecting`.
 
