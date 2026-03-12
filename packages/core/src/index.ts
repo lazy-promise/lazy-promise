@@ -1,6 +1,6 @@
 export { all } from "./all";
 export { any } from "./any";
-export { catchError } from "./catchError";
+export { catchRejection } from "./catchRejection";
 export { catchTypedError } from "./catchTypedError";
 export { finalize } from "./finalize";
 export { fromEager } from "./fromEager";

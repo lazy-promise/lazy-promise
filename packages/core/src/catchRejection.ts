@@ -6,7 +6,7 @@ import type {
 } from "./lazyPromise";
 import { LazyPromise } from "./lazyPromise";
 
-class CatchErrorSubscriber implements Subscriber<any> {
+class CatchRejectionSubscriber implements Subscriber<any> {
   constructor(
     public innerSubscriber: InnerSubscriber<any>,
     public callback: (value: any) => any,
@@ -28,7 +28,7 @@ class CatchErrorSubscriber implements Subscriber<any> {
   }
 }
 
-class CatchErrorProducer implements Producer<any> {
+class CatchRejectionProducer implements Producer<any> {
   constructor(
     public source: LazyPromise<any>,
     public callback: (value: any) => any,
@@ -36,7 +36,7 @@ class CatchErrorProducer implements Producer<any> {
 
   produce(innerSubscriber: InnerSubscriber<any>) {
     return this.source.subscribe(
-      new CatchErrorSubscriber(innerSubscriber, this.callback),
+      new CatchRejectionSubscriber(innerSubscriber, this.callback),
     );
   }
 }
@@ -44,7 +44,7 @@ class CatchErrorProducer implements Producer<any> {
 /**
  * The LazyPromise equivalent of `promise.catch(...)`.
  */
-export const catchError =
+export const catchRejection =
   <NewValue>(callback: (error: unknown) => NewValue) =>
   <Value>(source: LazyPromise<Value>): LazyPromise<Value | Flatten<NewValue>> =>
-    new LazyPromise(new CatchErrorProducer(source, callback));
+    new LazyPromise(new CatchRejectionProducer(source, callback));

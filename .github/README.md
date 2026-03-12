@@ -68,18 +68,18 @@ subscription.unsubscribe();
 
 Aside from some superficial differences, LazyPromise API mirrors that of native Promise:
 
-| Promise api                       | LazyPromise equivalent              |
-| :-------------------------------- | :---------------------------------- |
-| `promise.then(foo)`               | `lazyPromise.pipe(map(foo))`        |
-| `promise.catch(foo)`              | `lazyPromise.pipe(catchError(foo))` |
-| `promise.finally(foo)`            | `lazyPromise.pipe(finalize(foo))`   |
-| `Promise.resolve(valueOrPromise)` | `box(valueOrLazyPromise)`           |
-| `Promise.reject(error)`           | `rejecting(error)`                  |
-| `new Promise<never>(() => {})`    | `never`                             |
-| `Promise.all(...)`                | `all(...)`                          |
-| `Promise.any(...)`                | `any(...)`                          |
-| `Promise.race(...)`               | `race(...)`                         |
-| `Awaited<T>`                      | `Flatten<T>`                        |
+| Promise api                       | LazyPromise equivalent                  |
+| :-------------------------------- | :-------------------------------------- |
+| `promise.then(foo)`               | `lazyPromise.pipe(map(foo))`            |
+| `promise.catch(foo)`              | `lazyPromise.pipe(catchRejection(foo))` |
+| `promise.finally(foo)`            | `lazyPromise.pipe(finalize(foo))`       |
+| `Promise.resolve(valueOrPromise)` | `box(valueOrLazyPromise)`               |
+| `Promise.reject(error)`           | `rejecting(error)`                      |
+| `new Promise<never>(() => {})`    | `never`                                 |
+| `Promise.all(...)`                | `all(...)`                              |
+| `Promise.any(...)`                | `any(...)`                              |
+| `Promise.race(...)`               | `race(...)`                             |
+| `Awaited<T>`                      | `Flatten<T>`                            |
 
 LazyPromise API does not just resemble the native Promise API, but follows all its subtleties unless stated otherwise in the docs. In particular, if you call the `resolve` handle of a native `Promise` with a `Promise<string>` as an argument, you'll end up with `Promise<string>`, not `Promise<Promise<string>>`. LazyPromise is similarly flattened.
 
@@ -91,7 +91,7 @@ Whereas untyped errors are represented by rejections, typed errors are represent
 
 - `map`, `all`, and `race` operators pass typed errors through, the same way they pass through rejections.
 
-- There is an operator `catchTypedError` that does for typed errors what `catchError` does for rejections.
+- There is an operator `catchTypedError` that does for typed errors what `catchRejection` does for rejections.
 
 Typed errors are optional in the sense that you can forget about them if you don't use `TypedError` class, but there is one exception to that, and that's the `any` operator. When one of the promises passed to the native `Promise.any` rejects because of a bug, the bug ends up unnoticed if another of the input promises resolves. The lazy promise version of `any` works like `Promise.any` when it comes to typed errors, but rejects if even one of the inputs rejects.
 
