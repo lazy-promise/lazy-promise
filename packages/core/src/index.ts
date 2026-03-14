@@ -8,6 +8,7 @@ export { fromGenerator } from "./fromGenerator";
 export { inAnimationFrame } from "./inAnimationFrame";
 export { inIdleCallback } from "./inIdleCallback";
 export { inImmediate } from "./inImmediate";
+export { inMessageChannel } from "./inMessageChannel";
 export { inMicrotask } from "./inMicrotask";
 export { inNextTick } from "./inNextTick";
 export { inTimeout } from "./inTimeout";
