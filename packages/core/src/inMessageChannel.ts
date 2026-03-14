@@ -6,26 +6,24 @@ const subscribers: InnerSubscriber<void>[] = [];
 let channel: MessageChannel | undefined;
 
 const createChannel = () => {
-  const channel = new MessageChannel();
+  channel = new MessageChannel();
   channel.port1.onmessage = () => {
     const subscriber = subscribers.shift();
     subscriber!.resolve();
     if (subscribers.length === 0) {
-      (channel.port1 as any).unref?.();
+      (channel!.port1 as any).unref?.();
     }
   };
-  (channel.port1 as any).unref?.();
-  return channel;
 };
 
 class InMessageChannelProducer implements Producer<void> {
   produce(innerSubscriber: InnerSubscriber<void>) {
     subscribers.push(innerSubscriber);
     if (!channel) {
-      channel = createChannel();
+      createChannel();
     }
-    channel.port2.postMessage(null);
-    (channel.port1 as any).ref?.();
+    channel!.port2.postMessage(null);
+    (channel!.port1 as any).ref?.();
   }
 }
 
