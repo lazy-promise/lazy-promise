@@ -5,6 +5,14 @@
   "repository": "https://github.com/lazy-promise/lazy-promise.git",
   "license": "MIT",
   "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./build/types/index.d.ts",
+      "import": "./build/module/index.js",
+      "require": "./build/main/index.js",
+      "default": "./build/module/index.js"
+    }
+  },
   "main": "build/main/index.js",
   "module": "build/module/index.js",
   "types": "build/types/index.d.ts",
