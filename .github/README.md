@@ -14,7 +14,7 @@ The ingredients that went into the cauldron were as follows:
 
 - The good and bad parts of the experience of using RxJS. You can't beat Observable for simplicity, but you've got the [diamond problem](https://stackblitz.com/edit/rxjs-diamond-problem-s8cy9zzb?devToolsHeight=33&file=index.ts) and [undesirable behavior in the case of sync reentry](https://stackblitz.com/edit/rxjs-sync-reentry-vxjr9fhr?devToolsHeight=33&file=index.ts). LazyPromise is what you get if you take an Observable, make it impossible to misuse it for what the Signals were built to do, and then take advantage of the reduced scope to make it reentry-proof.
 
-- Desire to avoid mandatory microtasks. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it (this breaks modularity). Without microtasks, you're in full control over what runs in what order.
+- Desire to avoid mandatory microtasks. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it. To decide whether you want microtasks, you'd have to weight the benefits against the costs from the point of view of various use-cases. You can do that, or you can just pick the simpler one of the two alternatives.
 
 - Practical need for typed errors.
 
