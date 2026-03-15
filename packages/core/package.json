@@ -1,6 +1,6 @@
 {
   "name": "@lazy-promise/core",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "description": "A Promise-like primitive which is lazy, cancelable, supports typed errors, and emits synchronously instead of in a microtask",
   "repository": "https://github.com/lazy-promise/lazy-promise.git",
   "license": "MIT",
@@ -37,9 +37,10 @@
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^25.0.3",
+    "@types/web": "0.0.342",
     "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^8.57.0",
-    "typescript": "^5.5.3",
+    "typescript": "^5.9.3",
     "vitest": "^4.0.16"
   }
 }

@@ -27,7 +27,13 @@ class InImmediateProducer implements Producer<void> {
  * Returns a lazy promise that resolves with a value of type `void` in a
  * setImmediate callback (deprecated outside of Node).
  *
- * To make a lazy promise settle via setImmediate, pipe it though
+ * To defer execution of a callback, use
+ *
+ * ```
+ * inImmediate().pipe(map(() => ...))
+ * ```
+ *
+ * To make an existing lazy promise settle via setImmediate, pipe it though
  *
  * ```
  * finalize(inImmediate)

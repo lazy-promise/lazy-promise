@@ -31,7 +31,13 @@ class InTimeoutProducer implements Producer<void> {
  * Takes optional duration in ms, and returns a lazy promise that resolves with
  * a value of type `void` when setTimeout fires.
  *
- * To make a lazy promise settle with a delay, pipe it though
+ * To defer execution of a callback, use
+ *
+ * ```
+ * inTimeout(ms).pipe(map(() => ...))
+ * ```
+ *
+ * To make an existing lazy promise settle with a delay, pipe it though
  *
  * ```
  * finalize(() => inTimeout(ms))

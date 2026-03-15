@@ -13,6 +13,12 @@ class InMicrotaskProducer implements Producer<void> {
  * Returns a lazy promise that resolves in a microtask with a value of type
  * `void`.
  *
+ * To defer execution of a callback, use
+ *
+ * ```
+ * inMicrotask().pipe(map(() => ...))
+ * ```
+ *
  * To make an existing lazy promise settle in a microtask, pipe it though
  *
  * ```

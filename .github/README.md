@@ -99,17 +99,23 @@ Typed errors are optional in the sense that you can forget about them if you don
 
 - `toEager` converts a LazyPromise to a Promise, `fromEager` converts an async function to a LazyPromise. Both utilities support AbortSignal API.
 
-- There are convenience wrappers for browser and Node deferral APIs: `inTimeout`, `inMicrotask`, `inAnimationFrame`, `inIdleCallback`, `inImmediate`, `inNextTick`. Each of these returns a lazy promise that fires in respectively `setTimeout`, `queueMicrotask` etc. If you wrote
+- Wrappers for browser and Node deferral APIs: `inTimeout`, `inMicrotask`, `inAnimationFrame`, `inIdleCallback`, `inImmediate`, `inNextTick`, `inMessageChannel`, `inScheduled`. Each of these returns a lazy promise that fires, typically with a value of `undefined`, in respectively `setTimeout`, `queueMicrotask` etc. Since these are non-imaginative convenience wrappers for native APIs, they don't add much complexity to the API surface, yet they remove the need for some extra constructs you'd normally find in libraries that deal with async. Take the use-case of delaying a lazy promise. With native promises, you could write
 
   ```ts
   try {
-    return 1;
+    return originalPromise;
   } finally {
-    await nativePromise;
+    await anotherPromise;
   }
   ```
 
-  this would produce a promise that waits for `nativePromise`, then resolves with 1, discarding the value that `nativePromise` resolved to. In the same way, piping a lazy promise through `finalize(() => inTimeout(ms))` delays it by `ms`, and piping it through `finalize(inMicrotask)` makes it settle in a microtask.
+  and this would wait for `anotherPromise` before passing on the result of `originalPromise`. You can delay a lazy promise by just repeating this logic:
+
+  ```ts
+  originalLazyPromise.pipe(finalize(() => anotherLazyPromise));
+  ```
+
+  If `anotherLazyPromise` is `inTimeout(ms)`, that would delay `originalLazyPromise` by `ms`. If `anotherLazyPromise` is `inMicrotask()`, that would make `originalLazyPromise` settle in a microtask.
 
 - `log` function wraps a lazy promise without changing its behavior, and console.logs everything that happens to it: `lazyPromise.pipe(log("your label"))`.
 

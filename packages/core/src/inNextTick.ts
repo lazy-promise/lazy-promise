@@ -15,7 +15,13 @@ class InNextTickProducer implements Producer<void> {
  * Returns a lazy promise that resolves with a value of type `void` in
  * process.nextTick (Node-only).
  *
- * To make a lazy promise settle via nextTick, pipe it though
+ * To defer execution of a callback, use
+ *
+ * ```
+ * inNextTick().pipe(map(() => ...))
+ * ```
+ *
+ * To make an existing lazy promise settle via nextTick, pipe it though
  *
  * ```
  * finalize(inNextTick)

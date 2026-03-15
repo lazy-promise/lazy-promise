@@ -2,7 +2,7 @@
 
 ## [@lazy-promise/core@0.0.22](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.22)
 
-- `catchError` renamed to `catchRejection`.
+- New deferral wrappers `inMessageChannel` and `inScheduled`.
 
 ## [@lazy-promise/core@0.0.21](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.21)
 

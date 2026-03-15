@@ -11,6 +11,7 @@ export { inImmediate } from "./inImmediate";
 export { inMessageChannel } from "./inMessageChannel";
 export { inMicrotask } from "./inMicrotask";
 export { inNextTick } from "./inNextTick";
+export { inScheduled } from "./inScheduled";
 export { inTimeout } from "./inTimeout";
 export { box, LazyPromise, never, rejecting, TypedError } from "./lazyPromise";
 export type {
