@@ -1,6 +1,6 @@
-export { createFetcher } from "./createFetcher";
+export { createFetcher } from "./createFetcher.js";
 export {
   createTrackProcessing,
   type TrackProcessing,
-} from "./createTrackProcessing";
-export { useLazyPromise } from "./useLazyPromise";
+} from "./createTrackProcessing.js";
+export { useLazyPromise } from "./useLazyPromise.js";
