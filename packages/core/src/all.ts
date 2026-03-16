@@ -5,12 +5,12 @@ import type {
   Producer,
   Subscriber,
   Subscription,
-} from "./lazyPromise";
-import { LazyPromise, TypedError } from "./lazyPromise";
+} from "./lazyPromise.js";
+import { LazyPromise, TypedError } from "./lazyPromise.js";
 import type {
   NeverIfArrayContainsNever,
   NeverIfRecordContainsNever,
-} from "./utils";
+} from "./utils.js";
 
 class AllSubscriber implements Subscriber<any> {
   constructor(

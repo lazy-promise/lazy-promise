@@ -2,8 +2,8 @@ import type {
   InnerSubscriber,
   InnerSubscription,
   Producer,
-} from "./lazyPromise";
-import { LazyPromise } from "./lazyPromise";
+} from "./lazyPromise.js";
+import { LazyPromise } from "./lazyPromise.js";
 
 class InTimeoutSubscription implements InnerSubscription {
   constructor(public id: ReturnType<typeof setTimeout>) {}

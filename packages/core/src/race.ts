@@ -5,8 +5,8 @@ import type {
   Producer,
   Subscriber,
   Subscription,
-} from "./lazyPromise";
-import { LazyPromise } from "./lazyPromise";
+} from "./lazyPromise.js";
+import { LazyPromise } from "./lazyPromise.js";
 
 class RaceSubscriberSubscription implements Subscriber<any>, InnerSubscription {
   subscriptions: Subscription[] = [];

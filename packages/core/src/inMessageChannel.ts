@@ -1,5 +1,5 @@
-import type { InnerSubscriber, Producer } from "./lazyPromise";
-import { LazyPromise } from "./lazyPromise";
+import type { InnerSubscriber, Producer } from "./lazyPromise.js";
+import { LazyPromise } from "./lazyPromise.js";
 
 const subscribers: InnerSubscriber<void>[] = [];
 

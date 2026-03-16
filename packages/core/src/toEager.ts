@@ -1,4 +1,4 @@
-import type { LazyPromise, Subscriber, Subscription } from "./lazyPromise";
+import type { LazyPromise, Subscriber, Subscription } from "./lazyPromise.js";
 
 class ToEagerSubscriberListener
   implements Subscriber<any>, EventListenerObject

@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.23](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.23)
+
+- Fix relative imports.
+
 ## [@lazy-promise/core@0.0.22](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.22)
 
 - New deferral wrappers `inMessageChannel` and `inScheduled`.

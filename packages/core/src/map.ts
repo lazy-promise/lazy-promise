@@ -3,8 +3,8 @@ import type {
   InnerSubscriber,
   Producer,
   Subscriber,
-} from "./lazyPromise";
-import { LazyPromise, TypedError } from "./lazyPromise";
+} from "./lazyPromise.js";
+import { LazyPromise, TypedError } from "./lazyPromise.js";
 
 class MapSubscriber implements Subscriber<any> {
   constructor(

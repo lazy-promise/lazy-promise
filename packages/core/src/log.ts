@@ -1,4 +1,4 @@
-import { LazyPromise } from "./lazyPromise";
+import { LazyPromise } from "./lazyPromise.js";
 
 const instanceCountMap = new Map<string | number | undefined, number>();
 

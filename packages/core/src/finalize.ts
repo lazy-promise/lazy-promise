@@ -4,8 +4,8 @@ import type {
   Producer,
   Subscriber,
   Subscription,
-} from "./lazyPromise";
-import { LazyPromise, TypedError } from "./lazyPromise";
+} from "./lazyPromise.js";
+import { LazyPromise, TypedError } from "./lazyPromise.js";
 
 const emptySymbol = Symbol("empty");
 

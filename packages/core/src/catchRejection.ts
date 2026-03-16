@@ -3,8 +3,8 @@ import type {
   InnerSubscriber,
   Producer,
   Subscriber,
-} from "./lazyPromise";
-import { LazyPromise } from "./lazyPromise";
+} from "./lazyPromise.js";
+import { LazyPromise } from "./lazyPromise.js";
 
 class CatchRejectionSubscriber implements Subscriber<any> {
   constructor(

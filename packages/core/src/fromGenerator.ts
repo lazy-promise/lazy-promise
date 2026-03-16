@@ -6,8 +6,8 @@ import type {
   Subscriber,
   Subscription,
   Yieldable,
-} from "./lazyPromise";
-import { LazyPromise } from "./lazyPromise";
+} from "./lazyPromise.js";
+import { LazyPromise } from "./lazyPromise.js";
 
 const emptySymbol = Symbol("empty");
 

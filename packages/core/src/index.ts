@@ -1,19 +1,25 @@
-export { all } from "./all";
-export { any } from "./any";
-export { catchRejection } from "./catchRejection";
-export { catchTypedError } from "./catchTypedError";
-export { finalize } from "./finalize";
-export { fromEager } from "./fromEager";
-export { fromGenerator } from "./fromGenerator";
-export { inAnimationFrame } from "./inAnimationFrame";
-export { inIdleCallback } from "./inIdleCallback";
-export { inImmediate } from "./inImmediate";
-export { inMessageChannel } from "./inMessageChannel";
-export { inMicrotask } from "./inMicrotask";
-export { inNextTick } from "./inNextTick";
-export { inScheduled } from "./inScheduled";
-export { inTimeout } from "./inTimeout";
-export { box, LazyPromise, never, rejecting, TypedError } from "./lazyPromise";
+export { all } from "./all.js";
+export { any } from "./any.js";
+export { catchRejection } from "./catchRejection.js";
+export { catchTypedError } from "./catchTypedError.js";
+export { finalize } from "./finalize.js";
+export { fromEager } from "./fromEager.js";
+export { fromGenerator } from "./fromGenerator.js";
+export { inAnimationFrame } from "./inAnimationFrame.js";
+export { inIdleCallback } from "./inIdleCallback.js";
+export { inImmediate } from "./inImmediate.js";
+export { inMessageChannel } from "./inMessageChannel.js";
+export { inMicrotask } from "./inMicrotask.js";
+export { inNextTick } from "./inNextTick.js";
+export { inScheduled } from "./inScheduled.js";
+export { inTimeout } from "./inTimeout.js";
+export {
+  box,
+  LazyPromise,
+  never,
+  rejecting,
+  TypedError,
+} from "./lazyPromise.js";
 export type {
   Flatten,
   InnerSubscriber,
@@ -21,8 +27,8 @@ export type {
   Producer,
   Subscriber,
   Subscription,
-} from "./lazyPromise";
-export { log } from "./log";
-export { map } from "./map";
-export { race } from "./race";
-export { toEager } from "./toEager";
+} from "./lazyPromise.js";
+export { log } from "./log.js";
+export { map } from "./map.js";
+export { race } from "./race.js";
+export { toEager } from "./toEager.js";
