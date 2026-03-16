@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.24](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.24)
+
+- `fromEager` and `fromGenerator` now accept respectively a Promise and a Generator in addition to callbacks.
+
 ## [@lazy-promise/core@0.0.23](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.23)
 
 - Fix relative imports.

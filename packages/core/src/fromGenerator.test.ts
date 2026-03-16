@@ -71,6 +71,23 @@ test("types", () => {
     LazyPromise<TypedError<"error2"> | TypedError<"error1"> | "b">
   >();
 
+  const generatorFunction = function* () {
+    const value = yield* new LazyPromise<"a" | "b" | TypedError<"error1">>(
+      () => {},
+    );
+    expectTypeOf(value).toEqualTypeOf<"a" | "b" | TypedError<"error1">>();
+    if (value === "a") {
+      return yield* new LazyPromise<TypedError<"error2">>(() => {});
+    }
+    return value;
+  };
+  expectTypeOf(fromGenerator(generatorFunction)).toEqualTypeOf<
+    LazyPromise<TypedError<"error2"> | TypedError<"error1"> | "b">
+  >();
+  expectTypeOf(fromGenerator(generatorFunction())).toEqualTypeOf<
+    LazyPromise<TypedError<"error2"> | TypedError<"error1"> | "b">
+  >();
+
   expectTypeOf(
     fromGenerator(function* () {
       return 1 as const;
@@ -106,6 +123,12 @@ test("types", () => {
   fromGenerator(function* () {
     yield new LazyPromise<"a">(() => {});
   });
+
+  const badGeneratorFunction = function* () {
+    yield new LazyPromise<"a">(() => {});
+  };
+  /** @ts-expect-error */
+  fromGenerator(badGeneratorFunction);
 
   /** @ts-expect-error */
   fromGenerator(function* () {
@@ -147,6 +170,26 @@ test("return value", () => {
     log("in generator");
     return "a";
   });
+  promise.subscribe(logSubscriber);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      [
+        "handleValue",
+        "a",
+      ],
+    ]
+  `);
+});
+
+test("passing generator instead of generator function", () => {
+  const generatorFunction = function* () {
+    log("in generator");
+    return "a";
+  };
+  const promise = fromGenerator(generatorFunction());
   promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
