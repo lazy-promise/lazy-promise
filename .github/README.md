@@ -158,7 +158,7 @@ When you `yield*` to a lazy promise and that lazy promise rejects, the same thin
 
 Similarly to the `finalize` operator, a `finally` block does not execute if the lazy promise returned by `fromGenerator` is torn down before reaching it. If you don't `yield*` inside `try`/`catch`, you keep the guarantee that `finally` will run no matter what.
 
-In the above example we give `fromGenerator` a generator function that takes no arguments. Alternatively, you can give it a generator object (the return value of a generator function):
+In the above example we give `fromGenerator` a generator function that takes no arguments, and this function is called each time the resulting lazy promise is subscribed. Alternatively, you can give it a generator object (the return value of a generator function):
 
 ```ts
 const generatorFunction = function* (a: A, b: B) {
