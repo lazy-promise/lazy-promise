@@ -1,5 +1,11 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.25](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.25)
+
+- Revert previous update due to bad ergonomics.
+
+- New utility type `LazyPromiseGenerator`.
+
 ## [@lazy-promise/core@0.0.24](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.24)
 
 - `fromEager` and `fromGenerator` now accept respectively a Promise and a Generator in addition to callbacks.

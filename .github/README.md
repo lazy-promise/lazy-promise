@@ -56,7 +56,10 @@ Whereas a native Promise executes eagerly and retains the result once it settles
 Just like a function doesn't do anything until you call it, a LazyPromise doesn't do anything until you subscribe to it:
 
 ```ts
-const subscription = lazyPromise.subscribe({resolve: (value) =>..., reject: (error) => ...});
+const subscription = lazyPromise.subscribe({
+  resolve: (value) => ...,
+  reject: (error) => ...,
+});
 ```
 
 To cancel the subscription, you call
@@ -158,15 +161,7 @@ When you `yield*` to a lazy promise and that lazy promise rejects, the same thin
 
 Similarly to the `finalize` operator, a `finally` block does not execute if the lazy promise returned by `fromGenerator` is torn down before reaching it. If you don't `yield*` inside `try`/`catch`, you keep the guarantee that `finally` will run no matter what.
 
-In the above example we give `fromGenerator` a generator function that takes no arguments, and this function is called each time the resulting lazy promise is subscribed. Alternatively, you can give it a generator object (the return value of a generator function):
-
-```ts
-const generatorFunction = function* (a: A, b: B) {
-  ...
-};
-
-const lazyPromise = fromGenerator(generatorFunction(a, b));
-```
+One final point is that instead of writing `yield* fromGenerator(foo)`, you can equivalently yield to the generator function `foo` directly: `yield* foo()`. This has an added advantage of being able to pass arguments.
 
 ## Class-based API
 

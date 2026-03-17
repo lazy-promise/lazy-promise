@@ -9,6 +9,8 @@ import type {
 } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
+export type LazyPromiseGenerator<TReturn> = Generator<Yieldable, TReturn>;
+
 const emptySymbol = Symbol("empty");
 
 class FromGeneratorSubscriberSubscription<TReturn>
@@ -112,18 +114,11 @@ class FromGeneratorSubscriberSubscription<TReturn>
 }
 
 class FromGeneratorProducer<TReturn> implements Producer<any> {
-  constructor(
-    public generator:
-      | Generator<Yieldable, TReturn>
-      | (() => Generator<Yieldable, TReturn>),
-  ) {}
+  constructor(public generatorFunction: () => LazyPromiseGenerator<TReturn>) {}
 
   produce(innerSubscriber: InnerSubscriber<any>) {
-    const generator =
-      Symbol.iterator in this.generator
-        ? this.generator
-        : // This may throw and cause promise rejection.
-          (0, this.generator)();
+    // This may throw and cause promise rejection.
+    const generator = (0, this.generatorFunction)();
     const innerSubscription = new FromGeneratorSubscriberSubscription(
       innerSubscriber,
       generator,
@@ -138,18 +133,9 @@ class FromGeneratorProducer<TReturn> implements Producer<any> {
 }
 
 /**
- * Converts a generator or a generator function to a LazyPromise.
+ * Converts a generator function to a LazyPromise.
  */
-export const fromGenerator: {
-  <TReturn>(
-    generator: Generator<Yieldable, TReturn>,
-  ): LazyPromise<Flatten<TReturn>>;
-  <TReturn>(
-    generator: () => Generator<Yieldable, TReturn>,
-  ): LazyPromise<Flatten<TReturn>>;
-} = <TReturn>(
-  generator:
-    | Generator<Yieldable, TReturn>
-    | (() => Generator<Yieldable, TReturn>),
+export const fromGenerator = <TReturn>(
+  generatorFunction: () => LazyPromiseGenerator<TReturn>,
 ): LazyPromise<Flatten<TReturn>> =>
-  new LazyPromise<any>(new FromGeneratorProducer(generator));
+  new LazyPromise<any>(new FromGeneratorProducer(generatorFunction));

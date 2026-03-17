@@ -1,5 +1,10 @@
 import type { InnerSubscriber, Subscriber } from "@lazy-promise/core";
-import { box, catchRejection, LazyPromise } from "@lazy-promise/core";
+import {
+  box,
+  catchRejection,
+  LazyPromise,
+  rejecting,
+} from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -64,6 +69,24 @@ test("types", () => {
       catchRejection(() => "value b" as const),
     ),
   ).toEqualTypeOf<LazyPromise<"value a" | "value b">>();
+});
+
+test("value of this", () => {
+  const promise = rejecting("error").pipe(
+    catchRejection(function () {
+      /** @ts-expect-error */
+      log("in callback", this);
+    }),
+  );
+  promise.subscribe();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in callback",
+        undefined,
+      ],
+    ]
+  `);
 });
 
 test("falling back to a value", () => {

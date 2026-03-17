@@ -67,15 +67,7 @@ test("types", () => {
 
   expectTypeOf(fromEager(() => "a" as const)).toEqualTypeOf<LazyPromise<"a">>();
 
-  expectTypeOf(fromEager(Promise.resolve("a" as const))).toEqualTypeOf<
-    LazyPromise<"a">
-  >();
-
   expectTypeOf(fromEager(() => box("a"))).toEqualTypeOf<LazyPromise<"a">>();
-
-  expectTypeOf(fromEager(Promise.resolve(box("a")))).toEqualTypeOf<
-    LazyPromise<"a">
-  >();
 
   expectTypeOf(fromEager(async () => "a" as const)).toEqualTypeOf<
     LazyPromise<"a">
@@ -129,31 +121,17 @@ test("types", () => {
   /* eslint-enable require-await */
 });
 
-test("no callback (resolve)", async () => {
-  const promise = fromEager(Promise.resolve("value"));
-  promise.subscribe(logSubscriber);
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
-  await flushMicrotasks();
+test("value of this", () => {
+  const promise = fromEager(function () {
+    /** @ts-expect-error */
+    log("in callback", this);
+  });
+  promise.subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "handleValue",
-        "value",
-      ],
-    ]
-  `);
-});
-
-test("no callback (reject)", async () => {
-  const promise = fromEager(Promise.reject("oops"));
-  promise.subscribe(logSubscriber);
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
-  await flushMicrotasks();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "handleError",
-        "oops",
+        "in callback",
+        undefined,
       ],
     ]
   `);

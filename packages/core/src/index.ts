@@ -5,6 +5,7 @@ export { catchTypedError } from "./catchTypedError.js";
 export { finalize } from "./finalize.js";
 export { fromEager } from "./fromEager.js";
 export { fromGenerator } from "./fromGenerator.js";
+export type { LazyPromiseGenerator } from "./fromGenerator.js";
 export { inAnimationFrame } from "./inAnimationFrame.js";
 export { inIdleCallback } from "./inIdleCallback.js";
 export { inImmediate } from "./inImmediate.js";

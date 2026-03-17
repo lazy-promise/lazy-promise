@@ -83,6 +83,24 @@ test("types", () => {
   >();
 });
 
+test("value of this", () => {
+  const promise = box(1).pipe(
+    map(function () {
+      /** @ts-expect-error */
+      log("in callback", this);
+    }),
+  );
+  promise.subscribe();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in callback",
+        undefined,
+      ],
+    ]
+  `);
+});
+
 test("mapping to a value", () => {
   const promise = box(1).pipe(map((value) => value + 1));
   promise.subscribe(logSubscriber);

@@ -83,6 +83,24 @@ test("types", () => {
   ).toEqualTypeOf<LazyPromise<TypedError<"error b"> | "value a" | "value b">>();
 });
 
+test("value of this", () => {
+  const promise = box(new TypedError("error")).pipe(
+    catchTypedError(function () {
+      /** @ts-expect-error */
+      log("in callback", this);
+    }),
+  );
+  promise.subscribe();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in callback",
+        undefined,
+      ],
+    ]
+  `);
+});
+
 test("falling back to a value", () => {
   const promise = box(new TypedError(1)).pipe(
     catchTypedError((error) => error + 1),

@@ -1,4 +1,4 @@
-import type { Subscriber } from "@lazy-promise/core";
+import type { LazyPromiseGenerator, Subscriber } from "@lazy-promise/core";
 import {
   box,
   fromGenerator,
@@ -84,9 +84,6 @@ test("types", () => {
   expectTypeOf(fromGenerator(generatorFunction)).toEqualTypeOf<
     LazyPromise<TypedError<"error2"> | TypedError<"error1"> | "b">
   >();
-  expectTypeOf(fromGenerator(generatorFunction())).toEqualTypeOf<
-    LazyPromise<TypedError<"error2"> | TypedError<"error1"> | "b">
-  >();
 
   expectTypeOf(
     fromGenerator(function* () {
@@ -165,6 +162,22 @@ test("types", () => {
   expectTypeOf(f2("a" as const)).toEqualTypeOf<LazyPromise<{ prop: "a" }>>();
 });
 
+test("value of this", () => {
+  const promise = fromGenerator(function* () {
+    /** @ts-expect-error */
+    log("in callback", this);
+  });
+  promise.subscribe();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in callback",
+        undefined,
+      ],
+    ]
+  `);
+});
+
 test("return value", () => {
   const promise = fromGenerator(function* () {
     log("in generator");
@@ -182,14 +195,6 @@ test("return value", () => {
       ],
     ]
   `);
-});
-
-test("passing generator instead of generator function", () => {
-  const generatorFunction = function* () {
-    log("in generator");
-    return "a";
-  };
-  const promise = fromGenerator(generatorFunction());
   promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -199,6 +204,32 @@ test("passing generator instead of generator function", () => {
       [
         "handleValue",
         "a",
+      ],
+    ]
+  `);
+});
+
+test("yield to another generator function", () => {
+  const a = function* (): LazyPromiseGenerator<number> {
+    const value = yield* new LazyPromise<string>((subscriber) => {
+      setTimeout(() => {
+        subscriber.resolve("value");
+      }, 1000);
+    });
+    expect(value).toMatchInlineSnapshot(`"value"`);
+    return 1;
+  };
+  const promise = fromGenerator(function* () {
+    return yield* a();
+  });
+  promise.subscribe(logSubscriber);
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "handleValue",
+        1,
       ],
     ]
   `);

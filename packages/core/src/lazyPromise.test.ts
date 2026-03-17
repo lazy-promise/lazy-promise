@@ -124,6 +124,30 @@ test("types", () => {
   expectTypeOf<InnerSubscriber<"a">>().not.toExtend<InnerSubscriber<string>>();
 });
 
+test("value of this in the basic scenario", () => {
+  const promise = new LazyPromise<never>(function () {
+    /** @ts-expect-error */
+    log("in produce", this);
+    return function () {
+      /** @ts-expect-error */
+      log("in dispose", this);
+    };
+  });
+  promise.subscribe().unsubscribe();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in produce",
+        undefined,
+      ],
+      [
+        "in dispose",
+        undefined,
+      ],
+    ]
+  `);
+});
+
 test("async resolve", () => {
   const promise = new LazyPromise<string>((subscriber) => {
     setTimeout(() => {
@@ -360,8 +384,9 @@ test("unsubscribe from produce", () => {
           // eslint-disable-next-line no-use-before-define
           subscription.unsubscribe();
           subscriber.resolve("value");
-          return () => {
-            log("dispose inner");
+          return function () {
+            /** @ts-expect-error */
+            log("dispose inner", this);
           };
         }),
       );
@@ -377,6 +402,7 @@ test("unsubscribe from produce", () => {
       "1000 ms passed",
       [
         "dispose inner",
+        undefined,
       ],
     ]
   `);
