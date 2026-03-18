@@ -11,6 +11,7 @@
     "subpackages",
     "unstub",
     "vitest",
-    "yieldable"
+    "yieldable",
+    "Zalgo"
   ]
 }
