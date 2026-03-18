@@ -30,9 +30,9 @@ Third, LazyPromise takes the view that microtasks should not be mandatory. A nat
 
 Those concerns aside though, native Promise API is actually quite elegant, and LazyPromise API does not just resemble it, but follows all its subtleties unless stated otherwise in the docs. This has a side benefit of making the library easy to learn.
 
-### A need for typed errors
+### One more thing
 
-Whether you start with Observable or Promise, it's an extra reason for a new primitive. Support for typed errors may seem like a tack-on, but curiously, they are in fact required to make the `any` operator ergonomic, as discussed below.
+Neither Observable nor Promise supports typed errors, something for which there is a huge practical need. Typed errors may seem like a tack-on, but curiously, they are in fact required to make the `any` operator ergonomic, as discussed below.
 
 ## Usage
 
