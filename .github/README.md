@@ -22,17 +22,17 @@ Observable is beautifully simple conceptually, and has a great cancellation mech
 
 What's been said above sounds like all the more reason to use the native promise, but there's a catch, three of them actually, one major and two minor.
 
-First of all - that's the major one - good luck using AbortSignal API for cancellation.
+First of all, good luck using AbortSignal API for cancellation.
 
-Second, the same way Observable ventures into state territory by being multi-shot, Promise does it by storing and multi-casting its result, and you again have the Diamond Problem.
+Second, like Observable treads on state territory by being multi-shot, Promise does the same by storing and multi-casting its result, and you again have the Diamond Problem.
 
-Third, LazyPromise takes the view that microtasks should not be mandatory. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it. Additionally, by not using microtasks LazyPromise [outperforms](https://stackblitz.com/edit/long-running-tasks?devToolsHeight=50&file=index.ts) async-await syntax in the scenario where you run a computation-intensive task and periodically yield from it to unblock the main thread.
+Third, LazyPromise takes the view that microtasks should not be mandatory. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it. Additionally, by not using microtasks LazyPromise [outperforms](https://stackblitz.com/edit/long-running-tasks?devToolsHeight=50&file=index.ts) native promise in the scenario where you run a computation-intensive task and periodically yield from it to unblock the main thread.
 
 Those concerns aside though, native Promise API is actually quite elegant, and LazyPromise API does not just resemble it, but follows all its subtleties unless stated otherwise in the docs. This has a side benefit of making the library easy to learn.
 
 ### One more thing
 
-Neither Observable nor Promise supports typed errors, something for which there is a huge practical need. Typed errors may seem like a tack-on, but curiously, they are in fact required to make the `any` operator ergonomic, as discussed below.
+Unlike both Observable and Promise, LazyPromise supports typed errors. This feature may seem like an afterthought, but curiously, it is in fact required to make the `any` operator ergonomic, as explained below.
 
 ## Usage
 
@@ -99,13 +99,13 @@ Aside from superficial differences, LazyPromise API mirrors that of native Promi
 
 Whereas untyped errors are represented by rejections, typed errors are represented by instances of `TypedError<YourError>` class that a lazy promise can resolve to. `new TypedError(<your error>)` creates an object that simply stores `<your error>` as its `.error` property. It is treated differently from other values by LazyPromise API:
 
-- If you subscribe to a lazy promise that can resolve to a typed error, the type system will want you to provide a `resolve` handler.
+- If you subscribe to a lazy promise that can resolve to a typed error, the type system will want you to provide a `resolve` handler. So if for example in your server code you add a new error that an api endpoint can produce, you'll get TypeScript errors in all the places on the client where you failed to handle that error.
 
 - `map`, `all`, and `race` operators pass typed errors through, the same way they pass through rejections.
 
 - There is an operator `catchTypedError` which is a typed error counterpart of `catchRejection`.
 
-Typed errors are optional in the sense that you can pretend that the concept does not exist as long as you don't use `TypedError` class, with one exception which is the `any` operator. When one of the promises passed to the native `Promise.any` rejects because of a bug, the bug ends up undetected if another of the input promises resolves. The lazy promise version of `any` works like `Promise.any` when it comes to typed errors, but rejects if just one of the inputs rejects.
+Typed errors are optional in the sense that you can pretend that the concept does not exist as long as you don't use `TypedError` class, with one exception which is the `any` operator. When one of the promises passed to the native `Promise.any` rejects because of a bug, the bug ends up undetected if some other input promise resolves. The LazyPromise version of `any` works like `Promise.any` when it comes to typed errors, but rejects if just one input rejects.
 
 ## Utilities
 
@@ -127,13 +127,13 @@ Typed errors are optional in the sense that you can pretend that the concept doe
   originalLazyPromise.pipe(finalize(() => anotherLazyPromise));
   ```
 
-  If `anotherLazyPromise` is `inTimeout(ms)`, that would delay `originalLazyPromise` by `ms`. If `anotherLazyPromise` is `inMicrotask()`, that would make `originalLazyPromise` settle in a microtask.
+  If `anotherLazyPromise` is `inTimeout(ms)`, that would delay `originalLazyPromise` by `ms`. If `anotherLazyPromise` is `inMicrotask()`, that would make `originalLazyPromise` fire in a microtask.
 
 - `log` function wraps a lazy promise without changing its behavior, and console.logs everything that happens to it: `lazyPromise.pipe(log("your label"))`.
 
 ## Async-await syntax
 
-You cannot `await` a lazy promise, but there is nothing stopping you from returning a `TypedError` from an async function, and that makes it easy to have typed errors when working with Promise-based APIs:
+You cannot `await` a lazy promise, but there is nothing stopping you from returning a `TypedError` from an async function, and that makes it easy to produce typed errors when working with Promise-based APIs:
 
 ```ts
 // Type inferred as LazyPromise<Data | TypedError<number>>
@@ -166,12 +166,12 @@ const lazyPromise = fromGenerator(function* () {
 });
 ```
 
-When you `yield*` to a lazy promise and that lazy promise rejects, the same thing happens as when you `await` a native promise and the native promise rejects: there is an error thrown which you can catch. Typed errors, on the other hand, are treated as any other values that a lazy promise can resolve to.
+Whereas rejections are handled similarly to async-await syntax, typed errors are in this case treated like any other values that a lazy promise can resolve to.
 
-Similarly to the `finalize` operator, a `finally` block does not execute if the lazy promise returned by `fromGenerator` is torn down before reaching it. If you don't `yield*` inside `try`/`catch`, you keep the guarantee that `finally` will run no matter what.
+Similarly to the `finalize` operator, a `finally` block does not execute if the lazy promise returned by `fromGenerator` is unsubscribed before reaching it. If you don't `yield*` inside `try`/`catch`, you keep the guarantee that `finally` will run no matter what.
 
-One final thing to keep in mind is that instead of writing `yield* fromGenerator(foo)`, you can equivalently yield to the generator function `foo` directly: `yield* foo()`. This has an added advantage of being able to pass arguments.
+One last thing to keep in mind is that instead of writing `yield* fromGenerator(foo)`, you can equivalently yield to the generator function `foo` directly: `yield* foo()`. This has an added advantage of being able to pass arguments.
 
 ## Class-based API
 
-To get the best performance, for instance when working on a library, you can avoid the overhead of creating and garbage-collecting functions by replacing them with objects. Instead of passing a callback to the `LazyPromise` constructor, you can pass an object with `.produce` method on it (a `Producer`), and instead of returning a teardown function, you can return an object with `.unsubscribe` method (an `InnerSubscription`).
+To get the best performance, for instance when working on a library, you can avoid the overhead of creating and garbage-collecting functions by using objects in their place. Instead of passing a callback to the `LazyPromise` constructor, you can pass an object with `.produce` method on it (a `Producer`), and instead of returning a teardown function, you can return an object with `.unsubscribe` method (an `InnerSubscription`).
