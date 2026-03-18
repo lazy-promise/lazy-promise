@@ -22,7 +22,7 @@ Observable is beautifully simple conceptually, and has a great cancellation mech
 
 What's been said above sounds like all the more reason to use the native promise, but there's a catch, three of them actually, one major and two minor.
 
-First of all, good luck using AbortSignal API for cancellation.
+First of all, good luck using AbortSignal API for cancellation. It's not the specifics of that API though that lie at the heart of the problem here, but just the fact that Promise is eager.
 
 Second, like Observable treads on state territory by being multi-shot, Promise does the same by storing and multi-casting its result, and you again have the Diamond Problem.
 
@@ -97,9 +97,9 @@ Aside from superficial differences, LazyPromise API mirrors that of native Promi
 
 ## Typed errors
 
-Whereas untyped errors are represented by rejections, typed errors are represented by instances of `TypedError<YourError>` class that a lazy promise can resolve to. `new TypedError(<your error>)` creates an object that simply stores `<your error>` as its `.error` property. It is treated differently from other values by LazyPromise API:
+Whereas untyped errors are represented by rejections, typed errors are represented by instances of `TypedError<YourError>` class that a lazy promise can resolve to. `new TypedError(<your error>)` creates an object that simply stores `<your error>` in its `.error` property. It is treated differently from other values by LazyPromise API:
 
-- If you subscribe to a lazy promise that can resolve to a typed error, the type system will want you to provide a `resolve` handler. So if for example in your server code you add a new error that an api endpoint can produce, you'll get TypeScript errors in all the places on the client where you failed to handle that error.
+- If you subscribe to a lazy promise that can resolve to a typed error, the type system will want you to provide a `resolve` handler. So if for example in your server code you add a new error to an api endpoint, you'll get TypeScript errors in all the places on the client where you failed to handle that error.
 
 - `map`, `all`, and `race` operators pass typed errors through, the same way they pass through rejections.
 
@@ -174,4 +174,4 @@ One last thing to keep in mind is that instead of writing `yield* fromGenerator(
 
 ## Class-based API
 
-To get the best performance, for instance when working on a library, you can avoid the overhead of creating and garbage-collecting functions by using objects in their place. Instead of passing a callback to the `LazyPromise` constructor, you can pass an object with `.produce` method on it (a `Producer`), and instead of returning a teardown function, you can return an object with `.unsubscribe` method (an `InnerSubscription`).
+To get the best performance, for instance when working on a library, you can avoid the overhead of creating and garbage-collecting functions by using objects in their place. Instead of passing a callback to the `LazyPromise` constructor, you can pass an object with `.produce` method (a `Producer`), and instead of returning a teardown function, you can return an object with `.unsubscribe` method (an `InnerSubscription`).
