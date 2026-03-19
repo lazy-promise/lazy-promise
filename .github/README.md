@@ -24,7 +24,7 @@ What's been said above sounds like all the more reason to use the native promise
 
 First of all, good luck using AbortSignal API for cancellation. It's not the specifics of that API though that lie at the heart of the problem here, but just the fact that Promise is eager.
 
-Second, like Observable treads on state territory by being multi-shot, Promise does the same by storing and multi-casting its result, and you again have the Diamond Problem.
+Second, like Observable treads on state management territory by being multi-shot, Promise does the same by storing and multi-casting its result, and you again have the Diamond Problem.
 
 Third, LazyPromise takes the view that microtasks should not be mandatory. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this "Zalgo" guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it. Additionally, by not using microtasks LazyPromise [outperforms](https://stackblitz.com/edit/long-running-tasks?devToolsHeight=50&file=index.ts) native promise in a scenario where you run a computation-intensive task and periodically yield from it to unblock the main thread.
 
