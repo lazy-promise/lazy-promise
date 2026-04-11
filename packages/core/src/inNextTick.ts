@@ -18,19 +18,19 @@ class InNextTickProducer implements Producer<void> {
  * To defer execution of a callback, use
  *
  * ```
- * inNextTick().pipe(map(() => ...))
+ * inNextTick().map(() => ...)
  * ```
  *
  * To make an existing lazy promise settle via nextTick, pipe it though
  *
  * ```
- * finalize(inNextTick)
+ * .finalize(inNextTick)
  * ```
  *
  * To limit this to only when the promise resolves, use
  *
  * ```
- * map((value) => inNextTick().pipe(map(() => value)))
+ * map((value) => inNextTick().map(() => value))
  * ```
  */
 export const inNextTick = (): LazyPromise<void> =>

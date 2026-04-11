@@ -82,18 +82,18 @@ subscription.unsubscribe();
 
 Aside from superficial differences, LazyPromise API mirrors that of native Promise:
 
-| Promise api                       | LazyPromise equivalent                  |
-| :-------------------------------- | :-------------------------------------- |
-| `promise.then(foo)`               | `lazyPromise.pipe(map(foo))`            |
-| `promise.catch(foo)`              | `lazyPromise.pipe(catchRejection(foo))` |
-| `promise.finally(foo)`            | `lazyPromise.pipe(finalize(foo))`       |
-| `Promise.resolve(valueOrPromise)` | `box(valueOrLazyPromise)`               |
-| `Promise.reject(error)`           | `rejecting(error)`                      |
-| `new Promise<never>(() => {})`    | `never`                                 |
-| `Promise.all(...)`                | `all(...)`                              |
-| `Promise.any(...)`                | `any(...)`                              |
-| `Promise.race(...)`               | `race(...)`                             |
-| `Awaited<T>`                      | `Flatten<T>`                            |
+| Promise api                       | LazyPromise equivalent            |
+| :-------------------------------- | :-------------------------------- |
+| `promise.then(foo)`               | `lazyPromise.map(foo)`            |
+| `promise.catch(foo)`              | `lazyPromise.catchRejection(foo)` |
+| `promise.finally(foo)`            | `lazyPromise.finalize(foo)`       |
+| `Promise.resolve(valueOrPromise)` | `box(valueOrLazyPromise)`         |
+| `Promise.reject(error)`           | `rejecting(error)`                |
+| `new Promise<never>(() => {})`    | `never`                           |
+| `Promise.all(...)`                | `all(...)`                        |
+| `Promise.any(...)`                | `any(...)`                        |
+| `Promise.race(...)`               | `race(...)`                       |
+| `Awaited<T>`                      | `Flatten<T>`                      |
 
 ## Typed errors
 
@@ -108,6 +108,8 @@ Whereas untyped errors are represented by rejections, typed errors are represent
 Typed errors are optional in the sense that you can pretend that the concept does not exist as long as you don't use `TypedError` class, with one exception which is the `any` operator. When one of the promises passed to the native `Promise.any` rejects because of a bug, the bug ends up undetected if some other input promise resolves. The LazyPromise version of `any` works like `Promise.any` when it comes to typed errors, but rejects if just one input rejects.
 
 ## Utilities
+
+- `lazyPromise.pipe(foo)` is equivalent to `foo(lazyPromise)` and allows you to dot-chain custom operators.
 
 - `toEager` converts a LazyPromise to a Promise, `fromEager` converts an async function to a LazyPromise. Both utilities support AbortSignal API.
 
@@ -124,7 +126,7 @@ Typed errors are optional in the sense that you can pretend that the concept doe
   and this would wait for `anotherPromise` before passing on the result of `originalPromise`. You can delay a lazy promise in the same way:
 
   ```ts
-  originalLazyPromise.pipe(finalize(() => anotherLazyPromise));
+  originalLazyPromise.finalize(() => anotherLazyPromise);
   ```
 
   If `anotherLazyPromise` is `inTimeout(ms)`, that would delay `originalLazyPromise` by `ms`. If `anotherLazyPromise` is `inMicrotask()`, that would make `originalLazyPromise` fire in a microtask.

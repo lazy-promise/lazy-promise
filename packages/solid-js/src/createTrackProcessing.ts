@@ -1,4 +1,4 @@
-import { finalize, LazyPromise } from "@lazy-promise/core";
+import { LazyPromise } from "@lazy-promise/core";
 import type { Accessor } from "solid-js";
 import { createMemo, createSignal } from "solid-js";
 
@@ -32,11 +32,9 @@ export const createTrackProcessing = (): [
       new LazyPromise<Value>((subscriber) => {
         setCount((count) => count + 1);
         const subscription = lazyPromise
-          .pipe(
-            finalize(() => {
-              setCount((count) => count - 1);
-            }),
-          )
+          .finalize(() => {
+            setCount((count) => count - 1);
+          })
           .subscribe(subscriber);
         return () => {
           setCount((count) => count - 1);

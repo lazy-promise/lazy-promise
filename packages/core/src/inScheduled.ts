@@ -49,19 +49,19 @@ class InScheduledProducer implements Producer<void> {
  * To defer execution of a callback, use
  *
  * ```
- * inScheduled().pipe(map(() => ...))
+ * inScheduled().map(() => ...)
  * ```
  *
  * To make an existing lazy promise settle via `scheduler`, pipe it though
  *
  * ```
- * finalize(inScheduled)
+ * .finalize(inScheduled)
  * ```
  *
  * To limit this to only when the promise resolves, use
  *
  * ```
- * map((value) => inScheduled().pipe(map(() => value)))
+ * map((value) => inScheduled().map(() => value))
  * ```
  */
 export const inScheduled = (options?: {

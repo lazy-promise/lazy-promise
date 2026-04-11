@@ -34,19 +34,19 @@ class InTimeoutProducer implements Producer<void> {
  * To defer execution of a callback, use
  *
  * ```
- * inTimeout(ms).pipe(map(() => ...))
+ * inTimeout(ms).map(() => ...)
  * ```
  *
  * To make an existing lazy promise settle with a delay, pipe it though
  *
  * ```
- * finalize(() => inTimeout(ms))
+ * .finalize(() => inTimeout(ms))
  * ```
  *
  * To delay a promise only when it resolves, use
  *
  * ```
- * map((value) => inTimeout(ms).pipe(map(() => value)))
+ * map((value) => inTimeout(ms).map(() => value))
  * ```
  */
 export const inTimeout = (ms?: number): LazyPromise<void> =>

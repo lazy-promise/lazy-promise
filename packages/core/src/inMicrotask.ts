@@ -16,19 +16,19 @@ class InMicrotaskProducer implements Producer<void> {
  * To defer execution of a callback, use
  *
  * ```
- * inMicrotask().pipe(map(() => ...))
+ * inMicrotask().map(() => ...)
  * ```
  *
  * To make an existing lazy promise settle in a microtask, pipe it though
  *
  * ```
- * finalize(inMicrotask)
+ * .finalize(inMicrotask)
  * ```
  *
  * To limit this to only when the promise resolves, use
  *
  * ```
- * map((value) => inMicrotask().pipe(map(() => value)))
+ * map((value) => inMicrotask().map(() => value))
  * ```
  */
 export const inMicrotask = (): LazyPromise<void> =>

@@ -1,5 +1,4 @@
 import type {
-  Flatten,
   InnerSubscriber,
   Producer,
   Subscriber,
@@ -59,7 +58,7 @@ class FinalizeSubscriberProducer implements Subscriber<any>, Producer<any> {
   }
 }
 
-class FinalizeProducer implements Producer<any> {
+export class FinalizeProducer implements Producer<any> {
   constructor(
     public source: LazyPromise<any>,
     public callback: () => any,
@@ -71,20 +70,3 @@ class FinalizeProducer implements Producer<any> {
     );
   }
 }
-
-/**
- * The LazyPromise equivalent of `promise.finally(...)`. The callback
- * is called if the source promise resolves or rejects, but not if it's
- * unsubscribed before settling.
- */
-export const finalize =
-  <NewValue>(callback: () => NewValue) =>
-  <Value>(
-    source: LazyPromise<Value>,
-  ): LazyPromise<
-    | Value
-    | (Flatten<NewValue> extends TypedError<infer Error>
-        ? TypedError<Error>
-        : never)
-  > =>
-    new LazyPromise<any>(new FinalizeProducer(source, callback));

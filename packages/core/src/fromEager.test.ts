@@ -1,5 +1,5 @@
 import type { LazyPromise, Subscriber } from "@lazy-promise/core";
-import { box, fromEager, map, TypedError } from "@lazy-promise/core";
+import { box, fromEager, TypedError } from "@lazy-promise/core";
 import { afterEach, expect, expectTypeOf, test } from "vitest";
 
 const logContents: unknown[] = [];
@@ -114,7 +114,7 @@ test("types", () => {
   // Return generic type.
   const f = <T>(arg: T) => {
     const promise = fromEager(async () => arg);
-    return promise.pipe(map((x) => x));
+    return promise.map((x) => x);
   };
   expectTypeOf(f("a" as const)).toEqualTypeOf<LazyPromise<"a">>();
 

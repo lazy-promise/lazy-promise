@@ -34,19 +34,19 @@ class InMessageChannelProducer implements Producer<void> {
  * To defer execution of a callback, use
  *
  * ```
- * inMessageChannel().pipe(map(() => ...))
+ * inMessageChannel().map(() => ...)
  * ```
  *
  * To make an existing lazy promise settle via MessageChannel, pipe it though
  *
  * ```
- * finalize(inMessageChannel)
+ * .finalize(inMessageChannel)
  * ```
  *
  * To limit this to only when the promise resolves, use
  *
  * ```
- * map((value) => inMessageChannel().pipe(map(() => value)))
+ * map((value) => inMessageChannel().map(() => value))
  * ```
  */
 export const inMessageChannel = (): LazyPromise<void> =>

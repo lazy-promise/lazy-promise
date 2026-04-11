@@ -1,10 +1,10 @@
 import type {
-  Flatten,
   InnerSubscriber,
+  LazyPromise,
   Producer,
   Subscriber,
 } from "./lazyPromise.js";
-import { LazyPromise, TypedError } from "./lazyPromise.js";
+import { TypedError } from "./lazyPromise.js";
 
 class MapSubscriber implements Subscriber<any> {
   constructor(
@@ -32,7 +32,7 @@ class MapSubscriber implements Subscriber<any> {
   }
 }
 
-class MapProducer implements Producer<any> {
+export class MapProducer implements Producer<any> {
   constructor(
     public source: LazyPromise<any>,
     public callback: (value: any) => any,
@@ -44,20 +44,3 @@ class MapProducer implements Producer<any> {
     );
   }
 }
-
-/**
- * The LazyPromise equivalent of `promise.then(...)`.
- */
-export const map =
-  <Value, NewValue>(
-    callback: (
-      value: Value extends TypedError<any> ? never : Value,
-    ) => NewValue,
-  ) =>
-  (
-    source: LazyPromise<Value>,
-  ): LazyPromise<
-    | Flatten<NewValue>
-    | (Value extends TypedError<infer Error> ? TypedError<Error> : never)
-  > =>
-    new LazyPromise<any>(new MapProducer(source, callback));

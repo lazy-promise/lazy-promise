@@ -1,10 +1,10 @@
 import type {
-  Flatten,
   InnerSubscriber,
+  LazyPromise,
   Producer,
   Subscriber,
 } from "./lazyPromise.js";
-import { LazyPromise, TypedError } from "./lazyPromise.js";
+import { TypedError } from "./lazyPromise.js";
 
 class CatchTypedErrorSubscriber implements Subscriber<any> {
   constructor(
@@ -32,7 +32,7 @@ class CatchTypedErrorSubscriber implements Subscriber<any> {
   }
 }
 
-class CatchTypedErrorProducer implements Producer<any> {
+export class CatchTypedErrorProducer implements Producer<any> {
   constructor(
     public source: LazyPromise<any>,
     public callback: (value: any) => any,
@@ -44,19 +44,3 @@ class CatchTypedErrorProducer implements Producer<any> {
     );
   }
 }
-
-/**
- * The LazyPromise equivalent of `promise.catch(...)` for typed errors.
- */
-export const catchTypedError =
-  <Value, NewValue>(
-    callback: (
-      error: Value extends TypedError<infer Error> ? Error : never,
-    ) => NewValue,
-  ) =>
-  (
-    source: LazyPromise<Value>,
-  ): LazyPromise<
-    (Value extends TypedError<any> ? never : Value) | Flatten<NewValue>
-  > =>
-    new LazyPromise<any>(new CatchTypedErrorProducer(source, callback));

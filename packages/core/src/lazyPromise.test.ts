@@ -122,6 +122,10 @@ test("types", () => {
 
   expectTypeOf<InnerSubscriber<string>>().toExtend<InnerSubscriber<"a">>();
   expectTypeOf<InnerSubscriber<"a">>().not.toExtend<InnerSubscriber<string>>();
+
+  expectTypeOf(
+    (never as LazyPromise<1> | LazyPromise<2>).pipe((x) => x),
+  ).toEqualTypeOf<LazyPromise<1 | 2>>();
 });
 
 test("value of this in the basic scenario", () => {
@@ -915,101 +919,5 @@ test("pipe", () => {
     return "a" as const;
   };
 
-  const addSuffix =
-    <Suffix extends string>(suffix: Suffix) =>
-    <Base extends string>(base: Base): `${Base}-${Suffix}` =>
-      `${base}-${suffix}`;
-
-  expect(promise.pipe()).toBe(promise);
   expect(promise.pipe(getA)).toMatchInlineSnapshot(`"a"`);
-  expect(promise.pipe(getA, addSuffix("b"))).toMatchInlineSnapshot(`"a-b"`);
-
-  expectTypeOf(promise.pipe()).toEqualTypeOf<LazyPromise<"value">>();
-
-  expectTypeOf(promise.pipe(getA)).toEqualTypeOf<"a">();
-
-  expectTypeOf(promise.pipe(getA, addSuffix("b"))).toEqualTypeOf<"a-b">();
-
-  expectTypeOf(
-    promise.pipe(getA, addSuffix("b"), addSuffix("c")),
-  ).toEqualTypeOf<"a-b-c">();
-
-  expectTypeOf(
-    promise.pipe(getA, addSuffix("b"), addSuffix("c"), addSuffix("d")),
-  ).toEqualTypeOf<"a-b-c-d">();
-
-  expectTypeOf(
-    promise.pipe(
-      getA,
-      addSuffix("b"),
-      addSuffix("c"),
-      addSuffix("d"),
-      addSuffix("e"),
-    ),
-  ).toEqualTypeOf<"a-b-c-d-e">();
-
-  expectTypeOf(
-    promise.pipe(
-      getA,
-      addSuffix("b"),
-      addSuffix("c"),
-      addSuffix("d"),
-      addSuffix("e"),
-      addSuffix("f"),
-    ),
-  ).toEqualTypeOf<"a-b-c-d-e-f">();
-
-  expectTypeOf(
-    promise.pipe(
-      getA,
-      addSuffix("b"),
-      addSuffix("c"),
-      addSuffix("d"),
-      addSuffix("e"),
-      addSuffix("f"),
-      addSuffix("g"),
-    ),
-  ).toEqualTypeOf<"a-b-c-d-e-f-g">();
-
-  expectTypeOf(
-    promise.pipe(
-      getA,
-      addSuffix("b"),
-      addSuffix("c"),
-      addSuffix("d"),
-      addSuffix("e"),
-      addSuffix("f"),
-      addSuffix("g"),
-      addSuffix("h"),
-    ),
-  ).toEqualTypeOf<"a-b-c-d-e-f-g-h">();
-
-  expectTypeOf(
-    promise.pipe(
-      getA,
-      addSuffix("b"),
-      addSuffix("c"),
-      addSuffix("d"),
-      addSuffix("e"),
-      addSuffix("f"),
-      addSuffix("g"),
-      addSuffix("h"),
-      addSuffix("i"),
-    ),
-  ).toEqualTypeOf<"a-b-c-d-e-f-g-h-i">();
-
-  expectTypeOf(
-    promise.pipe(
-      getA,
-      addSuffix("b"),
-      addSuffix("c"),
-      addSuffix("d"),
-      addSuffix("e"),
-      addSuffix("f"),
-      addSuffix("g"),
-      addSuffix("h"),
-      addSuffix("i"),
-      addSuffix("j"),
-    ),
-  ).toEqualTypeOf<"a-b-c-d-e-f-g-h-i-j">();
 });

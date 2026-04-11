@@ -1,8 +1,5 @@
 export { all } from "./all.js";
 export { any } from "./any.js";
-export { catchRejection } from "./catchRejection.js";
-export { catchTypedError } from "./catchTypedError.js";
-export { finalize } from "./finalize.js";
 export { fromEager } from "./fromEager.js";
 export { fromGenerator } from "./fromGenerator.js";
 export type { LazyPromiseGenerator } from "./fromGenerator.js";
@@ -30,6 +27,5 @@ export type {
   Subscription,
 } from "./lazyPromise.js";
 export { log } from "./log.js";
-export { map } from "./map.js";
 export { race } from "./race.js";
 export { toEager } from "./toEager.js";

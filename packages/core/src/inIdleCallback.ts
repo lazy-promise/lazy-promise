@@ -32,19 +32,19 @@ class InIdleCallbackProducer implements Producer<IdleDeadline> {
  * To defer execution of a callback, use
  *
  * ```
- * inIdleCallback().pipe(map(() => ...))
+ * inIdleCallback().map(() => ...)
  * ```
  *
  * To make an existing lazy promise settle in an idle callback, pipe it though
  *
  * ```
- * finalize(inIdleCallback)
+ * .finalize(inIdleCallback)
  * ```
  *
  * To limit this to only when the promise resolves, use
  *
  * ```
- * map((value) => inIdleCallback().pipe(map(() => value)))
+ * map((value) => inIdleCallback().map(() => value))
  * ```
  */
 export const inIdleCallback = (

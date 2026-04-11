@@ -3,7 +3,6 @@ import {
   box,
   fromGenerator,
   LazyPromise,
-  map,
   never,
   rejecting,
   TypedError,
@@ -147,7 +146,7 @@ test("types", () => {
     const promise = fromGenerator(function* () {
       return arg;
     });
-    return promise.pipe(map((x) => x));
+    return promise.map((x) => x);
   };
   expectTypeOf(f1("a" as const)).toEqualTypeOf<LazyPromise<"a">>();
 
@@ -157,7 +156,7 @@ test("types", () => {
       yield* box(new TypedError(arg));
       return { prop: yield* box(arg) };
     });
-    return promise.pipe(map((x) => x));
+    return promise.map((x) => x);
   };
   expectTypeOf(f2("a" as const)).toEqualTypeOf<LazyPromise<{ prop: "a" }>>();
 });

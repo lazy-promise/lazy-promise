@@ -1,11 +1,5 @@
 import type { InnerSubscriber, Subscriber } from "@lazy-promise/core";
-import {
-  box,
-  LazyPromise,
-  map,
-  rejecting,
-  TypedError,
-} from "@lazy-promise/core";
+import { box, LazyPromise, rejecting, TypedError } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -66,17 +60,17 @@ afterEach(() => {
 
 test("types", () => {
   expectTypeOf(
-    new LazyPromise<"value a" | TypedError<"error a">>(() => {}).pipe(
-      map((value) => {
+    new LazyPromise<"value a" | TypedError<"error a">>(() => {}).map(
+      (value) => {
         expectTypeOf(value).toEqualTypeOf<"value a">();
         return "value b" as const;
-      }),
+      },
     ),
   ).toEqualTypeOf<LazyPromise<TypedError<"error a"> | "value b">>();
 
   expectTypeOf(
-    new LazyPromise<"value a" | TypedError<"error a">>(() => {}).pipe(
-      map(() => new LazyPromise<"value b" | TypedError<"error b">>(() => {})),
+    new LazyPromise<"value a" | TypedError<"error a">>(() => {}).map(
+      () => new LazyPromise<"value b" | TypedError<"error b">>(() => {}),
     ),
   ).toEqualTypeOf<
     LazyPromise<"value b" | TypedError<"error a"> | TypedError<"error b">>
@@ -84,12 +78,10 @@ test("types", () => {
 });
 
 test("value of this", () => {
-  const promise = box(1).pipe(
-    map(function () {
-      /** @ts-expect-error */
-      log("in callback", this);
-    }),
-  );
+  const promise = box(1).map(function () {
+    /** @ts-expect-error */
+    log("in callback", this);
+  });
   promise.subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -102,7 +94,7 @@ test("value of this", () => {
 });
 
 test("mapping to a value", () => {
-  const promise = box(1).pipe(map((value) => value + 1));
+  const promise = box(1).map((value) => value + 1);
   promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -115,7 +107,7 @@ test("mapping to a value", () => {
 });
 
 test("outer promise resolves with a typed error", () => {
-  const promise = box(new TypedError(1)).pipe(map((value) => value + 1));
+  const promise = box(new TypedError(1)).map((value) => value + 1);
   promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -130,7 +122,7 @@ test("outer promise resolves with a typed error", () => {
 });
 
 test("outer promise rejects", () => {
-  const promise = rejecting("oops").pipe(map(() => undefined));
+  const promise = rejecting("oops").map(() => undefined);
   promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -143,7 +135,7 @@ test("outer promise rejects", () => {
 });
 
 test("inner promise resolves", () => {
-  const promise = box(1).pipe(map(() => box(2)));
+  const promise = box(1).map(() => box(2));
   promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -156,7 +148,7 @@ test("inner promise resolves", () => {
 });
 
 test("inner promise rejects", () => {
-  const promise = box(1).pipe(map(() => rejecting("oops")));
+  const promise = box(1).map(() => rejecting("oops"));
   promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -169,11 +161,9 @@ test("inner promise rejects", () => {
 });
 
 test("callback throws", () => {
-  const promise = box(1).pipe(
-    map(() => {
-      throw "oops";
-    }),
-  );
+  const promise = box(1).map(() => {
+    throw "oops";
+  });
   promise.subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -188,7 +178,7 @@ test("callback throws", () => {
 test("cancel outer promise", () => {
   const promise = new LazyPromise(() => () => {
     log("dispose");
-  }).pipe(map(() => undefined));
+  }).map(() => undefined);
   const subscription = promise.subscribe();
   vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
@@ -204,13 +194,11 @@ test("cancel outer promise", () => {
 });
 
 test("cancel inner promise", () => {
-  const promise = box(1).pipe(
-    map(
-      () =>
-        new LazyPromise<never>(() => () => {
-          log("dispose");
-        }),
-    ),
+  const promise = box(1).map(
+    () =>
+      new LazyPromise<never>(() => () => {
+        log("dispose");
+      }),
   );
   const subscription = promise.subscribe();
   vi.advanceTimersByTime(500);
@@ -231,11 +219,9 @@ test("unsubscribe in the callback", () => {
   const subscription = new LazyPromise<number>((subscriberLocal) => {
     subscriber = subscriberLocal;
   })
-    .pipe(
-      map(() => {
-        subscription.unsubscribe();
-      }),
-    )
+    .map(() => {
+      subscription.unsubscribe();
+    })
     .subscribe(logSubscriber);
   subscriber!.resolve(1);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
@@ -246,12 +232,10 @@ test("unsubscribe and throw in the callback", () => {
   const subscription = new LazyPromise<number>((subscriberLocal) => {
     subscriber = subscriberLocal;
   })
-    .pipe(
-      map(() => {
-        subscription.unsubscribe();
-        throw "oops";
-      }),
-    )
+    .map(() => {
+      subscription.unsubscribe();
+      throw "oops";
+    })
     .subscribe(logSubscriber);
   subscriber!.resolve(1);
 });

@@ -30,19 +30,19 @@ class InImmediateProducer implements Producer<void> {
  * To defer execution of a callback, use
  *
  * ```
- * inImmediate().pipe(map(() => ...))
+ * inImmediate().map(() => ...)
  * ```
  *
  * To make an existing lazy promise settle via setImmediate, pipe it though
  *
  * ```
- * finalize(inImmediate)
+ * .finalize(inImmediate)
  * ```
  *
  * To limit this to only when the promise resolves, use
  *
  * ```
- * map((value) => inImmediate().pipe(map(() => value)))
+ * map((value) => inImmediate().map(() => value))
  * ```
  */
 export const inImmediate = (): LazyPromise<void> =>

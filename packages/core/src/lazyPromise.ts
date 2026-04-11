@@ -1,3 +1,8 @@
+import { CatchRejectionProducer } from "./catchRejection";
+import { CatchTypedErrorProducer } from "./catchTypedError";
+import { FinalizeProducer } from "./finalize";
+import { MapProducer } from "./map";
+
 declare const yieldableSymbol: unique symbol;
 
 export class TypedError<const Error> {
@@ -10,8 +15,6 @@ const throwInMicrotask = (error: unknown) => {
     throw error;
   });
 };
-
-const pipeReducer = (prev: any, fn: (value: any) => any) => fn(prev);
 
 // eslint-disable-next-line no-use-before-define
 export type Yieldable = LazyPromise<any> & {
@@ -303,86 +306,69 @@ export class LazyPromise<out Value> {
   }
 
   /**
-   * Pipes the lazy promise though the provided functions in the order that they
-   * appear in, so `lazyPromise.pipe(a, b)` is `b(a(lazyPromise))`.
-   *
-   * If you call `.pipe` on say `LazyPromise<1> | LazyPromise<2>`, you'll get an
-   * `Expected 0 arguments` TypeScript error. You can prevent it by wrapping the
-   * lazy promise in a `box` which will make its type `LazyPromise<1 | 2>`.
+   * The LazyPromise equivalent of `promise.then(...)`.
    */
-  pipe(): LazyPromise<Value>;
-  pipe<A>(a: (value: LazyPromise<Value>) => A): A;
-  pipe<A, B>(a: (value: LazyPromise<Value>) => A, b: (value: A) => B): B;
-  pipe<A, B, C>(
-    a: (value: LazyPromise<Value>) => A,
-    b: (value: A) => B,
-    c: (value: B) => C,
-  ): C;
-  pipe<A, B, C, D>(
-    a: (value: LazyPromise<Value>) => A,
-    b: (value: A) => B,
-    c: (value: B) => C,
-    d: (value: C) => D,
-  ): D;
-  pipe<A, B, C, D, E>(
-    a: (value: LazyPromise<Value>) => A,
-    b: (value: A) => B,
-    c: (value: B) => C,
-    d: (value: C) => D,
-    e: (value: D) => E,
-  ): E;
-  pipe<A, B, C, D, E, F>(
-    a: (value: LazyPromise<Value>) => A,
-    b: (value: A) => B,
-    c: (value: B) => C,
-    d: (value: C) => D,
-    e: (value: D) => E,
-    f: (value: E) => F,
-  ): F;
-  pipe<A, B, C, D, E, F, G>(
-    a: (value: LazyPromise<Value>) => A,
-    b: (value: A) => B,
-    c: (value: B) => C,
-    d: (value: C) => D,
-    e: (value: D) => E,
-    f: (value: E) => F,
-    g: (value: F) => G,
-  ): G;
-  pipe<A, B, C, D, E, F, G, H>(
-    a: (value: LazyPromise<Value>) => A,
-    b: (value: A) => B,
-    c: (value: B) => C,
-    d: (value: C) => D,
-    e: (value: D) => E,
-    f: (value: E) => F,
-    g: (value: F) => G,
-    h: (value: G) => H,
-  ): H;
-  pipe<A, B, C, D, E, F, G, H, I>(
-    a: (value: LazyPromise<Value>) => A,
-    b: (value: A) => B,
-    c: (value: B) => C,
-    d: (value: C) => D,
-    e: (value: D) => E,
-    f: (value: E) => F,
-    g: (value: F) => G,
-    h: (value: G) => H,
-    i: (value: H) => I,
-  ): I;
-  pipe<A, B, C, D, E, F, G, H, I, J>(
-    a: (value: LazyPromise<Value>) => A,
-    b: (value: A) => B,
-    c: (value: B) => C,
-    d: (value: C) => D,
-    e: (value: D) => E,
-    f: (value: E) => F,
-    g: (value: F) => G,
-    h: (value: G) => H,
-    i: (value: H) => I,
-    j: (value: I) => J,
-  ): J;
-  pipe(...fns: ((value: any) => any)[]): any {
-    return fns.reduce(pipeReducer, this);
+  map<NewValue>(
+    callback: (
+      value: Value extends TypedError<any> ? never : Value,
+    ) => NewValue,
+  ): LazyPromise<
+    // eslint-disable-next-line no-use-before-define
+    | Flatten<NewValue>
+    | (Value extends TypedError<infer Error> ? TypedError<Error> : never)
+  > {
+    return new LazyPromise<any>(new MapProducer(this, callback));
+  }
+
+  /**
+   * The LazyPromise equivalent of `promise.catch(...)`.
+   */
+  catchRejection<NewValue>(
+    callback: (error: unknown) => NewValue,
+    // eslint-disable-next-line no-use-before-define
+  ): LazyPromise<Value | Flatten<NewValue>> {
+    return new LazyPromise(new CatchRejectionProducer(this, callback));
+  }
+
+  /**
+   * The LazyPromise equivalent of `promise.catch(...)` for typed errors.
+   */
+  catchTypedError<NewValue>(
+    callback: (
+      error: Value extends TypedError<infer Error> ? Error : never,
+    ) => NewValue,
+  ): LazyPromise<
+    // eslint-disable-next-line no-use-before-define
+    (Value extends TypedError<any> ? never : Value) | Flatten<NewValue>
+  > {
+    return new LazyPromise<any>(new CatchTypedErrorProducer(this, callback));
+  }
+
+  /**
+   * The LazyPromise equivalent of `promise.finally(...)`. The callback
+   * is called if the source promise resolves or rejects, but not if it's
+   * unsubscribed before settling.
+   */
+  finalize<NewValue>(callback: () => NewValue): LazyPromise<
+    | Value
+    // eslint-disable-next-line no-use-before-define
+    | (Flatten<NewValue> extends TypedError<infer Error>
+        ? TypedError<Error>
+        : never)
+  > {
+    return new LazyPromise<any>(new FinalizeProducer(this, callback));
+  }
+
+  /**
+   * Passes the lazy promise to a callback and returns the callback result.
+   */
+  pipe<Value, TReturn>(
+    // Infers `Value` type param which is needed to make things work when you
+    // call pipe on a union like `LazyPromise<1> | LazyPromise<2>`.
+    this: LazyPromise<Value>,
+    callback: (value: LazyPromise<Value>) => TReturn,
+  ): TReturn {
+    return callback(this);
   }
 
   [Symbol.iterator](): {

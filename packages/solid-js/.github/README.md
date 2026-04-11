@@ -22,35 +22,31 @@ useLazyPromise(yourLazyPromise);
 
 Since this function takes a lazy promise that cannot resolve with a TypedError, type system will catch any unhandled typed errors. All callbacks are run outside the scope and so are untracked:
 
-```
+```ts
 createEffect(() => {
   useLazyPromise(
-    yourLazyPromise.pipe(
-      map(value => {
-        // Reading a signal here will not create a dependency even
-        // when the callback is run synchronously.
-      })
-    )
+    yourLazyPromise.map((value) => {
+      // Reading a signal here will not create a dependency even
+      // when the callback is run synchronously.
+    }),
   );
 });
 ```
 
 To error out the scope, reject the lazy promise:
 
-```
+```ts
 useLazyPromise(
-  yourLazyPromise.pipe(
-    catchTypedError(error => {
-      // Trigger the error boundary.
-      throw new Error("oops");
-    })
-  )
-)
+  yourLazyPromise.catchTypedError((error) => {
+    // Trigger the error boundary.
+    throw new Error("oops");
+  }),
+);
 ```
 
 You don't necessarily need to put a lazy promise subscription in a scope. You could just do
 
-```
+```ts
 return (
   <button
     onClick={() => {
@@ -64,7 +60,7 @@ return (
 
 useLazyPromise is helpful when you subscribe to a lazy promise inside a memo or an effect, and as for event handlers, you can use it to abort an async task when a component is unmounted by doing the following:
 
-```
+```ts
 const owner = getOwner();
 
 return (
@@ -84,18 +80,18 @@ return (
 
 Creates a fetcher that you can pass to `createResource` instead of the usual async function.
 
-```
+```ts
 const [accessor] = createResource(createFetcher(() => yourLazyPromise));
 ```
 
 The fetcher will subscribe/unsubscribe to the lazy promise as needed. As with `useLazyPromise`, rejecting the lazy promise errors out the scope. If you pass the fetcher as the second argument of `createResource`, you'll need to help TypeScript along (but since this is not a type assertion, this will not affect correctness):
 
-```
+```ts
 const [count, setCount] = createSignal(0);
 const [accessor] = createResource(
   count,
   // Notice `count: number`.
-  createFetcher((count: number) => yourLazyPromise)
+  createFetcher((count: number) => yourLazyPromise),
 );
 ```
 
@@ -117,7 +113,7 @@ const wrappedLazyPromise = lazyPromise.pipe(trackProcessing);
 
 `processing` is an accessor that will tell you whether any of the wrapped promises are currently active (subscribed but not yet settled/unsubscribed):
 
-```
+```ts
 <button
   onClick={() => {
     wrappedLazyPromise.subscribe();

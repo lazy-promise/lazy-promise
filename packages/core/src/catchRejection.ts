@@ -1,10 +1,9 @@
 import type {
-  Flatten,
   InnerSubscriber,
+  LazyPromise,
   Producer,
   Subscriber,
 } from "./lazyPromise.js";
-import { LazyPromise } from "./lazyPromise.js";
 
 class CatchRejectionSubscriber implements Subscriber<any> {
   constructor(
@@ -28,7 +27,7 @@ class CatchRejectionSubscriber implements Subscriber<any> {
   }
 }
 
-class CatchRejectionProducer implements Producer<any> {
+export class CatchRejectionProducer implements Producer<any> {
   constructor(
     public source: LazyPromise<any>,
     public callback: (value: any) => any,
@@ -40,11 +39,3 @@ class CatchRejectionProducer implements Producer<any> {
     );
   }
 }
-
-/**
- * The LazyPromise equivalent of `promise.catch(...)`.
- */
-export const catchRejection =
-  <NewValue>(callback: (error: unknown) => NewValue) =>
-  <Value>(source: LazyPromise<Value>): LazyPromise<Value | Flatten<NewValue>> =>
-    new LazyPromise(new CatchRejectionProducer(source, callback));

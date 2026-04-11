@@ -1,5 +1,5 @@
 import type { Subscriber } from "@lazy-promise/core";
-import { box, finalize, inMessageChannel } from "@lazy-promise/core";
+import { box, inMessageChannel } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test } from "vitest";
 
 const logContents: unknown[] = [];
@@ -55,14 +55,14 @@ test("resolve", async () => {
 
 test("resolve multiple", async () => {
   box(1)
-    .pipe(finalize(inMessageChannel))
+    .finalize(inMessageChannel)
     .subscribe({
       resolve: (value) => {
         log("resolve first", value);
       },
     });
   box(2)
-    .pipe(finalize(inMessageChannel))
+    .finalize(inMessageChannel)
     .subscribe({
       resolve: (value) => {
         log("resolve second", value);
