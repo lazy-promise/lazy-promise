@@ -1,5 +1,13 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.26](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.26)
+
+- Make `map`, `catchRejection`, `catchTypedError`, and `finalize` methods instead of functions.
+
+- Limit the number of `pipe` arguments to 1.
+
+- Rename `Flatten` type to `Unbox`.
+
 ## [@lazy-promise/core@0.0.25](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.25)
 
 - Revert previous update due to bad ergonomics.

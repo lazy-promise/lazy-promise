@@ -1,10 +1,10 @@
 import type {
-  Flatten,
   InnerSubscriber,
   InnerSubscription,
   Producer,
   Subscriber,
   Subscription,
+  Unbox,
 } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
@@ -61,4 +61,4 @@ class RaceProducer implements Producer<any> {
  */
 export const race = <Source>(
   sources: Iterable<Source>,
-): LazyPromise<Flatten<Source>> => new LazyPromise(new RaceProducer(sources));
+): LazyPromise<Unbox<Source>> => new LazyPromise(new RaceProducer(sources));

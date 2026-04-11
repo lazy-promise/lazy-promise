@@ -19,12 +19,12 @@ export {
   TypedError,
 } from "./lazyPromise.js";
 export type {
-  Flatten,
   InnerSubscriber,
   InnerSubscription,
   Producer,
   Subscriber,
   Subscription,
+  Unbox,
 } from "./lazyPromise.js";
 export { log } from "./log.js";
 export { race } from "./race.js";

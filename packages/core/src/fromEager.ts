@@ -1,8 +1,8 @@
 import type {
-  Flatten,
   InnerSubscriber,
   InnerSubscription,
   Producer,
+  Unbox,
 } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
@@ -62,7 +62,5 @@ class FromEagerProducer implements Producer<any> {
 export const fromEager = <Value>(
   callback: (options: { readonly signal: AbortSignal }) => Value,
 ): LazyPromise<
-  Value extends Promise<infer PromiseValue>
-    ? Flatten<PromiseValue>
-    : Flatten<Value>
+  Value extends Promise<infer PromiseValue> ? Unbox<PromiseValue> : Unbox<Value>
 > => new LazyPromise<any>(new FromEagerProducer(callback));

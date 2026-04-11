@@ -1,10 +1,10 @@
 import type {
-  Flatten,
   InnerSubscriber,
   InnerSubscription,
   Producer,
   Subscriber,
   Subscription,
+  Unbox,
 } from "./lazyPromise.js";
 import { LazyPromise, TypedError } from "./lazyPromise.js";
 import type {
@@ -139,26 +139,26 @@ export const any: {
   <const Sources extends any[]>(
     sources: [...Sources],
   ): LazyPromise<
-    | Exclude<Flatten<Sources[number]>, TypedError<any>>
+    | Exclude<Unbox<Sources[number]>, TypedError<any>>
     | TypedErrorOrNever<
         NeverIfArrayContainsNever<{
-          [Key in keyof Sources]: UnwrapTypedError<Flatten<Sources[Key]>>;
+          [Key in keyof Sources]: UnwrapTypedError<Unbox<Sources[Key]>>;
         }>
       >
   >;
   <const Source = never>(
     sources: Iterable<Source>,
   ): LazyPromise<
-    | Exclude<Flatten<Source>, TypedError<any>>
-    | TypedError<UnwrapTypedError<Flatten<Source>>[]>
+    | Exclude<Unbox<Source>, TypedError<any>>
+    | TypedError<UnwrapTypedError<Unbox<Source>>[]>
   >;
   <const Sources extends Record<any, any>>(
     sources: Sources,
   ): LazyPromise<
-    | Exclude<Flatten<Sources[keyof Sources]>, TypedError<any>>
+    | Exclude<Unbox<Sources[keyof Sources]>, TypedError<any>>
     | TypedErrorOrNever<
         NeverIfRecordContainsNever<{
-          [Key in keyof Sources]: UnwrapTypedError<Flatten<Sources[Key]>>;
+          [Key in keyof Sources]: UnwrapTypedError<Unbox<Sources[Key]>>;
         }>
       >
   >;

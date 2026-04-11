@@ -314,7 +314,7 @@ export class LazyPromise<out Value> {
     ) => NewValue,
   ): LazyPromise<
     // eslint-disable-next-line no-use-before-define
-    | Flatten<NewValue>
+    | Unbox<NewValue>
     | (Value extends TypedError<infer Error> ? TypedError<Error> : never)
   > {
     return new LazyPromise<any>(new MapProducer(this, callback));
@@ -326,7 +326,7 @@ export class LazyPromise<out Value> {
   catchRejection<NewValue>(
     callback: (error: unknown) => NewValue,
     // eslint-disable-next-line no-use-before-define
-  ): LazyPromise<Value | Flatten<NewValue>> {
+  ): LazyPromise<Value | Unbox<NewValue>> {
     return new LazyPromise(new CatchRejectionProducer(this, callback));
   }
 
@@ -339,7 +339,7 @@ export class LazyPromise<out Value> {
     ) => NewValue,
   ): LazyPromise<
     // eslint-disable-next-line no-use-before-define
-    (Value extends TypedError<any> ? never : Value) | Flatten<NewValue>
+    (Value extends TypedError<any> ? never : Value) | Unbox<NewValue>
   > {
     return new LazyPromise<any>(new CatchTypedErrorProducer(this, callback));
   }
@@ -352,7 +352,7 @@ export class LazyPromise<out Value> {
   finalize<NewValue>(callback: () => NewValue): LazyPromise<
     | Value
     // eslint-disable-next-line no-use-before-define
-    | (Flatten<NewValue> extends TypedError<infer Error>
+    | (Unbox<NewValue> extends TypedError<infer Error>
         ? TypedError<Error>
         : never)
   > {
@@ -427,4 +427,4 @@ class NeverProducer implements Producer<never> {
  */
 export const never: LazyPromise<never> = new LazyPromise(new NeverProducer());
 
-export type Flatten<T> = T extends LazyPromise<infer Value> ? Value : T;
+export type Unbox<T> = T extends LazyPromise<infer Value> ? Value : T;

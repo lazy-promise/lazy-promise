@@ -93,7 +93,7 @@ Aside from superficial differences, LazyPromise API mirrors that of native Promi
 | `Promise.all(...)`                | `all(...)`                        |
 | `Promise.any(...)`                | `any(...)`                        |
 | `Promise.race(...)`               | `race(...)`                       |
-| `Awaited<T>`                      | `Flatten<T>`                      |
+| `Awaited<T>`                      | `Unbox<T>`                        |
 
 ## Typed errors
 

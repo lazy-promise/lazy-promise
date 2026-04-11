@@ -1,10 +1,10 @@
 import type {
-  Flatten,
   InnerSubscriber,
   InnerSubscription,
   Producer,
   Subscriber,
   Subscription,
+  Unbox,
   Yieldable,
 } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
@@ -137,5 +137,5 @@ class FromGeneratorProducer<TReturn> implements Producer<any> {
  */
 export const fromGenerator = <TReturn>(
   generatorFunction: () => LazyPromiseGenerator<TReturn>,
-): LazyPromise<Flatten<TReturn>> =>
+): LazyPromise<Unbox<TReturn>> =>
   new LazyPromise<any>(new FromGeneratorProducer(generatorFunction));
