@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.27](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.27)
+
+- Minor imports fix.
+
 ## [@lazy-promise/core@0.0.26](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.26)
 
 - Make `map`, `catchRejection`, `catchTypedError`, and `finalize` methods instead of functions.

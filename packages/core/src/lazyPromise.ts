@@ -1,7 +1,7 @@
-import { CatchRejectionProducer } from "./catchRejection";
-import { CatchTypedErrorProducer } from "./catchTypedError";
-import { FinalizeProducer } from "./finalize";
-import { MapProducer } from "./map";
+import { CatchRejectionProducer } from "./catchRejection.js";
+import { CatchTypedErrorProducer } from "./catchTypedError.js";
+import { FinalizeProducer } from "./finalize.js";
+import { MapProducer } from "./map.js";
 
 declare const yieldableSymbol: unique symbol;
 
