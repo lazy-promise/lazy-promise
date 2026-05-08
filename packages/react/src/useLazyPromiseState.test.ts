@@ -189,4 +189,36 @@ describe("useLazyPromiseState", () => {
       expect(result.current).toEqual({ status: "success", data: "second" });
     });
   });
+
+  it("ignores stale resolution from previous lazy promise after reference change", async () => {
+    let resolveFirst!: (value: string) => void;
+
+    const first = fromEager(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveFirst = resolve;
+        }),
+    );
+
+    const second = box("second");
+    let current = first;
+
+    const { result, rerender } = renderHook(() => useLazyPromiseState(current));
+
+    expect(result.current).toEqual({ status: "pending" });
+
+    current = second;
+    rerender();
+
+    await waitFor(() => {
+      expect(result.current).toEqual({ status: "success", data: "second" });
+    });
+
+    await act(async () => {
+      resolveFirst("first");
+      await Promise.resolve();
+    });
+
+    expect(result.current).toEqual({ status: "success", data: "second" });
+  });
 });

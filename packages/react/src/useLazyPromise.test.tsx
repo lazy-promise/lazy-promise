@@ -1,8 +1,8 @@
 import type { LazyPromise } from "@lazy-promise/core";
 import { box, fromEager, TypedError } from "@lazy-promise/core";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import { Suspense, useMemo } from "react";
-import { afterEach, describe, expect, expectTypeOf, it } from "vitest";
+import { Component, Suspense, useMemo } from "react";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { useLazyPromise } from "./useLazyPromise";
 
 // Compile-time type checks for useLazyPromise's TypedError constraint.
@@ -119,6 +119,37 @@ const TestComponent = ({
   return <div data-testid="result">{value}</div>;
 };
 
+class TestErrorBoundary extends Component<
+  {
+    children: React.ReactNode;
+  },
+  {
+    error: unknown;
+  }
+> {
+  override state = {
+    error: null as unknown,
+  };
+
+  static getDerivedStateFromError(error: unknown) {
+    return {
+      error,
+    };
+  }
+
+  override render() {
+    if (this.state.error instanceof Error) {
+      return <div data-testid="error">{this.state.error.message}</div>;
+    }
+
+    if (this.state.error) {
+      return <div data-testid="error">{String(this.state.error)}</div>;
+    }
+
+    return this.props.children;
+  }
+}
+
 describe("useLazyPromise with Suspense", () => {
   it("shows fallback when lazy promise is pending", () => {
     const lazyPromise = fromEager(
@@ -136,6 +167,47 @@ describe("useLazyPromise with Suspense", () => {
 
     const fallback = screen.getByTestId("fallback");
     expect(fallback.textContent).toBe("Loading");
+  });
+
+  it("renders value after lazy promise resolves asynchronously", async () => {
+    const lazyPromise = fromEager(() => Promise.resolve("async"));
+
+    render(
+      <Suspense fallback={<div data-testid="fallback">Loading</div>}>
+        <TestComponent lazyPromise={lazyPromise} />
+      </Suspense>,
+    );
+
+    expect(screen.getByTestId("fallback").textContent).toBe("Loading");
+
+    await waitFor(() => {
+      const result = screen.getByTestId("result");
+      expect(result.textContent).toBe("async");
+    });
+  });
+
+  it("throws rejected lazy promise error to ErrorBoundary", async () => {
+    const lazyPromise = fromEager(() => Promise.reject(new Error("boom")));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      render(
+        <Suspense fallback={<div data-testid="fallback">Loading</div>}>
+          <TestErrorBoundary>
+            <TestComponent lazyPromise={lazyPromise} />
+          </TestErrorBoundary>
+        </Suspense>,
+      );
+
+      expect(screen.getByTestId("fallback").textContent).toBe("Loading");
+
+      await waitFor(() => {
+        const error = screen.getByTestId("error");
+        expect(error.textContent).toBe("boom");
+      });
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("renders synchronously resolved lazy promise", () => {

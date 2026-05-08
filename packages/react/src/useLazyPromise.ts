@@ -1,8 +1,8 @@
 import type { LazyPromise, Subscription, TypedError } from "@lazy-promise/core";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 /**
- * Entry in the per-hook-instance cache.
+ * Entry in the shared per-lazy-promise cache.
  */
 interface CacheEntry<T> {
   status: "pending" | "success" | "error";
@@ -10,7 +10,51 @@ interface CacheEntry<T> {
   error?: unknown;
   promise: Promise<T>;
   subscription: Subscription;
+  activeHooks: number;
 }
+
+const cacheByPromise = new WeakMap<LazyPromise<any>, CacheEntry<any>>();
+
+const getOrCreateEntry = <T>(lazyPromise: LazyPromise<T>): CacheEntry<T> => {
+  const cached = cacheByPromise.get(lazyPromise);
+  if (cached) {
+    return cached as CacheEntry<T>;
+  }
+
+  let resolvePromise!: (value: T) => void;
+  let rejectPromise!: (reason?: unknown) => void;
+
+  const promise = new Promise<T>((resolve, reject) => {
+    resolvePromise = resolve;
+    rejectPromise = reject;
+  });
+
+  const entry = {
+    status: "pending",
+    promise,
+    activeHooks: 0,
+  } as Omit<CacheEntry<T>, "subscription"> & {
+    subscription?: Subscription;
+  };
+
+  const subscription = lazyPromise.subscribe({
+    resolve: (value: T) => {
+      entry.status = "success";
+      entry.value = value;
+      resolvePromise(value);
+    },
+    reject: (error: unknown) => {
+      entry.status = "error";
+      entry.error = error;
+      rejectPromise(error);
+    },
+  });
+
+  entry.subscription = subscription;
+  const finalizedEntry = entry as CacheEntry<T>;
+  cacheByPromise.set(lazyPromise, finalizedEntry);
+  return finalizedEntry;
+};
 
 /**
  * Hooks a LazyPromise into React's Suspense system. The component will suspend
@@ -37,59 +81,19 @@ interface CacheEntry<T> {
  * ```
  */
 const useLazyPromiseImpl = <T>(lazyPromise: LazyPromise<T>): T => {
-  const cacheRef = useRef<CacheEntry<T> | null>(null);
-  const lazyPromiseRef = useRef<LazyPromise<T> | null>(null);
+  const entry = getOrCreateEntry(lazyPromise);
 
-  // If the lazyPromise reference changed, reset cache and clean up old subscription
-  if (lazyPromiseRef.current !== lazyPromise) {
-    cacheRef.current?.subscription.unsubscribe();
-    cacheRef.current = null;
-    lazyPromiseRef.current = lazyPromise;
-  }
-
-  // Initialize cache entry on first render
-  if (cacheRef.current === null) {
-    let resolvePromise: (value: T) => void;
-    let rejectPromise: (reason?: unknown) => void;
-
-    const promise = new Promise<T>((resolve, reject) => {
-      resolvePromise = resolve;
-      rejectPromise = reject;
-    });
-
-    const entry = {
-      status: "pending",
-      promise,
-    } as Omit<CacheEntry<T>, "subscription"> & {
-      subscription?: Subscription;
+  // Keep a reference count of mounted hook instances for this lazy promise.
+  useEffect(() => {
+    entry.activeHooks += 1;
+    return () => {
+      entry.activeHooks -= 1;
+      if (entry.activeHooks === 0 && entry.status === "pending") {
+        entry.subscription.unsubscribe();
+        cacheByPromise.delete(lazyPromise);
+      }
     };
-
-    const subscription = lazyPromise.subscribe({
-      resolve: (value: T) => {
-        entry.status = "success";
-        entry.value = value;
-        resolvePromise(value);
-      },
-      reject: (error: unknown) => {
-        entry.status = "error";
-        entry.error = error;
-        rejectPromise(error);
-      },
-    });
-
-    entry.subscription = subscription;
-    cacheRef.current = entry as CacheEntry<T>;
-  }
-
-  // Clean up subscription on unmount
-  useEffect(
-    () => () => {
-      cacheRef.current?.subscription.unsubscribe();
-    },
-    [],
-  );
-
-  const entry = cacheRef.current;
+  }, [entry, lazyPromise]);
 
   // Throw promise to trigger Suspense
   if (entry.status === "pending") {

@@ -6,7 +6,7 @@ import {
   TypedError,
 } from "@lazy-promise/core";
 import { useEffect, useMemo } from "react";
-import { describe, expect, expectTypeOf, it } from "vitest";
+import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { subscribe } from "./subscribe";
 
 // Compile-time type checks for the documented subscribe usage.
@@ -56,6 +56,10 @@ const typeTests = () => {
 
 void typeTests;
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("subscribe", () => {
   it("returns cleanup that unsubscribes the subscription", () => {
     let unsubscribedCount = 0;
@@ -94,5 +98,36 @@ describe("subscribe", () => {
 
     expect(resolved).toBe("value");
     expect(rejected).toBe("oops");
+  });
+
+  it("cleanup cancels pending chain before map side effects run", async () => {
+    vi.useFakeTimers();
+    let mapped = false;
+
+    const cleanup = subscribe(
+      fromEager(
+        ({ signal }) =>
+          new Promise<string>((resolve, reject) => {
+            const timer = setTimeout(() => {
+              resolve("value");
+            }, 10);
+
+            signal.addEventListener("abort", () => {
+              clearTimeout(timer);
+              reject(signal.reason);
+            });
+          }),
+      )
+        .map((value) => {
+          mapped = true;
+          return value;
+        })
+        .catchRejection(() => "fallback"),
+    );
+
+    cleanup();
+    await vi.advanceTimersByTimeAsync(20);
+
+    expect(mapped).toBe(false);
   });
 });
