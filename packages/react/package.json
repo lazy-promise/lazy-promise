@@ -26,7 +26,6 @@
     "build:clean": "rm -rf build",
     "build:main": "babel build/module --out-dir build/main",
     "build:module": "tsc --build tsconfig.build.json",
-    "test": "vitest run && tsc --noEmit && eslint . --max-warnings=0",
     "test:eslint": "eslint . --max-warnings=0",
     "test:typescript": "tsc --noEmit",
     "test:vitest": "vitest run"
