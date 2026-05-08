@@ -1,0 +1,9 @@
+{
+  "extends": "../typescript-config/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "build/types",
+    "lib": ["ES2020", "DOM"],
+    "jsx": "react-jsx"
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}

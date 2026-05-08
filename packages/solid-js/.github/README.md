@@ -1,7 +1,5 @@
 # Experimental SolidJS bindings for LazyPromise
 
-[Introductory article](https://dev.to/ivan7237d/cancelable-async-tasks-and-typed-server-errors-with-solidjs-and-lazypromise-1la)
-
 For details on LazyPromise, please see [root readme](https://github.com/lazy-promise/lazy-promise).
 
 ## Installation

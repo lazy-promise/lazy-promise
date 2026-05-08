@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "build/module",
+    "declaration": true,
+    "declarationDir": "build/types"
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
+}
