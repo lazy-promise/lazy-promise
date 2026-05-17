@@ -1,0 +1,16 @@
+{
+  "extends": "@repo/typescript-config/tsconfig.base.json",
+  "compilerOptions": {
+    "module": "Preserve",
+    "target": "ES2022",
+    "lib": ["es2022"],
+    "rootDir": "src",
+    "exactOptionalPropertyTypes": false,
+    "noEmit": true,
+    "stripInternal": true,
+    "paths": {
+      "@lazy-promise/alien-signals": ["."]
+    },
+    "isolatedModules": false
+  }
+}

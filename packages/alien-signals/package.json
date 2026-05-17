@@ -1,0 +1,50 @@
+{
+  "name": "@lazy-promise/alien-signals",
+  "description": "Async signals based on alien-signals and LazyPromise",
+  "repository": "https://github.com/lazy-promise/lazy-promise.git",
+  "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./build/types/index.d.ts",
+      "import": "./build/module/index.js",
+      "require": "./build/main/index.js",
+      "default": "./build/module/index.js"
+    }
+  },
+  "main": "build/main/index.js",
+  "module": "build/module/index.js",
+  "types": "build/types/index.d.ts",
+  "files": [
+    "build/module",
+    "build/main",
+    "build/types"
+  ],
+  "scripts": {
+    "build:clean": "rm -rf build",
+    "build:main": "babel build/module --out-dir build/main",
+    "build:module": "tsc --build tsconfig.build.json",
+    "test:eslint": "eslint . --max-warnings=0",
+    "test:typescript": "tsc",
+    "test:vitest": "vitest run"
+  },
+  "dependencies": {
+    "@lazy-promise/core": "workspace:*",
+    "alien-signals": "3.2.1"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.19.3",
+    "@babel/core": "^7.24.7",
+    "@babel/preset-env": "^7.24.7",
+    "@babel/preset-typescript": "^7.24.7",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^25.0.3",
+    "@types/web": "0.0.342",
+    "@vitest/coverage-v8": "^4.0.16",
+    "eslint": "^8.57.0",
+    "reactive-framework-test-suite": "0.0.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.16"
+  }
+}
