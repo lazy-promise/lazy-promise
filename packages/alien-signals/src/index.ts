@@ -1,4 +1,3 @@
-/* eslint-disable no-use-before-define */
 import type { ReactiveNode } from "alien-signals/system";
 import { createReactiveSystem, ReactiveFlags } from "alien-signals/system";
 
@@ -37,9 +36,11 @@ const { link, unlink, propagate, checkDirty, shallowPropagate } =
   createReactiveSystem({
     update(node: SignalNode | ComputedNode | EffectScopeNode): boolean {
       if ("getter" in node) {
+        // eslint-disable-next-line no-use-before-define
         return updateComputed(node);
       }
       if ("currentValue" in node) {
+        // eslint-disable-next-line no-use-before-define
         return updateSignal(node);
       }
       node.flags = ReactiveFlags.Mutable;
@@ -71,13 +72,16 @@ const { link, unlink, propagate, checkDirty, shallowPropagate } =
       if ("getter" in node) {
         if (node.depsTail !== undefined) {
           node.flags = ReactiveFlags.Mutable | ReactiveFlags.Dirty;
+          // eslint-disable-next-line no-use-before-define
           disposeAllDepsInReverse(node);
         }
       } else if ("currentValue" in node) {
         // Nothing to do for signals, they are always mutable and never dirty until pendingValue changes
       } else if ("fn" in node) {
+        // eslint-disable-next-line no-use-before-define
         effectOper.call(node);
       } else {
+        // eslint-disable-next-line no-use-before-define
         effectScopeOper.call(node);
       }
     },
@@ -99,6 +103,203 @@ export function getBatchDepth(): number {
 
 export function startBatch() {
   ++batchDepth;
+}
+
+function disposeAllDepsInReverse(sub: ReactiveNode): void {
+  let link = sub.depsTail;
+  while (link !== undefined) {
+    const prev = link.prevDep;
+    unlink(link, sub);
+    link = prev;
+  }
+}
+
+function purgeDeps(sub: ReactiveNode) {
+  const depsTail = sub.depsTail;
+  let dep = depsTail !== undefined ? depsTail.nextDep : sub.deps;
+  while (dep !== undefined) {
+    dep = unlink(dep, sub);
+  }
+}
+
+function updateSignal(s: SignalNode): boolean {
+  s.flags = ReactiveFlags.Mutable;
+  return s.currentValue !== (s.currentValue = s.pendingValue);
+}
+
+function runCleanup(e: EffectNode): void {
+  const cleanup = e.cleanup!;
+  e.cleanup = undefined;
+  const prevSub = activeSub;
+  activeSub = undefined;
+  try {
+    cleanup();
+  } finally {
+    activeSub = prevSub;
+  }
+}
+
+function effectScopeOper(this: EffectScopeNode): void {
+  this.flags = ReactiveFlags.None;
+  disposeAllDepsInReverse(this);
+  const sub = this.subs;
+  if (sub !== undefined) {
+    unlink(sub);
+  }
+}
+
+function effectOper(this: EffectNode): void {
+  effectScopeOper.call(this);
+  if (this.cleanup) {
+    runCleanup(this);
+  }
+}
+
+function updateComputed(c: ComputedNode): boolean {
+  if (c.flags & HasChildEffect) {
+    let link = c.depsTail;
+    while (link !== undefined) {
+      const prev = link.prevDep;
+      const dep = link.dep;
+      if (!("getter" in dep) && !("currentValue" in dep)) {
+        unlink(link, c);
+      }
+      link = prev;
+    }
+  }
+  c.depsTail = undefined;
+  c.flags = ReactiveFlags.Mutable | ReactiveFlags.RecursedCheck;
+  const prevSub = setActiveSub(c);
+  try {
+    ++cycle;
+    const oldValue = c.value;
+    return oldValue !== (c.value = c.getter(oldValue));
+  } finally {
+    activeSub = prevSub;
+    c.flags &= ~ReactiveFlags.RecursedCheck;
+    purgeDeps(c);
+  }
+}
+
+function run(e: EffectNode): void {
+  const flags = e.flags;
+  if (
+    flags & ReactiveFlags.Dirty ||
+    (flags & ReactiveFlags.Pending && checkDirty(e.deps!, e))
+  ) {
+    if (flags & HasChildEffect) {
+      let link = e.depsTail;
+      while (link !== undefined) {
+        const prev = link.prevDep;
+        const dep = link.dep;
+        if (!("getter" in dep) && !("currentValue" in dep)) {
+          unlink(link, e);
+        }
+        link = prev;
+      }
+    }
+    if (e.cleanup) {
+      runCleanup(e);
+      if (!e.flags) {
+        return;
+      }
+    }
+    e.depsTail = undefined;
+    e.flags = ReactiveFlags.Watching | ReactiveFlags.RecursedCheck;
+    const prevSub = setActiveSub(e);
+    try {
+      ++cycle;
+      ++runDepth;
+      e.cleanup = e.fn();
+    } finally {
+      --runDepth;
+      activeSub = prevSub;
+      e.flags &= ~ReactiveFlags.RecursedCheck;
+      purgeDeps(e);
+    }
+  } else if (e.deps !== undefined) {
+    e.flags = ReactiveFlags.Watching | (flags & HasChildEffect);
+  }
+}
+
+function flush(): void {
+  try {
+    while (notifyIndex < queuedLength) {
+      const effect = queued[notifyIndex]!;
+      queued[notifyIndex++] = undefined;
+      run(effect);
+    }
+  } finally {
+    while (notifyIndex < queuedLength) {
+      const effect = queued[notifyIndex]!;
+      queued[notifyIndex++] = undefined;
+      effect.flags |= ReactiveFlags.Watching | ReactiveFlags.Recursed;
+    }
+    notifyIndex = 0;
+    queuedLength = 0;
+  }
+}
+
+function computedOper<T>(this: ComputedNode<T>): T {
+  const flags = this.flags;
+  if (
+    flags & ReactiveFlags.Dirty ||
+    (flags & ReactiveFlags.Pending &&
+      (checkDirty(this.deps!, this) ||
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        ((this.flags = flags & ~ReactiveFlags.Pending), false)))
+  ) {
+    if (updateComputed(this)) {
+      const subs = this.subs;
+      if (subs !== undefined) {
+        shallowPropagate(subs);
+      }
+    }
+  } else if (!flags) {
+    this.flags = ReactiveFlags.Mutable | ReactiveFlags.RecursedCheck;
+    const prevSub = setActiveSub(this);
+    try {
+      this.value = this.getter();
+    } finally {
+      activeSub = prevSub;
+      this.flags &= ~ReactiveFlags.RecursedCheck;
+    }
+  }
+  const sub = activeSub;
+  if (sub !== undefined) {
+    link(this, sub, cycle);
+  }
+  return this.value!;
+}
+
+function signalOper<T>(this: SignalNode<T>, ...value: [T]): T | void {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  if (value.length) {
+    if (this.pendingValue !== (this.pendingValue = value[0])) {
+      this.flags = ReactiveFlags.Mutable | ReactiveFlags.Dirty;
+      const subs = this.subs;
+      if (subs !== undefined) {
+        propagate(subs, !!runDepth);
+        if (!batchDepth) {
+          flush();
+        }
+      }
+    }
+  } else {
+    if (this.flags & ReactiveFlags.Dirty) {
+      if (updateSignal(this)) {
+        const subs = this.subs;
+        if (subs !== undefined) {
+          shallowPropagate(subs);
+        }
+      }
+    }
+    const sub = activeSub;
+    if (sub !== undefined) {
+      link(this, sub, cycle);
+    }
+    return this.currentValue;
+  }
 }
 
 export function endBatch() {
@@ -230,202 +431,3 @@ export function trigger(fn: () => void) {
     }
   }
 }
-
-function updateComputed(c: ComputedNode): boolean {
-  if (c.flags & HasChildEffect) {
-    let link = c.depsTail;
-    while (link !== undefined) {
-      const prev = link.prevDep;
-      const dep = link.dep;
-      if (!("getter" in dep) && !("currentValue" in dep)) {
-        unlink(link, c);
-      }
-      link = prev;
-    }
-  }
-  c.depsTail = undefined;
-  c.flags = ReactiveFlags.Mutable | ReactiveFlags.RecursedCheck;
-  const prevSub = setActiveSub(c);
-  try {
-    ++cycle;
-    const oldValue = c.value;
-    return oldValue !== (c.value = c.getter(oldValue));
-  } finally {
-    activeSub = prevSub;
-    c.flags &= ~ReactiveFlags.RecursedCheck;
-    purgeDeps(c);
-  }
-}
-
-function updateSignal(s: SignalNode): boolean {
-  s.flags = ReactiveFlags.Mutable;
-  return s.currentValue !== (s.currentValue = s.pendingValue);
-}
-
-function run(e: EffectNode): void {
-  const flags = e.flags;
-  if (
-    flags & ReactiveFlags.Dirty ||
-    (flags & ReactiveFlags.Pending && checkDirty(e.deps!, e))
-  ) {
-    if (flags & HasChildEffect) {
-      let link = e.depsTail;
-      while (link !== undefined) {
-        const prev = link.prevDep;
-        const dep = link.dep;
-        if (!("getter" in dep) && !("currentValue" in dep)) {
-          unlink(link, e);
-        }
-        link = prev;
-      }
-    }
-    if (e.cleanup) {
-      runCleanup(e);
-      if (!e.flags) {
-        return;
-      }
-    }
-    e.depsTail = undefined;
-    e.flags = ReactiveFlags.Watching | ReactiveFlags.RecursedCheck;
-    const prevSub = setActiveSub(e);
-    try {
-      ++cycle;
-      ++runDepth;
-      e.cleanup = e.fn();
-    } finally {
-      --runDepth;
-      activeSub = prevSub;
-      e.flags &= ~ReactiveFlags.RecursedCheck;
-      purgeDeps(e);
-    }
-  } else if (e.deps !== undefined) {
-    e.flags = ReactiveFlags.Watching | (flags & HasChildEffect);
-  }
-}
-
-function flush(): void {
-  try {
-    while (notifyIndex < queuedLength) {
-      const effect = queued[notifyIndex]!;
-      queued[notifyIndex++] = undefined;
-      run(effect);
-    }
-  } finally {
-    while (notifyIndex < queuedLength) {
-      const effect = queued[notifyIndex]!;
-      queued[notifyIndex++] = undefined;
-      effect.flags |= ReactiveFlags.Watching | ReactiveFlags.Recursed;
-    }
-    notifyIndex = 0;
-    queuedLength = 0;
-  }
-}
-
-function computedOper<T>(this: ComputedNode<T>): T {
-  const flags = this.flags;
-  if (
-    flags & ReactiveFlags.Dirty ||
-    (flags & ReactiveFlags.Pending &&
-      (checkDirty(this.deps!, this) ||
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        ((this.flags = flags & ~ReactiveFlags.Pending), false)))
-  ) {
-    if (updateComputed(this)) {
-      const subs = this.subs;
-      if (subs !== undefined) {
-        shallowPropagate(subs);
-      }
-    }
-  } else if (!flags) {
-    this.flags = ReactiveFlags.Mutable | ReactiveFlags.RecursedCheck;
-    const prevSub = setActiveSub(this);
-    try {
-      this.value = this.getter();
-    } finally {
-      activeSub = prevSub;
-      this.flags &= ~ReactiveFlags.RecursedCheck;
-    }
-  }
-  const sub = activeSub;
-  if (sub !== undefined) {
-    link(this, sub, cycle);
-  }
-  return this.value!;
-}
-
-function signalOper<T>(this: SignalNode<T>, ...value: [T]): T | void {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (value.length) {
-    if (this.pendingValue !== (this.pendingValue = value[0])) {
-      this.flags = ReactiveFlags.Mutable | ReactiveFlags.Dirty;
-      const subs = this.subs;
-      if (subs !== undefined) {
-        propagate(subs, !!runDepth);
-        if (!batchDepth) {
-          flush();
-        }
-      }
-    }
-  } else {
-    if (this.flags & ReactiveFlags.Dirty) {
-      if (updateSignal(this)) {
-        const subs = this.subs;
-        if (subs !== undefined) {
-          shallowPropagate(subs);
-        }
-      }
-    }
-    const sub = activeSub;
-    if (sub !== undefined) {
-      link(this, sub, cycle);
-    }
-    return this.currentValue;
-  }
-}
-
-function runCleanup(e: EffectNode): void {
-  const cleanup = e.cleanup!;
-  e.cleanup = undefined;
-  const prevSub = activeSub;
-  activeSub = undefined;
-  try {
-    cleanup();
-  } finally {
-    activeSub = prevSub;
-  }
-}
-
-function effectOper(this: EffectNode): void {
-  effectScopeOper.call(this);
-  if (this.cleanup) {
-    runCleanup(this);
-  }
-}
-
-function effectScopeOper(this: EffectScopeNode): void {
-  this.flags = ReactiveFlags.None;
-  disposeAllDepsInReverse(this);
-  const sub = this.subs;
-  if (sub !== undefined) {
-    unlink(sub);
-  }
-}
-
-function disposeAllDepsInReverse(sub: ReactiveNode): void {
-  let link = sub.depsTail;
-  while (link !== undefined) {
-    const prev = link.prevDep;
-    unlink(link, sub);
-    link = prev;
-  }
-}
-
-function purgeDeps(sub: ReactiveNode) {
-  const depsTail = sub.depsTail;
-  let dep = depsTail !== undefined ? depsTail.nextDep : sub.deps;
-  while (dep !== undefined) {
-    dep = unlink(dep, sub);
-  }
-}
-
-/* eslint-enable no-use-before-define */
