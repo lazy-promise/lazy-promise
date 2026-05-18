@@ -1,6 +1,6 @@
 import { ReactiveFlags } from "alien-signals/system";
 import { expect, test } from "vitest";
-import { computed, effect, getActiveSub, signal } from "..";
+import { computed, effect, flush, getActiveSub, signal } from "..";
 
 test("should support custom recurse effect", () => {
   const src = signal(0);
@@ -12,6 +12,8 @@ test("should support custom recurse effect", () => {
     triggers++;
     src(Math.min(src() + 1, 5));
   });
+
+  flush();
 
   expect(triggers).toBe(6);
 });
@@ -33,6 +35,7 @@ test("cleanup order on outer re-run: inner before outer, before new run", () => 
 
   log.length = 0;
   a(1);
+  flush();
   expect(log).toEqual([
     "inner:cleanup",
     "outer:cleanup",
@@ -89,6 +92,7 @@ test("sibling cleanup order on outer re-run: reverse creation (LIFO)", () => {
   log.length = 0;
 
   a(1);
+  flush();
   expect(log.slice(0, 4)).toEqual([
     "inner3:cleanup",
     "inner2:cleanup",
@@ -152,6 +156,7 @@ test("effect created inside computed: old inner cleanup runs before new inner se
   log.length = 0;
 
   a(1);
+  flush();
   expect(log).toEqual(["inner:cleanup", "computed:eval", "inner:run"]);
 });
 
@@ -176,9 +181,11 @@ test("cleanup order is correct on outer re-run after a prior inner-only re-run",
   });
 
   b(1); // inner re-runs alone; outer is touched via notify chain
+  flush();
   log.length = 0;
 
   a(1);
+  flush();
   expect(log).toEqual([
     "inner:cleanup",
     "outer:cleanup",
@@ -206,9 +213,11 @@ test("outer effect keeps responding to its own dep after inner re-runs", () => {
   expect(innerRuns).toBe(1);
 
   b(1);
+  flush();
   expect(outerRuns).toBe(1);
   expect(innerRuns).toBeGreaterThanOrEqual(2);
 
   a(1);
+  flush();
   expect(outerRuns).toBe(2);
 });

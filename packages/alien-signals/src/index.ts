@@ -16,6 +16,7 @@ interface ComputedNode<T = any> extends ReactiveNode {
 interface SignalNode<T = any> extends ReactiveNode {
   currentValue: T;
   pendingValue: T;
+  queued?: boolean;
 }
 
 // Marks a parent (effect or scope) whose deps include at least one child
@@ -26,12 +27,15 @@ const HasChildEffect = 64;
 
 let cycle = 0;
 let runDepth = 0;
-let batchDepth = 0;
 let notifyIndex = 0;
 let queuedLength = 0;
+let signalNotifyIndex = 0;
+let signalQueuedLength = 0;
+let pendingTriggers = 0;
 let activeSub: ReactiveNode | undefined;
 
 const queued: (EffectNode | undefined)[] = [];
+const signalQueued: (SignalNode | undefined)[] = [];
 const { link, unlink, propagate, checkDirty, shallowPropagate } =
   createReactiveSystem({
     update(node: SignalNode | ComputedNode | EffectScopeNode): boolean {
@@ -95,14 +99,6 @@ export function setActiveSub(sub?: ReactiveNode) {
   const prevSub = activeSub;
   activeSub = sub;
   return prevSub;
-}
-
-export function getBatchDepth(): number {
-  return batchDepth;
-}
-
-export function startBatch() {
-  ++batchDepth;
 }
 
 function disposeAllDepsInReverse(sub: ReactiveNode): void {
@@ -222,8 +218,22 @@ function run(e: EffectNode): void {
   }
 }
 
-function flush(): void {
+export function flush(): void {
   try {
+    // Drain signal queue first - update all pending signal values
+    while (signalNotifyIndex < signalQueuedLength) {
+      const signal = signalQueued[signalNotifyIndex]!;
+      signalQueued[signalNotifyIndex++] = undefined;
+      if (updateSignal(signal)) {
+        const subs = signal.subs;
+        if (subs !== undefined) {
+          shallowPropagate(subs);
+        }
+      }
+      signal.queued = false;
+    }
+
+    // Then drain effect queue
     while (notifyIndex < queuedLength) {
       const effect = queued[notifyIndex]!;
       queued[notifyIndex++] = undefined;
@@ -235,6 +245,9 @@ function flush(): void {
       queued[notifyIndex++] = undefined;
       effect.flags |= ReactiveFlags.Watching | ReactiveFlags.Recursed;
     }
+    signalNotifyIndex = 0;
+    signalQueuedLength = 0;
+    pendingTriggers = 0;
     notifyIndex = 0;
     queuedLength = 0;
   }
@@ -242,12 +255,15 @@ function flush(): void {
 
 function computedOper<T>(this: ComputedNode<T>): T {
   const flags = this.flags;
+  // Update computed on read only when no pending signal or trigger updates
   if (
-    flags & ReactiveFlags.Dirty ||
-    (flags & ReactiveFlags.Pending &&
-      (checkDirty(this.deps!, this) ||
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        ((this.flags = flags & ~ReactiveFlags.Pending), false)))
+    signalQueuedLength === 0 &&
+    pendingTriggers === 0 &&
+    (flags & ReactiveFlags.Dirty ||
+      (flags & ReactiveFlags.Pending &&
+        (checkDirty(this.deps!, this) ||
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+          ((this.flags = flags & ~ReactiveFlags.Pending), false))))
   ) {
     if (updateComputed(this)) {
       const subs = this.subs;
@@ -256,6 +272,7 @@ function computedOper<T>(this: ComputedNode<T>): T {
       }
     }
   } else if (!flags) {
+    // First initialization - run the getter
     this.flags = ReactiveFlags.Mutable | ReactiveFlags.RecursedCheck;
     const prevSub = setActiveSub(this);
     try {
@@ -275,36 +292,26 @@ function computedOper<T>(this: ComputedNode<T>): T {
 function signalOper<T>(this: SignalNode<T>, ...value: [T]): T | void {
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (value.length) {
+    // Write: queue the signal for deferred propagation on flush
     if (this.pendingValue !== (this.pendingValue = value[0])) {
       this.flags = ReactiveFlags.Mutable | ReactiveFlags.Dirty;
+      // Queue this signal if not already queued
+      if (!this.queued) {
+        this.queued = true;
+        signalQueued[signalQueuedLength++] = this;
+      }
       const subs = this.subs;
       if (subs !== undefined) {
         propagate(subs, !!runDepth);
-        if (!batchDepth) {
-          flush();
-        }
       }
     }
   } else {
-    if (this.flags & ReactiveFlags.Dirty) {
-      if (updateSignal(this)) {
-        const subs = this.subs;
-        if (subs !== undefined) {
-          shallowPropagate(subs);
-        }
-      }
-    }
+    // Read: return stale value until flush
     const sub = activeSub;
     if (sub !== undefined) {
       link(this, sub, cycle);
     }
     return this.currentValue;
-  }
-}
-
-export function endBatch() {
-  if (!--batchDepth) {
-    flush();
   }
 }
 
@@ -417,6 +424,9 @@ export function trigger(fn: () => void) {
     activeSub = prevSub;
     sub.flags = ReactiveFlags.None;
     let link = sub.deps;
+    if (link !== undefined) {
+      ++pendingTriggers;
+    }
     while (link !== undefined) {
       const dep = link.dep;
       link = unlink(link, sub);
@@ -425,9 +435,6 @@ export function trigger(fn: () => void) {
         propagate(subs, !!runDepth);
         shallowPropagate(subs);
       }
-    }
-    if (!batchDepth) {
-      flush();
     }
   }
 }

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { effect, signal } from "./index.js";
+import { computed, effect, flush, signal } from "./index.js";
 
 const logContents: unknown[] = [];
 let logTime = 0;
@@ -37,15 +37,103 @@ afterEach(() => {
   }
 });
 
-test("sample test - remove it and replace with others", () => {
+test("signal writes stay stale until flush", () => {
   const a = signal(0);
+  const doubled = computed(() => a() * 2);
+
   effect(() => {
-    log(a());
+    log("effect", doubled());
   });
+
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
+        "effect",
         0,
+      ],
+    ]
+  `);
+
+  a(1);
+  expect([a(), doubled()]).toMatchInlineSnapshot(`
+    [
+      0,
+      0,
+    ]
+  `);
+
+  flush();
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "effect",
+        2,
+      ],
+    ]
+  `);
+
+  expect([a(), doubled()]).toMatchInlineSnapshot(`
+    [
+      1,
+      2,
+    ]
+  `);
+});
+
+test("multiple writes to the same signal coalesce to the last value", () => {
+  const a = signal(0);
+  a(1);
+  a(2);
+  a(3);
+  expect(a()).toBe(0);
+  flush();
+  expect(a()).toBe(3);
+});
+
+test("flush drains chained writes", () => {
+  const a = signal(0);
+  const b = signal(0);
+
+  effect(() => {
+    log("first", a());
+    if (a() === 1) {
+      b(1);
+    }
+  });
+
+  effect(() => {
+    log("second", b());
+  });
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "first",
+        0,
+      ],
+      [
+        "second",
+        0,
+      ],
+    ]
+  `);
+
+  a(1);
+
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+
+  flush();
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "first",
+        1,
+      ],
+      [
+        "second",
+        1,
       ],
     ]
   `);

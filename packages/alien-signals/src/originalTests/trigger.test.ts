@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { computed, effect, signal, trigger } from "..";
+import { computed, effect, flush, signal, trigger } from "..";
 
 test("should not throw when triggering with no dependencies", () => {
   trigger(() => {});
@@ -12,6 +12,8 @@ test("should trigger updates for dependent computed signals", () => {
   expect(length()).toBe(0);
   arr().push(1);
   trigger(arr);
+  expect(length()).toBe(0);
+  flush();
   expect(length()).toBe(1);
 });
 
@@ -26,6 +28,8 @@ test("should trigger updates for the second source signal", () => {
     src1();
     src2();
   });
+  expect(length()).toBe(0);
+  flush();
   expect(length()).toBe(1);
 });
 
@@ -46,6 +50,8 @@ test("should trigger effect once", () => {
     src1();
     src2();
   });
+  expect(triggers).toBe(1);
+  flush();
   expect(triggers).toBe(2);
 });
 
