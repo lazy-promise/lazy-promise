@@ -32,6 +32,7 @@ let queuedLength = 0;
 let signalNotifyIndex = 0;
 let signalQueuedLength = 0;
 let pendingTriggers = 0;
+let autoFlushScheduled = false;
 let activeSub: ReactiveNode | undefined;
 
 const queued: (EffectNode | undefined)[] = [];
@@ -218,6 +219,19 @@ function run(e: EffectNode): void {
   }
 }
 
+function autoFlush(): void {
+  autoFlushScheduled = false;
+  // eslint-disable-next-line no-use-before-define
+  flush();
+}
+
+function scheduleFlush(): void {
+  if (!autoFlushScheduled) {
+    autoFlushScheduled = true;
+    queueMicrotask(autoFlush);
+  }
+}
+
 export function flush(): void {
   try {
     // Drain signal queue first - update all pending signal values
@@ -240,6 +254,13 @@ export function flush(): void {
       run(effect);
     }
   } finally {
+    // Signals written by effects during loop #2 were appended after loop #1 finished,
+    // so loop #1 never cleared their queued flag. Do it now so future writes can re-queue them.
+    while (signalNotifyIndex < signalQueuedLength) {
+      const signal = signalQueued[signalNotifyIndex]!;
+      signalQueued[signalNotifyIndex++] = undefined;
+      signal.queued = false;
+    }
     while (notifyIndex < queuedLength) {
       const effect = queued[notifyIndex]!;
       queued[notifyIndex++] = undefined;
@@ -299,6 +320,7 @@ function signalOper<T>(this: SignalNode<T>, ...value: [T]): T | void {
       if (!this.queued) {
         this.queued = true;
         signalQueued[signalQueuedLength++] = this;
+        scheduleFlush();
       }
       const subs = this.subs;
       if (subs !== undefined) {
@@ -426,6 +448,7 @@ export function trigger(fn: () => void) {
     let link = sub.deps;
     if (link !== undefined) {
       ++pendingTriggers;
+      scheduleFlush();
     }
     while (link !== undefined) {
       const dep = link.dep;
