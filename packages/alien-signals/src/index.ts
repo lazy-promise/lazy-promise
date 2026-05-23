@@ -1,16 +1,32 @@
+import type {
+  InnerSubscriber,
+  InnerSubscription,
+  Subscription,
+} from "@lazy-promise/core";
+import { LazyPromise, TypedError } from "@lazy-promise/core";
 import type { ReactiveNode } from "alien-signals/system";
 import { createReactiveSystem, ReactiveFlags } from "alien-signals/system";
 
 interface EffectScopeNode extends ReactiveNode {}
 
 interface EffectNode extends ReactiveNode {
-  fn(): (() => void) | void;
+  fn(): (() => void) | LazyPromise<any> | void;
   cleanup: (() => void) | void;
+}
+
+interface LPState {
+  original: LazyPromise<any>;
+  // eslint-disable-next-line no-use-before-define
+  pendingHead: PendingNode | undefined;
+  originalSub: Subscription | undefined;
+  hasCachedValue: boolean;
+  cachedValue: any;
 }
 
 interface ComputedNode<T = any> extends ReactiveNode {
   value: T | undefined;
   getter: (previousValue?: T) => T;
+  lp?: LPState;
 }
 
 interface SignalNode<T = any> extends ReactiveNode {
@@ -80,6 +96,15 @@ const { link, unlink, propagate, checkDirty, shallowPropagate } =
           // eslint-disable-next-line no-use-before-define
           disposeAllDepsInReverse(node);
         }
+        if (node.lp !== undefined) {
+          const lp = node.lp;
+          lp.hasCachedValue = false;
+          lp.cachedValue = undefined;
+          if (lp.pendingHead === undefined) {
+            lp.originalSub?.unsubscribe();
+            lp.originalSub = undefined;
+          }
+        }
       } else if ("currentValue" in node) {
         // Nothing to do for signals, they are always mutable and never dirty until pendingValue changes
       } else if ("fn" in node) {
@@ -117,6 +142,154 @@ function purgeDeps(sub: ReactiveNode) {
   while (dep !== undefined) {
     dep = unlink(dep, sub);
   }
+}
+
+class PendingNode {
+  // eslint-disable-next-line no-use-before-define
+  next: PendingNode | undefined = undefined;
+
+  constructor(
+    public innerSub: InnerSubscriber<any>,
+    public state: LPState,
+    public c: ComputedNode,
+  ) {}
+
+  unsubscribe() {
+    const { state, c } = this;
+    if (state.pendingHead === this) {
+      state.pendingHead = this.next;
+    } else {
+      let prev = state.pendingHead;
+      while (prev !== undefined && prev.next !== this) {
+        prev = prev.next;
+      }
+      if (prev !== undefined) {
+        prev.next = this.next;
+      }
+    }
+    if (state.pendingHead === undefined && c.subs === undefined) {
+      state.originalSub?.unsubscribe();
+      state.originalSub = undefined;
+      state.hasCachedValue = false;
+      state.cachedValue = undefined;
+    }
+  }
+}
+
+class OriginalSubscriber {
+  // Set to true when the original settles synchronously during subscribe().
+  // Checked in subscribeToOriginal to skip storing an already-done subscription.
+  settled = false;
+
+  constructor(
+    public state: LPState,
+    public c: ComputedNode,
+  ) {}
+
+  resolve(v: any) {
+    this.settled = true;
+    const { state, c } = this;
+    state.originalSub = undefined;
+    if (c.subs !== undefined && !(v instanceof TypedError)) {
+      state.hasCachedValue = true;
+      state.cachedValue = v;
+    }
+    let node = state.pendingHead;
+    state.pendingHead = undefined;
+    while (node !== undefined) {
+      node.innerSub.resolve(v);
+      node = node.next;
+    }
+  }
+
+  reject(error: unknown) {
+    this.settled = true;
+    const state = this.state;
+    state.originalSub = undefined;
+    let node = state.pendingHead;
+    state.pendingHead = undefined;
+    while (node !== undefined) {
+      node.innerSub.reject(error);
+      node = node.next;
+    }
+  }
+}
+
+class ProxyProducer {
+  constructor(
+    private state: LPState,
+    private c: ComputedNode,
+  ) {}
+
+  produce(innerSub: InnerSubscriber<any>): InnerSubscription | void {
+    const { state, c } = this;
+    if (state.hasCachedValue) {
+      innerSub.resolve(state.cachedValue);
+      return;
+    }
+    const node = new PendingNode(innerSub, state, c);
+    node.next = state.pendingHead;
+    state.pendingHead = node;
+    if (state.originalSub === undefined) {
+      // eslint-disable-next-line no-use-before-define
+      subscribeToOriginal(state, c, state.original);
+    }
+    return node;
+  }
+}
+
+function subscribeToOriginal(
+  state: LPState,
+  c: ComputedNode,
+  original: LazyPromise<any>,
+): void {
+  // Clear activeSub so reads inside the original's producer don't create
+  // reactive dependencies on the computed.
+  const prevActiveSub = activeSub;
+  activeSub = undefined;
+  const subscriber = new OriginalSubscriber(state, c);
+  const sub = original.subscribe(subscriber);
+  activeSub = prevActiveSub;
+  if (!subscriber.settled) {
+    state.originalSub = sub;
+  }
+}
+
+function updateLPComputed(
+  c: ComputedNode,
+  newOriginal: LazyPromise<any>,
+): boolean {
+  const state = c.lp!;
+  if (state.originalSub !== undefined) {
+    // Old original still pending — unsubscribe it, subscribe new, keep same proxy
+    state.originalSub.unsubscribe();
+    state.originalSub = undefined;
+    state.original = newOriginal;
+    subscribeToOriginal(state, c, newOriginal);
+    return false;
+  }
+  // Old original had settled
+  const newState: LPState = {
+    original: newOriginal,
+    pendingHead: undefined,
+    originalSub: undefined,
+    hasCachedValue: false,
+    cachedValue: undefined,
+  };
+  subscribeToOriginal(newState, c, newOriginal);
+  if (
+    newState.hasCachedValue &&
+    state.hasCachedValue &&
+    newState.cachedValue === state.cachedValue
+  ) {
+    // Synchronously settled to same non-TypedError value — reuse proxy
+    state.original = newOriginal;
+    return false;
+  }
+  // New proxy needed
+  c.lp = newState;
+  c.value = new LazyPromise(new ProxyProducer(newState, c));
+  return true;
 }
 
 function updateSignal(s: SignalNode): boolean {
@@ -170,7 +343,11 @@ function updateComputed(c: ComputedNode): boolean {
   try {
     ++cycle;
     const oldValue = c.value;
-    return oldValue !== (c.value = c.getter(oldValue));
+    const newValue = c.getter(oldValue);
+    if (newValue instanceof LazyPromise) {
+      return updateLPComputed(c, newValue);
+    }
+    return oldValue !== (c.value = newValue);
   } finally {
     activeSub = prevSub;
     c.flags &= ~ReactiveFlags.RecursedCheck;
@@ -207,7 +384,16 @@ function run(e: EffectNode): void {
     try {
       ++cycle;
       ++runDepth;
-      e.cleanup = e.fn();
+      const result = e.fn();
+      if (result instanceof LazyPromise) {
+        activeSub = undefined;
+        const lpSub = result.subscribe(undefined as any);
+        e.cleanup = () => {
+          lpSub.unsubscribe();
+        };
+      } else {
+        e.cleanup = result;
+      }
     } finally {
       --runDepth;
       activeSub = prevSub;
@@ -297,7 +483,22 @@ function computedOper<T>(this: ComputedNode<T>): T {
     this.flags = ReactiveFlags.Mutable | ReactiveFlags.RecursedCheck;
     const prevSub = setActiveSub(this);
     try {
-      this.value = this.getter();
+      const newValue = this.getter();
+      if (newValue instanceof LazyPromise) {
+        const state: LPState = {
+          original: newValue,
+          pendingHead: undefined,
+          originalSub: undefined,
+          hasCachedValue: false,
+          cachedValue: undefined,
+        };
+        this.lp = state;
+        this.value = new LazyPromise(
+          new ProxyProducer(state, this),
+        ) as unknown as T;
+      } else {
+        this.value = newValue;
+      }
     } finally {
       activeSub = prevSub;
       this.flags &= ~ReactiveFlags.RecursedCheck;
@@ -306,6 +507,14 @@ function computedOper<T>(this: ComputedNode<T>): T {
   const sub = activeSub;
   if (sub !== undefined) {
     link(this, sub, cycle);
+    // If this was the first initialization of an LP-computed, subscribe to the
+    // original now that c.subs is linked. This ensures a synchronously-settling
+    // original can set hasCachedValue correctly (the c.subs guard in
+    // OriginalSubscriber.resolve requires c.subs to be set first).
+    // For untracked reads, ProxyProducer.produce handles the subscription.
+    if (!flags && this.lp !== undefined) {
+      subscribeToOriginal(this.lp, this, this.lp.original);
+    }
   }
   return this.value!;
 }
@@ -386,9 +595,14 @@ export function computed<T>(getter: (previousValue?: T) => T): () => T {
   }) as () => T;
 }
 
-export function effect(fn: () => void | (() => void)): () => void {
+export function effect<T>(
+  fn: () =>
+    | void
+    | (() => void)
+    | (Extract<T, TypedError<any>> extends never ? LazyPromise<T> : never),
+): () => void {
   const e: EffectNode = {
-    fn,
+    fn: fn as () => (() => void) | LazyPromise<any> | void,
     cleanup: undefined,
     subs: undefined,
     subsTail: undefined,
@@ -403,7 +617,16 @@ export function effect(fn: () => void | (() => void)): () => void {
   }
   try {
     ++runDepth;
-    e.cleanup = e.fn();
+    const result = e.fn();
+    if (result instanceof LazyPromise) {
+      activeSub = undefined;
+      const lpSub = result.subscribe(undefined as any);
+      e.cleanup = () => {
+        lpSub.unsubscribe();
+      };
+    } else {
+      e.cleanup = result;
+    }
   } finally {
     --runDepth;
     activeSub = prevSub;

@@ -10,7 +10,7 @@ npm install @lazy-promise/alien-signals @lazy-promise/core alien-signals
 
 ## Introduction
 
-This library shows what async signals could look like if instead of the native promise you use LazyPromise. We'll take alien-signals as the starting point, and then change the surface API in three steps.
+This library shows what async signals could look like if instead of the native promise you use LazyPromise. We'll take alien-signals as the starting point, and then change the surface API in three steps, surfacing along the way a couple of reasons why the same cannot be implemented using the native Promise.
 
 ## Step 1: effects
 
@@ -32,7 +32,7 @@ effect(() =>
 );
 ```
 
-The `effect` callback reads the signal `a`, creating a tracked dependency, but it does not call the `map` callback: all it does is build and return a LazyPromise. The `map` callback will run when `effect` subscribes to that LazyPromise, but since we do that in untracked context, dependency on `b` will not be tracked.
+The `effect` callback reads the signal `a`, creating a tracked dependency, but it does not call the `map` callback: all it does is it builds and returns a LazyPromise. The `map` callback will run when `effect` subscribes to that LazyPromise, but since we do that in untracked context, dependency on `b` will not be tracked.
 
 If you did want the effect to re-run when `b` changes, you would do this instead:
 
@@ -63,7 +63,7 @@ effect(() => {
 });
 ```
 
-Here the reads in the effect callback would be tracked, and the reads in the LazyPromise constructor callback won't be, since the latter is executed lazily when the LazyPromise is subscribed.
+Here the reads in the effect callback would be tracked, and the reads in the LazyPromise constructor callback won't be, since the latter is executed when the LazyPromise is subscribed.
 
 We wouldn't be able to have the same simple convention on what is and isn't tracked if we used a native Promise, since in
 
@@ -82,7 +82,7 @@ Since LazyPromise supports typed errors, there's one more twist which you can ig
 
 ## Step 2: memos
 
-Like an Observable and unlike the native Promise, LazyPromise does't store and multi-cast its result by default, so if you create
+Like an Observable and unlike the native Promise, LazyPromise doesn't store and multi-cast its result by default, so if you create
 
 ```ts
 const lazyPromise = new LazyPromise(foo);
@@ -116,10 +116,22 @@ effect(() =>
 
 If you increment `localCount` while the `remoteCount` is still loading, `effect` will need to rerun, so it will unsubscribe and then immediately re-subscribe to `remoteCount`. `remoteCount` however is the proxy promise, not the original promise returned by `fetchRemoteCount`. Since all the while the memo stays in the dependency graph, that original promise will stay subscribed.
 
-To continue with this example, once the original promise settles with a value or an error, the memo will hold on to that result for as long as it stays in the dependency graph, and immediately give it to anyone who subscribes to `remoteCount`. This is analogous to how things work with non-async memos.
+Continuing with this example, once the original promise settles with a value or an error, the memo will hold on to that result for as long as it stays in the dependency graph, and immediately give it to anyone who subscribes to `remoteCount`. This is analogous to how things work with non-async memos.
+
+To prevent redundant reactive updates, when the memo re-runs, we change the identity of the proxy promise only when necessary, specifically when both hold:
+
+- The previous lazy promise has settled.
+
+- The new lazy promise does not synchronously settle to the same value or error that the previous promise has settled to.
+
+The first condition means we're never changing the identity of the proxy if the promise previously returned by the callback hasn't settled yet. In this case we can just as well use the existing proxy promise to pass on the value or error once we have it.
+
+The second condition means that after the callback returns, but before the `computed` itself returns, we subscribe to the new lazy promise and check if synchronously settles to the same result as the cached result. If so, there is no need for downstream updates. This logic is possible thanks to the fact that unlike native Promise, LazyPromise doesn't defer notifications to microtasks.
 
 ## Step 3: batching
 
 As in [Solid 2.0 signals](https://github.com/solidjs/solid/blob/next/documentation/solid-2.0/01-reactivity-batching-effects.md#flush-and-microtask-batching), we're going to add auto-batching, meaning that writing a signal will not actually update it until you run `flush()`, and if you don't run `flush()`, it will be run for you in a microtask.
 
 This makes sense irrespective of async: unless the flush is deferred, each time you update a signal outside of a batch, you're not just saying "update a signal", but "update a signal and I guarantee that I'm not about to update more signals". With async this becomes more of an issue because multiple signals are likely to be written when a lazy promise fires, and you don't want redundant reactive updates.
+
+With this change, there is no longer a need for `startBatch`/`endBatch`.
