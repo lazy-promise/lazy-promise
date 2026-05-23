@@ -1,4 +1,5 @@
-import { LazyPromise, TypedError, box } from "@lazy-promise/core";
+import type { TypedError } from "@lazy-promise/core";
+import { LazyPromise, box } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { computed, effect, flush, signal, trigger } from "./index.js";
 
@@ -214,269 +215,30 @@ test("computed: proxy LazyPromise fires when original settles", () => {
 
 test("computed: proxy propagates rejection from original", () => {
   let rejectOriginal!: (error: unknown) => void;
-  const a = signal(0);
 
   const memo = computed(
     () =>
       new LazyPromise<number>((subscriber) => {
-        log("produce");
         rejectOriginal = (e) => {
           subscriber.reject(e);
         };
       }),
   );
 
-  effect(() => {
-    log("effect");
-    a();
-    return memo().catchRejection((error) => {
-      log("caught", error);
-    });
-  });
+  effect(() =>
+    memo().catchRejection((error) => {
+      log("error", error);
+    }),
+  );
 
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "effect",
-      ],
-      [
-        "produce",
-      ],
-    ]
-  `);
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
 
   rejectOriginal("oops");
 
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "caught",
-        "oops",
-      ],
-    ]
-  `);
-
-  a(1);
-  flush();
-
-  // Rejections aren't cached.
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "effect",
-      ],
-      [
-        "produce",
-      ],
-    ]
-  `);
-});
-
-test("computed: proxy propagates TypedError from original", () => {
-  let resolveOriginal!: (value: number | TypedError<"oops">) => void;
-  const a = signal(0);
-
-  const memo = computed(
-    () =>
-      new LazyPromise<number | TypedError<"oops">>((subscriber) => {
-        log("produce");
-        resolveOriginal = (value) => {
-          subscriber.resolve(value);
-        };
-      }),
-  );
-
-  effect(() => {
-    log("effect");
-    a();
-    return memo().catchTypedError((error) => {
-      log("caught", error);
-    });
-  });
-
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "effect",
-      ],
-      [
-        "produce",
-      ],
-    ]
-  `);
-
-  resolveOriginal(new TypedError("oops"));
-
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "caught",
-        "oops",
-      ],
-    ]
-  `);
-
-  a(1);
-  flush();
-
-  // Typed errors aren't cached.
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "effect",
-      ],
-      [
-        "produce",
-      ],
-    ]
-  `);
-});
-
-test("computed: new proxy when new original synchronously resolves to TypedError", () => {
-  const a = signal(0);
-  let resolveWithError = false;
-  const typedError = new TypedError("oops");
-
-  const memo = computed(() => {
-    a();
-    return new LazyPromise<number | TypedError<string>>((subscriber) => {
-      log("produce");
-      subscriber.resolve(resolveWithError ? typedError : 42);
-    });
-  });
-
-  effect(() =>
-    memo()
-      .map((value) => {
-        log("value", value);
-      })
-      .catchTypedError((error) => {
-        log("caught", error);
-      }),
-  );
-
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "produce",
-      ],
-      [
-        "value",
-        42,
-      ],
-    ]
-  `);
-
-  resolveWithError = true;
-  a(1);
-  flush();
-  // Double "produce" call will be addressed in a separate commit.
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "produce",
-      ],
-      [
-        "produce",
-      ],
-      [
-        "caught",
-        "oops",
-      ],
-    ]
-  `);
-
-  a(2);
-  flush();
-  // Typed error is not cached.
-  // Double "produce" call will be addressed in a separate commit.
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "produce",
-      ],
-      [
-        "produce",
-      ],
-      [
-        "caught",
-        "oops",
-      ],
-    ]
-  `);
-});
-
-test("computed: new proxy when new original synchronously rejects", () => {
-  const a = signal(0);
-  let rejectNext = false;
-
-  const memo = computed(() => {
-    a();
-    return new LazyPromise<number>((subscriber) => {
-      log("produce");
-      if (rejectNext) {
-        subscriber.reject("oops");
-      } else {
-        subscriber.resolve(42);
-      }
-    });
-  });
-
-  effect(() =>
-    memo()
-      .map((value) => {
-        log("value", value);
-      })
-      .catchRejection((error) => {
-        log("rejected", error);
-      }),
-  );
-
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "produce",
-      ],
-      [
-        "value",
-        42,
-      ],
-    ]
-  `);
-
-  rejectNext = true;
-  a(1);
-  flush();
-  // Double "produce" call will be addressed in a separate commit.
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "produce",
-      ],
-      [
-        "produce",
-      ],
-      [
-        "rejected",
-        "oops",
-      ],
-    ]
-  `);
-
-  a(2);
-  flush();
-  // Rejections are not cached.
-  // Double "produce" call will be addressed in a separate commit.
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "produce",
-      ],
-      [
-        "produce",
-      ],
-      [
-        "rejected",
+        "error",
         "oops",
       ],
     ]
@@ -629,11 +391,11 @@ test("computed: reads in original producer are not tracked when computed is in g
 });
 
 test("computed: proxy identity preserved when getter re-runs and previous original is still pending", () => {
-  const url = signal("a");
+  const a = signal(0);
 
   const memo = computed(() => {
     log("memo");
-    url();
+    a();
     return new LazyPromise<number>(() => {
       log("produce");
     });
@@ -662,7 +424,7 @@ test("computed: proxy identity preserved when getter re-runs and previous origin
 
   const proxy1 = memo();
 
-  url("b");
+  a(1);
   flush();
 
   // Since identity is preserved, effect does not re-run.
@@ -682,13 +444,14 @@ test("computed: proxy identity preserved when getter re-runs and previous origin
 });
 
 test("computed: new proxy when new original synchronously resolves to different value - downstream re-runs", () => {
-  const url = signal("a");
+  const a = signal(0);
   let value = 1;
 
   const memo = computed(() => {
-    url();
+    a();
     const v = value;
     return new LazyPromise<number>((subscriber) => {
+      log("produce");
       subscriber.resolve(v);
     });
   });
@@ -707,6 +470,9 @@ test("computed: new proxy when new original synchronously resolves to different 
       [
         "downstream",
       ],
+      [
+        "produce",
+      ],
     ]
   `);
   const proxy1 = memo();
@@ -714,11 +480,14 @@ test("computed: new proxy when new original synchronously resolves to different 
   // Previous original settled synchronously with v=1.
   // Getter re-runs with v=2: resolves synchronously to a different value → new proxy.
   value = 2;
-  url("b");
+  a(1);
   flush();
 
   expect(readLog()).toMatchInlineSnapshot(`
     [
+      [
+        "produce",
+      ],
       [
         "downstream",
       ],
@@ -727,14 +496,99 @@ test("computed: new proxy when new original synchronously resolves to different 
 
   const proxy2 = memo();
   expect(proxy1).not.toBe(proxy2);
+
+  // Getter re-runs with v=2 again (same value) → proxy is reused, no downstream re-run.
+  a(2);
+  flush();
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+      ],
+    ]
+  `);
+
+  const proxy3 = memo();
+  expect(proxy3).toBe(proxy2);
+});
+
+test("computed: new proxy when new original synchronously rejects with different error - downstream re-runs", () => {
+  const a = signal(0);
+  let error: unknown = "foo";
+
+  const memo = computed(() => {
+    a();
+    const e = error;
+    return new LazyPromise<number>((subscriber) => {
+      log("produce");
+      subscriber.reject(e);
+    });
+  });
+
+  const downstream = computed(() => {
+    log("downstream");
+    return memo();
+  });
+
+  effect(() => {
+    downstream();
+  });
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "downstream",
+      ],
+      [
+        "produce",
+      ],
+    ]
+  `);
+  const proxy1 = memo();
+
+  // Previous original rejected synchronously with "foo".
+  // Getter re-runs with "bar": rejects synchronously with a different error → new proxy.
+  error = "bar";
+  a(1);
+  flush();
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+      ],
+      [
+        "downstream",
+      ],
+    ]
+  `);
+
+  const proxy2 = memo();
+  expect(proxy1).not.toBe(proxy2);
+
+  // Getter re-runs with "bar" again (same error) → proxy is reused, no downstream re-run.
+  a(2);
+  flush();
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+      ],
+    ]
+  `);
+
+  const proxy3 = memo();
+  expect(proxy3).toBe(proxy2);
 });
 
 test("computed: new proxy returned when getter re-runs, previous original resolved, and new one hasn't", () => {
   let resolveOriginal!: (v: number) => void;
-  const url = signal("a");
+  const a = signal(0);
 
   const memo = computed(() => {
-    url();
+    a();
     return new LazyPromise<number>((subscriber) => {
       log("produce");
       resolveOriginal = (v) => {
@@ -772,7 +626,7 @@ test("computed: new proxy returned when getter re-runs, previous original resolv
     ]
   `);
 
-  url("b");
+  a(1);
   flush();
 
   // Proxy changes identity and this triggers the effect.
@@ -792,11 +646,11 @@ test("computed: new proxy returned when getter re-runs, previous original resolv
 });
 
 test("computed: same proxy returned when getter re-runs and settled value is strictly equal", () => {
-  const url = signal("a");
+  const a = signal(0);
 
   const memo = computed(() => {
     log("memo");
-    url();
+    a();
     return new LazyPromise<number>((subscriber) => {
       log("produce");
       subscriber.resolve(42);
@@ -831,7 +685,7 @@ test("computed: same proxy returned when getter re-runs and settled value is str
   `);
   const proxy1 = memo();
 
-  url("b");
+  a(1);
   flush();
 
   // No downstream propagation
@@ -1082,6 +936,60 @@ test("computed: does not hold cached result after leaving dependency graph", () 
   `);
 });
 
+test("computed: does not hold cached rejection after leaving dependency graph", () => {
+  let rejectOriginal!: (error: unknown) => void;
+
+  const memo = computed(
+    () =>
+      new LazyPromise<number>((subscriber) => {
+        log("produce");
+        rejectOriginal = (e) => {
+          subscriber.reject(e);
+        };
+      }),
+  );
+
+  const dispose = effect(() => {
+    memo().catchRejection(() => {});
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+      ],
+    ]
+  `);
+
+  rejectOriginal("oops");
+
+  // Remove from graph: rejection cache cleared
+  dispose();
+
+  // New untracked subscription must cause a fresh original subscription
+  memo().subscribe({
+    reject: (e) => {
+      log("late", e);
+    },
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+      ],
+    ]
+  `);
+
+  rejectOriginal("fail");
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "late",
+        "fail",
+      ],
+    ]
+  `);
+});
+
 test("computed: in dependency graph - cached result delivered immediately to late subscribers", () => {
   let resolveOriginal!: (v: number) => void;
 
@@ -1123,6 +1031,50 @@ test("computed: in dependency graph - cached result delivered immediately to lat
       [
         "late",
         7,
+      ],
+    ]
+  `);
+});
+
+test("computed: in dependency graph - cached rejection delivered immediately to late subscribers", () => {
+  let rejectOriginal!: (error: unknown) => void;
+
+  const memo = computed(
+    () =>
+      new LazyPromise<number>((subscriber) => {
+        log("produce");
+        rejectOriginal = (e) => {
+          subscriber.reject(e);
+        };
+      }),
+  );
+
+  // Put the computed into the graph and await rejection
+  effect(() => {
+    memo().catchRejection(() => {});
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+      ],
+    ]
+  `);
+
+  rejectOriginal("oops");
+
+  // A late subscriber to the proxy gets the cached rejection
+  memo().subscribe({
+    reject: (e) => {
+      log("late", e);
+    },
+  });
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "late",
+        "oops",
       ],
     ]
   `);

@@ -2,10 +2,14 @@ import type {
   InnerSubscriber,
   InnerSubscription,
   Subscription,
+  TypedError,
 } from "@lazy-promise/core";
-import { LazyPromise, TypedError } from "@lazy-promise/core";
+import { LazyPromise } from "@lazy-promise/core";
 import type { ReactiveNode } from "alien-signals/system";
 import { createReactiveSystem, ReactiveFlags } from "alien-signals/system";
+
+const resolvedSymbol = Symbol("resolved");
+const rejectedSymbol = Symbol("rejected");
 
 interface EffectScopeNode extends ReactiveNode {}
 
@@ -19,8 +23,8 @@ interface LPState {
   // eslint-disable-next-line no-use-before-define
   pendingHead: PendingNode | undefined;
   originalSub: Subscription | undefined;
-  hasCachedValue: boolean;
-  cachedValue: any;
+  status: typeof resolvedSymbol | typeof rejectedSymbol | undefined;
+  result: any;
 }
 
 interface ComputedNode<T = any> extends ReactiveNode {
@@ -98,8 +102,8 @@ const { link, unlink, propagate, checkDirty, shallowPropagate } =
         }
         if (node.lp !== undefined) {
           const lp = node.lp;
-          lp.hasCachedValue = false;
-          lp.cachedValue = undefined;
+          lp.status = undefined;
+          lp.result = undefined;
           if (lp.pendingHead === undefined) {
             lp.originalSub?.unsubscribe();
             lp.originalSub = undefined;
@@ -170,8 +174,8 @@ class PendingNode {
     if (state.pendingHead === undefined && c.subs === undefined) {
       state.originalSub?.unsubscribe();
       state.originalSub = undefined;
-      state.hasCachedValue = false;
-      state.cachedValue = undefined;
+      state.status = undefined;
+      state.result = undefined;
     }
   }
 }
@@ -190,9 +194,9 @@ class OriginalSubscriber {
     this.settled = true;
     const { state, c } = this;
     state.originalSub = undefined;
-    if (c.subs !== undefined && !(v instanceof TypedError)) {
-      state.hasCachedValue = true;
-      state.cachedValue = v;
+    if (c.subs !== undefined) {
+      state.status = resolvedSymbol;
+      state.result = v;
     }
     let node = state.pendingHead;
     state.pendingHead = undefined;
@@ -204,8 +208,12 @@ class OriginalSubscriber {
 
   reject(error: unknown) {
     this.settled = true;
-    const state = this.state;
+    const { state, c } = this;
     state.originalSub = undefined;
+    if (c.subs !== undefined) {
+      state.status = rejectedSymbol;
+      state.result = error;
+    }
     let node = state.pendingHead;
     state.pendingHead = undefined;
     while (node !== undefined) {
@@ -223,8 +231,12 @@ class ProxyProducer {
 
   produce(innerSub: InnerSubscriber<any>): InnerSubscription | void {
     const { state, c } = this;
-    if (state.hasCachedValue) {
-      innerSub.resolve(state.cachedValue);
+    if (state.status === resolvedSymbol) {
+      innerSub.resolve(state.result);
+      return;
+    }
+    if (state.status === rejectedSymbol) {
+      innerSub.reject(state.result);
       return;
     }
     const node = new PendingNode(innerSub, state, c);
@@ -273,16 +285,16 @@ function updateLPComputed(
     original: newOriginal,
     pendingHead: undefined,
     originalSub: undefined,
-    hasCachedValue: false,
-    cachedValue: undefined,
+    status: undefined,
+    result: undefined,
   };
   subscribeToOriginal(newState, c, newOriginal);
   if (
-    newState.hasCachedValue &&
-    state.hasCachedValue &&
-    newState.cachedValue === state.cachedValue
+    newState.status !== undefined &&
+    newState.status === state.status &&
+    newState.result === state.result
   ) {
-    // Synchronously settled to same non-TypedError value — reuse proxy
+    // Synchronously settled to same result — reuse proxy
     state.original = newOriginal;
     return false;
   }
@@ -489,8 +501,8 @@ function computedOper<T>(this: ComputedNode<T>): T {
           original: newValue,
           pendingHead: undefined,
           originalSub: undefined,
-          hasCachedValue: false,
-          cachedValue: undefined,
+          status: undefined,
+          result: undefined,
         };
         this.lp = state;
         this.value = new LazyPromise(
