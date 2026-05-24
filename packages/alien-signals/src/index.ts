@@ -445,6 +445,14 @@ export function flush(): void {
       signal.queued = false;
     }
 
+    // All signals are now committed. Reset the signal queue counters so
+    // that lazy computed re-evaluation is allowed during the effect phase.
+    // Without this, `computedOper`'s `signalQueuedLength === 0` guard
+    // would incorrectly block re-evaluation of Pending computeds that are
+    // reached through diamond dependency paths.
+    signalNotifyIndex = 0;
+    signalQueuedLength = 0;
+
     // Then drain effect queue
     while (notifyIndex < queuedLength) {
       const effect = queued[notifyIndex]!;

@@ -1334,3 +1334,151 @@ test("signal written inside effect during flush can be written again afterwards"
   expect(b()).toBe(2);
   expect(bRuns).toBe(1);
 });
+
+//
+// `unbox` utility
+//
+
+const unbox = <T>(
+  getter: () => Extract<T, TypedError<any>> extends never
+    ? LazyPromise<T>
+    : never,
+): (() => T | undefined) => {
+  let hasReturnValue: boolean, returnValue: T | undefined;
+  const memoizedGetter = computed(() => {
+    hasReturnValue = false;
+    returnValue = undefined;
+    return getter();
+  });
+  const tokenSignal = signal();
+  return computed(() => {
+    const promise = memoizedGetter();
+    effect<any>(() =>
+      promise.map((value) => {
+        returnValue = value;
+        if (hasReturnValue) {
+          trigger(tokenSignal);
+          return;
+        }
+        hasReturnValue = true;
+      }),
+    );
+    if (hasReturnValue) {
+      return returnValue;
+    }
+    hasReturnValue = true;
+    tokenSignal();
+  });
+};
+
+test("unbox sync promises", () => {
+  const a = signal(0);
+  const b = unbox(() => box(a() + 10));
+  const c = unbox(() => box(a() + b()! + 100));
+  effect(() => {
+    log("effect", c());
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "effect",
+        110,
+      ],
+    ]
+  `);
+  a(1);
+  flush();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "effect",
+        112,
+      ],
+    ]
+  `);
+  expect(a()).toMatchInlineSnapshot(`1`);
+  expect(b()).toMatchInlineSnapshot(`11`);
+  expect(c()).toMatchInlineSnapshot(`112`);
+});
+
+test("unbox async promise", () => {
+  let resolveOriginal!: (v: number) => void;
+  const a = signal(0);
+
+  const b = unbox(() => {
+    a();
+    return new LazyPromise<number>((subscriber) => {
+      log("produce");
+      resolveOriginal = (v) => {
+        subscriber.resolve(v);
+      };
+      return () => {
+        log("unsubscribe");
+      };
+    });
+  });
+
+  const dispose = effect(() => {
+    log("effect", b());
+  });
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+      ],
+      [
+        "effect",
+        undefined,
+      ],
+    ]
+  `);
+
+  resolveOriginal(10);
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  flush();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "effect",
+        10,
+      ],
+    ]
+  `);
+
+  a(1);
+  flush();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+      ],
+      [
+        "effect",
+        undefined,
+      ],
+    ]
+  `);
+
+  a(2);
+  flush();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "unsubscribe",
+      ],
+      [
+        "produce",
+      ],
+    ]
+  `);
+
+  dispose();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "unsubscribe",
+      ],
+    ]
+  `);
+});

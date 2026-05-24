@@ -1,6 +1,6 @@
 # @lazy-promise/alien-signals
 
-A proof-of-concept async signals library built upon [alien-signals](https://github.com/stackblitz/alien-signals) and [LazyPromise](https://github.com/lazy-promise/lazy-promise).
+A proof-of-concept async signals library built on top of [alien-signals](https://github.com/stackblitz/alien-signals) and [LazyPromise](https://github.com/lazy-promise/lazy-promise).
 
 ## Installation
 
@@ -10,7 +10,7 @@ npm install @lazy-promise/alien-signals @lazy-promise/core alien-signals
 
 ## Introduction
 
-This library shows what async signals could look like if instead of the native promise you use LazyPromise. We'll take alien-signals as the starting point, and then change the surface API in three steps, surfacing along the way a couple of reasons why the same cannot be implemented using the native Promise.
+This library shows what async signals could look like if instead of the native promise you use LazyPromise. We'll take alien-signals as the starting point, and then change the API in three steps, surfacing along the way a couple of reasons why the same cannot be implemented using the native Promise.
 
 ## Step 1: effects
 
@@ -135,3 +135,63 @@ As in [Solid 2.0 signals](https://github.com/solidjs/solid/blob/next/documentati
 This makes sense irrespective of async: unless the flush is deferred, each time you update a signal outside of a batch, you're not just saying "update a signal", but "update a signal and I guarantee that I'm not about to update more signals". With async this becomes more of an issue because multiple signals are likely to be written when a lazy promise fires, and you don't want redundant reactive updates.
 
 With this change, there is no longer a need for `startBatch`/`endBatch`.
+
+## PS: what you can build on top
+
+On the client, you can have JSX or templates take lazy promises as inputs and trigger suspense/error boundaries, or you can implement colorless signals Solid 2.0-style. On the server, you can use async signals for async logic that could otherwise be implemented with RxJS or Effect.js.
+
+As an example we'll build a function `unbox` that takes a lazy promise getter (`() => LazyPromise<T>`) and returns a signal that gives you the value that the promise resolves to, or `undefined` if the promise hasn't resolved yet. Here's how one could use it:
+
+```ts
+const str = signal("");
+// Type () => string | undefined
+const debounced = unbox(
+  // Type () => LazyPromise<string>
+  () =>
+    box(str())
+      // Delays a lazy promise by 0.5s.
+      .finalize(() => inTimeout(500)),
+);
+```
+
+When implementing `unbox`, the trick is not to write (or `trigger`) signals synchronously in `computed` callbacks. If we did that, then even with auto-batching we'd end up with redundant reactive updates. If the promise resolves synchronously, we use only memos, and only trigger a signal if the promise settles asynchronously:
+
+```ts
+const unbox = <T>(
+  // Errors are expected to have been handled, so do not accept
+  // promises that can resolve to typed errors.
+  getter: () => Extract<T, TypedError<any>> extends never
+    ? LazyPromise<T>
+    : never,
+): (() => T | undefined) => {
+  let hasReturnValue: boolean, returnValue: T | undefined;
+  const memoizedGetter = computed(() => {
+    hasReturnValue = false;
+    returnValue = undefined;
+    return getter();
+  });
+  // A signal we'll use to trigger downstream updates in the case
+  // when the promise resolves asynchronously.
+  const tokenSignal = signal();
+  return computed(() => {
+    const promise = memoizedGetter();
+    effect<any>(() =>
+      promise.map((value) => {
+        returnValue = value;
+        if (hasReturnValue) {
+          // The promise has resolved asynchronously.
+          trigger(tokenSignal);
+          return;
+        }
+        hasReturnValue = true;
+      }),
+    );
+    if (hasReturnValue) {
+      // The promise has resolved synchronously.
+      return returnValue;
+    }
+    hasReturnValue = true;
+    tokenSignal();
+  });
+};
+```
