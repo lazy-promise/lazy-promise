@@ -5,7 +5,7 @@ A proof-of-concept async signals library built on top of [alien-signals](https:/
 ## Installation
 
 ```bash
-npm install @lazy-promise/alien-signals @lazy-promise/core alien-signals
+npm install @lazy-promise/alien-signals @lazy-promise/core
 ```
 
 ## Introduction
