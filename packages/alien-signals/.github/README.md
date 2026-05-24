@@ -78,7 +78,7 @@ effect(() => {
 
 the Promise constructor callback would execute synchronously, so as long as you track the effect callback, you'd also be tracking the Promise constructor callback.
 
-Since LazyPromise supports typed errors, there's one more twist which you can ignore if you're not interested in that functionality: we'll make `effect(...)` show a typechecking error if the LazyPromise returned by the callback can resolve to a TypedError. This makes sure that if for example there is a new typed error that a server endpoint can return, you don't forget to handle it in all the relevant places on the client.
+Since LazyPromise supports typed errors, there's one more twist which you can ignore if you're not interested in that functionality: we'll make `effect(...)` show a typechecking error if the LazyPromise returned by the callback can resolve to a TypedError. This makes sure that if, for example, there is a new typed error that a server endpoint can return, you don't forget to handle it in all the relevant places on the client.
 
 ## Step 2: memos
 
@@ -114,7 +114,7 @@ effect(() =>
 );
 ```
 
-If you increment `localCount` while the `remoteCount` is still loading, `effect` will need to rerun, so it will unsubscribe and then immediately re-subscribe to `remoteCount`. `remoteCount` however is the proxy promise, not the original promise returned by `fetchRemoteCount`. Since all the while the memo stays in the dependency graph, that original promise will stay subscribed.
+If you increment `localCount` while the `remoteCount` is still loading, `effect` will need to rerun, so it will unsubscribe and then immediately re-subscribe to `remoteCount`. `remoteCount`, however, is the proxy promise, not the original promise returned by `fetchRemoteCount`. Since all the while the memo stays in the dependency graph, that original promise will stay subscribed.
 
 Continuing with this example, once the original promise settles with a value or an error, the memo will hold on to that result for as long as it stays in the dependency graph, and immediately give it to anyone who subscribes to `remoteCount`. This is analogous to how things work with non-async memos.
 
@@ -126,7 +126,7 @@ To prevent redundant reactive updates, when the memo re-runs, we change the iden
 
 The first condition means we're never changing the identity of the proxy if the promise previously returned by the callback hasn't settled yet. In this case we can just as well use the existing proxy promise to pass on the value or error once we have it.
 
-The second condition means that after the callback returns, but before the `computed` itself returns, we subscribe to the new lazy promise and check if synchronously settles to the same result as the cached result. If so, there is no need for downstream updates. This logic is possible thanks to the fact that unlike native Promise, LazyPromise doesn't defer notifications to microtasks.
+The second condition means that after the callback returns, but before the `computed` itself returns, we subscribe to the new lazy promise and check if it synchronously settles to the same result as the cached result. If so, there is no need for downstream updates. This logic is possible thanks to the fact that unlike native Promise, LazyPromise doesn't defer notifications to microtasks.
 
 ## Step 3: batching
 
@@ -138,9 +138,9 @@ With this change, there is no longer a need for `startBatch`/`endBatch`.
 
 ## PS: what you can build on top
 
-On the client, you can have JSX or templates take lazy promises as inputs and trigger suspense/error boundaries, or you can implement colorless signals Solid 2.0-style. On the server, you can use async signals for async logic that could otherwise be implemented with RxJS or Effect.js.
+On the client, you can have JSX or templates take lazy promises as inputs and trigger suspense/error boundaries, or you can implement colorless signals Solid 2.0-style. On the server, you can use async signals for async logic that could otherwise be implemented with RxJS or Effect.
 
-As an example we'll build a function `unbox` that takes a lazy promise getter (`() => LazyPromise<T>`) and returns a signal that gives you the value that the promise resolves to, or `undefined` if the promise hasn't resolved yet. Here's how one could use it:
+As an example, we'll build a function `unbox` that takes a lazy promise getter (`() => LazyPromise<T>`) and returns a signal that gives you the value that the promise resolves to, or `undefined` if the promise hasn't resolved yet. Here's how one could use it:
 
 ```ts
 const str = signal("");
