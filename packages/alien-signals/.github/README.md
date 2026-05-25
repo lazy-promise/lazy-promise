@@ -164,12 +164,8 @@ const unbox = <T>(
     ? LazyPromise<T>
     : never,
 ): (() => T | undefined) => {
-  let hasReturnValue: boolean, returnValue: T | undefined;
-  const memoizedGetter = computed(() => {
-    hasReturnValue = false;
-    returnValue = undefined;
-    return getter();
-  });
+  let returnValue: T | undefined, returnValuePromise: unknown;
+  const memoizedGetter = computed(getter);
   // A signal we'll use to trigger downstream updates in the case
   // when the promise resolves asynchronously.
   const tokenSignal = signal();
@@ -178,20 +174,22 @@ const unbox = <T>(
     effect<any>(() =>
       promise.map((value) => {
         returnValue = value;
-        if (hasReturnValue) {
+        if (returnValuePromise === promise) {
           // The promise has resolved asynchronously.
           trigger(tokenSignal);
           return;
         }
-        hasReturnValue = true;
+        returnValuePromise = promise;
       }),
     );
-    if (hasReturnValue) {
+    if (returnValuePromise === promise) {
       // The promise has resolved synchronously.
       return returnValue;
     }
-    hasReturnValue = true;
+    returnValuePromise = promise;
     tokenSignal();
   });
 };
 ```
+
+[Playground link](https://stackblitz.com/edit/unbox?devToolsHeight=33&file=index.ts)

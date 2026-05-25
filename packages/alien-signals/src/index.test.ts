@@ -1340,33 +1340,35 @@ test("signal written inside effect during flush can be written again afterwards"
 //
 
 const unbox = <T>(
+  // Errors are expected to have been handled, so do not accept
+  // promises that can resolve to typed errors.
   getter: () => Extract<T, TypedError<any>> extends never
     ? LazyPromise<T>
     : never,
 ): (() => T | undefined) => {
-  let hasReturnValue: boolean, returnValue: T | undefined;
-  const memoizedGetter = computed(() => {
-    hasReturnValue = false;
-    returnValue = undefined;
-    return getter();
-  });
+  let returnValue: T | undefined, returnValuePromise: unknown;
+  const memoizedGetter = computed(getter);
+  // A signal we'll use to trigger downstream updates in the case
+  // when the promise resolves asynchronously.
   const tokenSignal = signal();
   return computed(() => {
     const promise = memoizedGetter();
     effect<any>(() =>
       promise.map((value) => {
         returnValue = value;
-        if (hasReturnValue) {
+        if (returnValuePromise === promise) {
+          // The promise has resolved asynchronously.
           trigger(tokenSignal);
           return;
         }
-        hasReturnValue = true;
+        returnValuePromise = promise;
       }),
     );
-    if (hasReturnValue) {
+    if (returnValuePromise === promise) {
+      // The promise has resolved synchronously.
       return returnValue;
     }
-    hasReturnValue = true;
+    returnValuePromise = promise;
     tokenSignal();
   });
 };
@@ -1469,6 +1471,32 @@ test("unbox async promise", () => {
       ],
       [
         "produce",
+      ],
+    ]
+  `);
+
+  resolveOriginal(20);
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  flush();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "effect",
+        20,
+      ],
+    ]
+  `);
+
+  a(3);
+  flush();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+      ],
+      [
+        "effect",
+        undefined,
       ],
     ]
   `);
