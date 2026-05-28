@@ -41,6 +41,7 @@ const a = signal(0);
 const b = signal(0);
 
 effect(() =>
+  // Translation: Promise.all([a(), b()])
   all([a(), b()])
     .map(([a, b]) => a + b)
     .map(console.log),
