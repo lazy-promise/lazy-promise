@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.28](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.28)
+
+- Rename `fromGenerator` to `fromGen`.
+
 ## [@lazy-promise/core@0.0.27](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.27)
 
 - Minor imports fix.

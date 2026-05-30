@@ -1,7 +1,7 @@
 import type { LazyPromiseGenerator, Subscriber } from "@lazy-promise/core";
 import {
   box,
-  fromGenerator,
+  fromGen,
   LazyPromise,
   never,
   rejecting,
@@ -56,7 +56,7 @@ afterEach(() => {
 
 test("types", () => {
   expectTypeOf(
-    fromGenerator(function* () {
+    fromGen(function* () {
       const value = yield* new LazyPromise<"a" | "b" | TypedError<"error1">>(
         () => {},
       );
@@ -80,22 +80,20 @@ test("types", () => {
     }
     return value;
   };
-  expectTypeOf(fromGenerator(generatorFunction)).toEqualTypeOf<
+  expectTypeOf(fromGen(generatorFunction)).toEqualTypeOf<
     LazyPromise<TypedError<"error2"> | TypedError<"error1"> | "b">
   >();
 
   expectTypeOf(
-    fromGenerator(function* () {
+    fromGen(function* () {
       return 1 as const;
     }),
   ).toEqualTypeOf<LazyPromise<1>>();
 
-  expectTypeOf(fromGenerator(function* () {})).toEqualTypeOf<
-    LazyPromise<void>
-  >();
+  expectTypeOf(fromGen(function* () {})).toEqualTypeOf<LazyPromise<void>>();
 
   expectTypeOf(
-    fromGenerator(function* () {
+    fromGen(function* () {
       if (true as boolean) {
         return new LazyPromise<TypedError<"error1">>(() => {});
       }
@@ -104,19 +102,19 @@ test("types", () => {
   ).toEqualTypeOf<LazyPromise<"a" | TypedError<"error1">>>();
 
   expectTypeOf(
-    fromGenerator(function* () {
+    fromGen(function* () {
       throw "a";
     }),
   ).toEqualTypeOf<LazyPromise<never>>();
 
   expectTypeOf(
-    fromGenerator(function* () {
+    fromGen(function* () {
       yield* rejecting(1);
     }),
   ).toEqualTypeOf<LazyPromise<void>>();
 
   /** @ts-expect-error */
-  fromGenerator(function* () {
+  fromGen(function* () {
     yield new LazyPromise<"a">(() => {});
   });
 
@@ -124,26 +122,26 @@ test("types", () => {
     yield new LazyPromise<"a">(() => {});
   };
   /** @ts-expect-error */
-  fromGenerator(badGeneratorFunction);
+  fromGen(badGeneratorFunction);
 
   /** @ts-expect-error */
-  fromGenerator(function* () {
+  fromGen(function* () {
     yield* "a";
   });
 
   /** @ts-expect-error */
-  fromGenerator(function* () {
+  fromGen(function* () {
     yield* ["a"];
   });
 
   /** @ts-expect-error */
-  fromGenerator(function* () {
+  fromGen(function* () {
     yield* [new LazyPromise<"a">(() => {})];
   });
 
   // Return generic type.
   const f1 = <T>(arg: T) => {
-    const promise = fromGenerator(function* () {
+    const promise = fromGen(function* () {
       return arg;
     });
     return promise.map((x) => x);
@@ -152,7 +150,7 @@ test("types", () => {
 
   // Yield generic type.
   const f2 = <T>(arg: T) => {
-    const promise = fromGenerator(function* () {
+    const promise = fromGen(function* () {
       yield* box(new TypedError(arg));
       return { prop: yield* box(arg) };
     });
@@ -162,7 +160,7 @@ test("types", () => {
 });
 
 test("value of this", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     /** @ts-expect-error */
     log("in callback", this);
   });
@@ -178,7 +176,7 @@ test("value of this", () => {
 });
 
 test("return value", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     log("in generator");
     return "a";
   });
@@ -218,7 +216,7 @@ test("yield to another generator function", () => {
     expect(value).toMatchInlineSnapshot(`"value"`);
     return 1;
   };
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     return yield* a();
   });
   promise.subscribe(logSubscriber);
@@ -235,7 +233,7 @@ test("yield to another generator function", () => {
 });
 
 test("yield resolved", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     log("in generator, start");
     const a = yield* box("a");
     log("in generator, after yield", a);
@@ -265,7 +263,7 @@ test("yield async", () => {
       clearTimeout(timeoutId);
     };
   });
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     log("in generator, start");
     const a = yield* inner;
     log("in generator, after yield", a);
@@ -323,7 +321,7 @@ test("multiple yields", () => {
       };
     });
 
-  fromGenerator(function* () {
+  fromGen(function* () {
     log(yield* box(1));
     log(yield* box(2));
   }).subscribe();
@@ -338,7 +336,7 @@ test("multiple yields", () => {
     ]
   `);
 
-  fromGenerator(function* () {
+  fromGen(function* () {
     log(yield* getAsyncPromise(1));
     log(yield* getAsyncPromise(2));
   }).subscribe();
@@ -356,7 +354,7 @@ test("multiple yields", () => {
     ]
   `);
 
-  fromGenerator(function* () {
+  fromGen(function* () {
     log(yield* box(1));
     log(yield* getAsyncPromise(2));
     log(yield* box(3));
@@ -377,7 +375,7 @@ test("multiple yields", () => {
     ]
   `);
 
-  fromGenerator(function* () {
+  fromGen(function* () {
     log(yield* getAsyncPromise(1));
     log(yield* box(2));
     log(yield* getAsyncPromise(3));
@@ -401,7 +399,7 @@ test("multiple yields", () => {
 });
 
 test("yield to a sync rejected (uncaught)", () => {
-  fromGenerator(function* () {
+  fromGen(function* () {
     log("in generator");
     yield* rejecting("a");
   }).subscribe(logSubscriber);
@@ -419,7 +417,7 @@ test("yield to a sync rejected (uncaught)", () => {
 });
 
 test("yield to a sync rejected (caught)", () => {
-  fromGenerator(function* () {
+  fromGen(function* () {
     log("in generator");
     try {
       yield* rejecting("a");
@@ -446,7 +444,7 @@ test("yield to a sync rejected (caught)", () => {
 });
 
 test("yield to an async rejected (uncaught)", () => {
-  fromGenerator(function* () {
+  fromGen(function* () {
     log("in generator");
     yield* new LazyPromise((subscriber) => {
       setTimeout(() => {
@@ -474,7 +472,7 @@ test("yield to an async rejected (uncaught)", () => {
 });
 
 test("yield to an async rejected (caught)", () => {
-  fromGenerator(function* () {
+  fromGen(function* () {
     log("in generator");
     try {
       yield* new LazyPromise((subscriber) => {
@@ -511,7 +509,7 @@ test("yield to an async rejected (caught)", () => {
 });
 
 test("throw in callback", () => {
-  const promise = fromGenerator(() => {
+  const promise = fromGen(() => {
     throw "oops";
   });
   promise.subscribe(logSubscriber);
@@ -526,7 +524,7 @@ test("throw in callback", () => {
 });
 
 test("throw at the start of the generator", () => {
-  fromGenerator(function* () {
+  fromGen(function* () {
     throw "oops";
   }).subscribe(logSubscriber);
   expect(readLog()).toMatchInlineSnapshot(`
@@ -540,7 +538,7 @@ test("throw at the start of the generator", () => {
 });
 
 test("throw in the middle of a sync generator", () => {
-  fromGenerator(function* () {
+  fromGen(function* () {
     yield* box();
     throw "oops";
   }).subscribe(logSubscriber);
@@ -555,7 +553,7 @@ test("throw in the middle of a sync generator", () => {
 });
 
 test("throw in the middle of an async generator", () => {
-  fromGenerator(function* () {
+  fromGen(function* () {
     yield* new LazyPromise<void>((subscriber) => {
       setTimeout(() => {
         subscriber.resolve();
@@ -576,7 +574,7 @@ test("throw in the middle of an async generator", () => {
 });
 
 test("empty iterator", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     log("in generator");
     yield* [];
     return "a";
@@ -596,7 +594,7 @@ test("empty iterator", () => {
 });
 
 test("return in try clause", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     log("in generator");
     try {
       return "a";
@@ -623,7 +621,7 @@ test("return in try clause", () => {
 });
 
 test("throw in try clause", () => {
-  fromGenerator(function* () {
+  fromGen(function* () {
     log("in generator");
     try {
       throw "a";
@@ -649,7 +647,7 @@ test("throw in try clause", () => {
 });
 
 test("override an error thrown in try clause with return", () => {
-  fromGenerator(function* () {
+  fromGen(function* () {
     log("in generator");
     try {
       throw "a";
@@ -677,7 +675,7 @@ test("override an error thrown in try clause with return", () => {
 });
 
 test("override rejection with another rejection in finally clause (sync)", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     log("in generator");
     try {
       return yield* rejecting("a");
@@ -700,7 +698,7 @@ test("override rejection with another rejection in finally clause (sync)", () =>
 });
 
 test("override rejection with another rejection in finally clause (async)", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     log("in generator");
     try {
       return yield* new LazyPromise<never>((subscriber) => {
@@ -733,7 +731,7 @@ test("override rejection with another rejection in finally clause (async)", () =
 });
 
 test("override rejection with throw in finally clause (sync)", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     log("in generator");
     try {
       return yield* rejecting("a");
@@ -757,7 +755,7 @@ test("override rejection with throw in finally clause (sync)", () => {
 });
 
 test("override rejection with throw in finally clause (async)", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     log("in generator");
     try {
       return yield* new LazyPromise<never>((subscriber) => {
@@ -787,7 +785,7 @@ test("override rejection with throw in finally clause (async)", () => {
 });
 
 test("ignore the finally clause when unsubscribed", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     log("in generator");
     try {
       yield* never;
@@ -806,7 +804,7 @@ test("ignore the finally clause when unsubscribed", () => {
 });
 
 test("synchronously unsubscribe in producer", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     yield* new LazyPromise<void>((subscriber) => {
       setTimeout(() => {
         subscriber.resolve();
@@ -834,7 +832,7 @@ test("synchronously unsubscribe in producer", () => {
 });
 
 test("synchronously unsubscribe then resolve in producer", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     yield* new LazyPromise<void>((subscriber) => {
       setTimeout(() => {
         subscriber.resolve();
@@ -853,7 +851,7 @@ test("synchronously unsubscribe then resolve in producer", () => {
 });
 
 test("synchronously unsubscribe then reject in producer", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     yield* new LazyPromise<void>((subscriber) => {
       setTimeout(() => {
         subscriber.resolve();
@@ -872,7 +870,7 @@ test("synchronously unsubscribe then reject in producer", () => {
 });
 
 test("unsubscribe in generator after sync resolve", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     yield* new LazyPromise<void>((subscriber) => {
       setTimeout(() => {
         subscriber.resolve();
@@ -891,7 +889,7 @@ test("unsubscribe in generator after sync resolve", () => {
 });
 
 test("unsubscribe in generator after sync reject", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     yield* new LazyPromise<void>((subscriber) => {
       setTimeout(() => {
         subscriber.resolve();
@@ -913,7 +911,7 @@ test("unsubscribe in generator after sync reject", () => {
 });
 
 test("unsubscribe in generator after async resolve", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     yield* new LazyPromise<void>((subscriber) => {
       setTimeout(() => {
         subscriber.resolve();
@@ -931,7 +929,7 @@ test("unsubscribe in generator after async resolve", () => {
 });
 
 test("unsubscribe in generator after async reject", () => {
-  const promise = fromGenerator(function* () {
+  const promise = fromGen(function* () {
     try {
       yield* new LazyPromise<void>((subscriber) => {
         setTimeout(() => {
@@ -960,7 +958,7 @@ test("stack overflow with resolved lazy promises", () => {
     }
   };
   const maxStackDepth = getMaxStackDepth();
-  fromGenerator(function* () {
+  fromGen(function* () {
     for (let i = 0; i < maxStackDepth + 10; i++) {
       yield* box();
     }
@@ -972,7 +970,7 @@ test("stack overflow with resolved lazy promises", () => {
       subscriber.resolve();
       log("end", index);
     });
-  fromGenerator(function* () {
+  fromGen(function* () {
     yield* getInner(1);
     yield* getInner(2);
     yield* getInner(3);
@@ -1016,7 +1014,7 @@ test("stack overflow with rejected lazy promises", () => {
     }
   };
   const maxStackDepth = getMaxStackDepth();
-  fromGenerator(function* () {
+  fromGen(function* () {
     for (let i = 0; i < maxStackDepth + 10; i++) {
       try {
         yield* rejecting();
@@ -1031,7 +1029,7 @@ test("stack overflow with rejected lazy promises", () => {
       subscriber.reject(undefined);
       log("end", index);
     });
-  fromGenerator(function* () {
+  fromGen(function* () {
     try {
       yield* getInner(1);
       // eslint-disable-next-line no-empty

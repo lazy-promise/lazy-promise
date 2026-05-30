@@ -135,7 +135,7 @@ class FromGeneratorProducer<TReturn> implements Producer<any> {
 /**
  * Converts a generator function to a LazyPromise.
  */
-export const fromGenerator = <TReturn>(
+export const fromGen = <TReturn>(
   generatorFunction: () => LazyPromiseGenerator<TReturn>,
 ): LazyPromise<Unbox<TReturn>> =>
   new LazyPromise<any>(new FromGeneratorProducer(generatorFunction));

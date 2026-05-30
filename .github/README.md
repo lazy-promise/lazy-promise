@@ -154,7 +154,7 @@ This is a full LazyPromise equivalent of async-await. Just use generator functio
 
 ```ts
 // Type inferred as LazyPromise<"b">
-const lazyPromise = fromGenerator(function* () {
+const lazyPromise = fromGen(function* () {
   // Type inferred as "a"
   const value = yield* new LazyPromise<"a">(...);
   // Sleep for 1s.
@@ -170,9 +170,9 @@ const lazyPromise = fromGenerator(function* () {
 
 Whereas rejections are handled similarly to async-await syntax, typed errors are in this case treated like any other values that a lazy promise can resolve to.
 
-Similarly to the `finalize` operator, a `finally` block does not execute if the lazy promise returned by `fromGenerator` is unsubscribed before reaching it. If you don't `yield*` inside `try`/`catch`, you keep the guarantee that `finally` will run no matter what.
+Similarly to the `finalize` operator, a `finally` block does not execute if the lazy promise returned by `fromGen` is unsubscribed before reaching it. If you don't `yield*` inside `try`/`catch`, you keep the guarantee that `finally` will run no matter what.
 
-One last thing to keep in mind is that instead of writing `yield* fromGenerator(foo)`, you can equivalently yield to the generator function `foo` directly: `yield* foo()`. This has an added advantage of being able to pass arguments.
+One last thing to keep in mind is that instead of writing `yield* fromGen(foo)`, you can equivalently yield to the generator function `foo` directly: `yield* foo()`. This has an added advantage of being able to pass arguments. When defining `foo`, you can use a helper type `LazyPromiseGenerator<T>` for return value.
 
 ## Class-based API
 
