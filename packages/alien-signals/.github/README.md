@@ -139,9 +139,11 @@ With this change, there is no longer a need for `startBatch`/`endBatch`.
 
 ## PS: what you can build on top
 
-On the client, you can have JSX or templates take lazy promises as inputs and trigger suspense/error boundaries, or you can implement colorless signals Solid 2.0-style. On the server, you can use async signals for async logic that could otherwise be implemented with RxJS or Effect.
+On the client, you can have JSX or templates take lazy promises as inputs and trigger suspense/error boundaries. It would also be interesting to see how async signals can be used on the server.
 
-As an example, we'll build a function `unbox` that takes a lazy promise getter (`() => LazyPromise<T>`) and returns a signal that gives you the value that the promise resolves to, or `undefined` if the promise hasn't resolved yet. Here's how one could use it:
+You could also implement Solid 2.0-style colorless signals, but personally I don't think they are a good idea. It's important to be able to build components that don't care if a prop is sync or async, but you can just represent those props with lazy promises and instead of writing memo callbacks as `() => a() * 2`, write them as `() => a().map(a => a * 2)`. The downsides of colorless signals (eagerness, errors in event handlers) are too much of a price to pay for not having to type `.map`. The one challenge in dealing with "sync or async" props is deciding whether to represent them as `LazyPromise<T>` or `T | LazyPromise<T>`. My guess is it's better to coerce to `LazyPromise<T>` as early as possible, even if this is harder for a framework to implement.
+
+Here as an example we'll build a function `unbox` that takes a lazy promise getter (`() => LazyPromise<T>`) and returns a signal that gives you the value that the promise resolves to, or `undefined` if the promise hasn't resolved yet. Here's how one could use it:
 
 ```ts
 const str = signal("");
