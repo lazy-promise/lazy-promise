@@ -248,7 +248,11 @@ class ProxyProducer {
   }
 }
 
-const subscribeToOriginal = (state: LPState, c: ComputedNode, original: LazyPromise<any>): void => {
+const subscribeToOriginal = (
+  state: LPState,
+  c: ComputedNode,
+  original: LazyPromise<any>,
+): void => {
   // Clear activeSub so reads inside the original's producer don't create
   // reactive dependencies on the computed.
   const prevActiveSub = activeSub;
@@ -261,7 +265,10 @@ const subscribeToOriginal = (state: LPState, c: ComputedNode, original: LazyProm
   }
 };
 
-const updateLPComputed = (c: ComputedNode, newOriginal: LazyPromise<any>): boolean => {
+const updateLPComputed = (
+  c: ComputedNode,
+  newOriginal: LazyPromise<any>,
+): boolean => {
   const state = c.lp!;
   if (state.originalSub !== undefined) {
     // Old original still pending — unsubscribe it, subscribe new, keep same proxy
@@ -557,13 +564,17 @@ function signalOper<T>(this: SignalNode<T>, ...value: [T]): T | void {
   }
 }
 
-export const isSignal = (fn: () => void): boolean => fn.name === "bound " + signalOper.name;
+export const isSignal = (fn: () => void): boolean =>
+  fn.name === "bound " + signalOper.name;
 
-export const isComputed = (fn: () => void): boolean => fn.name === "bound " + computedOper.name;
+export const isComputed = (fn: () => void): boolean =>
+  fn.name === "bound " + computedOper.name;
 
-export const isEffect = (fn: () => void): boolean => fn.name === "bound " + effectOper.name;
+export const isEffect = (fn: () => void): boolean =>
+  fn.name === "bound " + effectOper.name;
 
-export const isEffectScope = (fn: () => void): boolean => fn.name === "bound " + effectScopeOper.name;
+export const isEffectScope = (fn: () => void): boolean =>
+  fn.name === "bound " + effectScopeOper.name;
 
 export function signal<T>(): {
   (): T | undefined;
@@ -586,7 +597,8 @@ export function signal<T>(initialValue?: T): {
   }) as () => T | undefined;
 }
 
-export const computed = <T>(getter: (previousValue?: T) => T): () => T => computedOper.bind({
+export const computed = <T>(getter: (previousValue?: T) => T): (() => T) =>
+  computedOper.bind({
     value: undefined,
     subs: undefined,
     subsTail: undefined,
@@ -596,10 +608,12 @@ export const computed = <T>(getter: (previousValue?: T) => T): () => T => comput
     getter: getter as (previousValue?: unknown) => unknown,
   }) as () => T;
 
-export const effect = <T>(fn: () =>
+export const effect = <T>(
+  fn: () =>
     | void
     | (() => void)
-    | (Extract<T, TypedError<any>> extends never ? LazyPromise<T> : never)): () => void => {
+    | (Extract<T, TypedError<any>> extends never ? LazyPromise<T> : never),
+): (() => void) => {
   const e: EffectNode = {
     fn: fn as () => (() => void) | LazyPromise<any> | void,
     cleanup: undefined,
@@ -634,7 +648,7 @@ export const effect = <T>(fn: () =>
   return effectOper.bind(e);
 };
 
-export const effectScope = (fn: () => void): () => void => {
+export const effectScope = (fn: () => void): (() => void) => {
   const e: EffectScopeNode = {
     deps: undefined,
     depsTail: undefined,
