@@ -121,32 +121,30 @@ const { link, unlink, propagate, checkDirty, shallowPropagate } =
     },
   });
 
-export function getActiveSub(): ReactiveNode | undefined {
-  return activeSub;
-}
+export const getActiveSub = (): ReactiveNode | undefined => activeSub;
 
-export function setActiveSub(sub?: ReactiveNode) {
+export const setActiveSub = (sub?: ReactiveNode) => {
   const prevSub = activeSub;
   activeSub = sub;
   return prevSub;
-}
+};
 
-function disposeAllDepsInReverse(sub: ReactiveNode): void {
+const disposeAllDepsInReverse = (sub: ReactiveNode): void => {
   let link = sub.depsTail;
   while (link !== undefined) {
     const prev = link.prevDep;
     unlink(link, sub);
     link = prev;
   }
-}
+};
 
-function purgeDeps(sub: ReactiveNode) {
+const purgeDeps = (sub: ReactiveNode) => {
   const depsTail = sub.depsTail;
   let dep = depsTail !== undefined ? depsTail.nextDep : sub.deps;
   while (dep !== undefined) {
     dep = unlink(dep, sub);
   }
-}
+};
 
 class PendingNode {
   // eslint-disable-next-line no-use-before-define
@@ -250,11 +248,7 @@ class ProxyProducer {
   }
 }
 
-function subscribeToOriginal(
-  state: LPState,
-  c: ComputedNode,
-  original: LazyPromise<any>,
-): void {
+const subscribeToOriginal = (state: LPState, c: ComputedNode, original: LazyPromise<any>): void => {
   // Clear activeSub so reads inside the original's producer don't create
   // reactive dependencies on the computed.
   const prevActiveSub = activeSub;
@@ -265,12 +259,9 @@ function subscribeToOriginal(
   if (!subscriber.settled) {
     state.originalSub = sub;
   }
-}
+};
 
-function updateLPComputed(
-  c: ComputedNode,
-  newOriginal: LazyPromise<any>,
-): boolean {
+const updateLPComputed = (c: ComputedNode, newOriginal: LazyPromise<any>): boolean => {
   const state = c.lp!;
   if (state.originalSub !== undefined) {
     // Old original still pending — unsubscribe it, subscribe new, keep same proxy
@@ -302,14 +293,14 @@ function updateLPComputed(
   c.lp = newState;
   c.value = new LazyPromise(new ProxyProducer(newState, c));
   return true;
-}
+};
 
-function updateSignal(s: SignalNode): boolean {
+const updateSignal = (s: SignalNode): boolean => {
   s.flags = ReactiveFlags.Mutable;
   return s.currentValue !== (s.currentValue = s.pendingValue);
-}
+};
 
-function runCleanup(e: EffectNode): void {
+const runCleanup = (e: EffectNode): void => {
   const cleanup = e.cleanup!;
   e.cleanup = undefined;
   const prevSub = activeSub;
@@ -319,7 +310,7 @@ function runCleanup(e: EffectNode): void {
   } finally {
     activeSub = prevSub;
   }
-}
+};
 
 function effectScopeOper(this: EffectScopeNode): void {
   this.flags = ReactiveFlags.None;
@@ -337,7 +328,7 @@ function effectOper(this: EffectNode): void {
   }
 }
 
-function updateComputed(c: ComputedNode): boolean {
+const updateComputed = (c: ComputedNode): boolean => {
   if (c.flags & HasChildEffect) {
     let link = c.depsTail;
     while (link !== undefined) {
@@ -365,9 +356,9 @@ function updateComputed(c: ComputedNode): boolean {
     c.flags &= ~ReactiveFlags.RecursedCheck;
     purgeDeps(c);
   }
-}
+};
 
-function run(e: EffectNode): void {
+const run = (e: EffectNode): void => {
   const flags = e.flags;
   if (
     flags & ReactiveFlags.Dirty ||
@@ -415,22 +406,22 @@ function run(e: EffectNode): void {
   } else if (e.deps !== undefined) {
     e.flags = ReactiveFlags.Watching | (flags & HasChildEffect);
   }
-}
+};
 
-function autoFlush(): void {
+const autoFlush = (): void => {
   autoFlushScheduled = false;
   // eslint-disable-next-line no-use-before-define
   flush();
-}
+};
 
-function scheduleFlush(): void {
+const scheduleFlush = (): void => {
   if (!autoFlushScheduled) {
     autoFlushScheduled = true;
     queueMicrotask(autoFlush);
   }
-}
+};
 
-export function flush(): void {
+export const flush = (): void => {
   try {
     // Drain signal queue first - update all pending signal values
     while (signalNotifyIndex < signalQueuedLength) {
@@ -478,7 +469,7 @@ export function flush(): void {
     notifyIndex = 0;
     queuedLength = 0;
   }
-}
+};
 
 function computedOper<T>(this: ComputedNode<T>): T {
   const flags = this.flags;
@@ -566,21 +557,13 @@ function signalOper<T>(this: SignalNode<T>, ...value: [T]): T | void {
   }
 }
 
-export function isSignal(fn: () => void): boolean {
-  return fn.name === "bound " + signalOper.name;
-}
+export const isSignal = (fn: () => void): boolean => fn.name === "bound " + signalOper.name;
 
-export function isComputed(fn: () => void): boolean {
-  return fn.name === "bound " + computedOper.name;
-}
+export const isComputed = (fn: () => void): boolean => fn.name === "bound " + computedOper.name;
 
-export function isEffect(fn: () => void): boolean {
-  return fn.name === "bound " + effectOper.name;
-}
+export const isEffect = (fn: () => void): boolean => fn.name === "bound " + effectOper.name;
 
-export function isEffectScope(fn: () => void): boolean {
-  return fn.name === "bound " + effectScopeOper.name;
-}
+export const isEffectScope = (fn: () => void): boolean => fn.name === "bound " + effectScopeOper.name;
 
 export function signal<T>(): {
   (): T | undefined;
@@ -603,8 +586,7 @@ export function signal<T>(initialValue?: T): {
   }) as () => T | undefined;
 }
 
-export function computed<T>(getter: (previousValue?: T) => T): () => T {
-  return computedOper.bind({
+export const computed = <T>(getter: (previousValue?: T) => T): () => T => computedOper.bind({
     value: undefined,
     subs: undefined,
     subsTail: undefined,
@@ -613,14 +595,11 @@ export function computed<T>(getter: (previousValue?: T) => T): () => T {
     flags: ReactiveFlags.None,
     getter: getter as (previousValue?: unknown) => unknown,
   }) as () => T;
-}
 
-export function effect<T>(
-  fn: () =>
+export const effect = <T>(fn: () =>
     | void
     | (() => void)
-    | (Extract<T, TypedError<any>> extends never ? LazyPromise<T> : never),
-): () => void {
+    | (Extract<T, TypedError<any>> extends never ? LazyPromise<T> : never)): () => void => {
   const e: EffectNode = {
     fn: fn as () => (() => void) | LazyPromise<any> | void,
     cleanup: undefined,
@@ -653,9 +632,9 @@ export function effect<T>(
     e.flags &= ~ReactiveFlags.RecursedCheck;
   }
   return effectOper.bind(e);
-}
+};
 
-export function effectScope(fn: () => void): () => void {
+export const effectScope = (fn: () => void): () => void => {
   const e: EffectScopeNode = {
     deps: undefined,
     depsTail: undefined,
@@ -674,9 +653,9 @@ export function effectScope(fn: () => void): () => void {
     activeSub = prevSub;
   }
   return effectScopeOper.bind(e);
-}
+};
 
-export function trigger(fn: () => void) {
+export const trigger = (fn: () => void) => {
   const sub: ReactiveNode = {
     deps: undefined,
     depsTail: undefined,
@@ -703,4 +682,4 @@ export function trigger(fn: () => void) {
       }
     }
   }
-}
+};

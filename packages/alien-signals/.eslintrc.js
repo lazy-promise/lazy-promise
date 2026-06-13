@@ -9,7 +9,5 @@ module.exports = {
     tsconfigRootDir: __dirname,
   },
   ignorePatterns: ["build/"],
-  rules: {
-    "prefer-arrow/prefer-arrow-functions": "off",
-  },
+  rules: {},
 };

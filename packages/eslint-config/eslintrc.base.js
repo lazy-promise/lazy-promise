@@ -3,7 +3,11 @@ module.exports = {
   // Only lint ts/tsx files. Setting up eslint for checking JS files proved too
   // messy.
   ignorePatterns: ["*.js", "*.jsx", "*.mjs", "*.cjs"],
-  plugins: ["prefer-arrow", "eslint-plugin-only-warn", "eslint-plugin-import"],
+  plugins: [
+    "prefer-arrow-functions",
+    "eslint-plugin-only-warn",
+    "eslint-plugin-import",
+  ],
   extends: [
     "eslint:recommended",
     "plugin:@typescript-eslint/base",
@@ -49,7 +53,10 @@ module.exports = {
     // Consistency rules
     //
 
-    "prefer-arrow/prefer-arrow-functions": "error",
+    "prefer-arrow-functions/prefer-arrow-functions": [
+      "error",
+      { allowObjectProperties: true },
+    ],
     "arrow-body-style": "error",
     curly: "error",
     // The code is easier to follow when you know that a symbol is always
