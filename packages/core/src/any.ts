@@ -39,7 +39,7 @@ class AnySubscriber implements Subscriber<any> {
     }
     innerSubscription.innerSubscriber.resolve(value);
     innerSubscription.initialized = true;
-    innerSubscription.unsubscribe();
+    innerSubscription.dispose();
     return;
   }
 
@@ -47,7 +47,7 @@ class AnySubscriber implements Subscriber<any> {
     const innerSubscription = this.innerSubscription;
     innerSubscription.innerSubscriber.reject(error);
     innerSubscription.initialized = true;
-    innerSubscription.unsubscribe();
+    innerSubscription.dispose();
   }
 }
 
@@ -72,12 +72,12 @@ class AnySubscription implements InnerSubscription {
     }
     this.innerSubscriber.resolve(source);
     this.initialized = true;
-    this.unsubscribe();
+    this.dispose();
   }
 
-  unsubscribe() {
+  dispose() {
     for (let index = 0; index < this.subscriptions.length; index++) {
-      this.subscriptions[index]!.unsubscribe();
+      this.subscriptions[index]!.dispose();
     }
   }
 }

@@ -9,7 +9,7 @@ class InScheduledSubscription
   extends AbortController
   implements InnerSubscription
 {
-  unsubscribe() {
+  dispose() {
     this.abort();
   }
 }

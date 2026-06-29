@@ -8,7 +8,7 @@ import { LazyPromise } from "./lazyPromise.js";
 class InImmediateSubscription implements InnerSubscription {
   constructor(public id: ReturnType<typeof setImmediate>) {}
 
-  unsubscribe() {
+  dispose() {
     clearImmediate(this.id);
   }
 }

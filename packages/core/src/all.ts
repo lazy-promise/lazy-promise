@@ -24,7 +24,7 @@ class AllSubscriber implements Subscriber<any> {
     if (value instanceof TypedError) {
       innerSubscription.innerSubscriber.resolve(value);
       innerSubscription.initialized = true;
-      innerSubscription.unsubscribe();
+      innerSubscription.dispose();
       return;
     }
     innerSubscription.values[this.key] = value;
@@ -41,7 +41,7 @@ class AllSubscriber implements Subscriber<any> {
     const innerSubscription = this.innerSubscription;
     innerSubscription.innerSubscriber.reject(error);
     innerSubscription.initialized = true;
-    innerSubscription.unsubscribe();
+    innerSubscription.dispose();
   }
 }
 
@@ -63,15 +63,15 @@ class AllSubscription implements InnerSubscription {
     if (source instanceof TypedError) {
       this.innerSubscriber.resolve(source);
       this.initialized = true;
-      this.unsubscribe();
+      this.dispose();
       return;
     }
     this.values[key] = source;
   }
 
-  unsubscribe() {
+  dispose() {
     for (let index = 0; index < this.subscriptions.length; index++) {
-      this.subscriptions[index]!.unsubscribe();
+      this.subscriptions[index]!.dispose();
     }
   }
 }

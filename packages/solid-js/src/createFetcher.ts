@@ -42,7 +42,7 @@ export const createFetcher =
       throw result;
     }
     onCleanup(() => {
-      subscription.unsubscribe();
+      subscription.dispose();
     });
     return new Promise((resolveLocal, rejectLocal) => {
       resolve = resolveLocal;

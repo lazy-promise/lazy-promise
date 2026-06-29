@@ -246,7 +246,7 @@ test("callback throws after unsubscribed", () => {
   const promise = fromEager(async () => {
     throw "oops";
   });
-  promise.subscribe(logSubscriber).unsubscribe();
+  promise.subscribe(logSubscriber).dispose();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
@@ -274,12 +274,12 @@ test("cancelation with abort signal", () => {
       ],
     ]
   `);
-  subscription.unsubscribe();
+  subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleAbort",
-        "AbortError: The lazy promise subscription was unsubscribed.",
+        "AbortError: The lazy promise subscription was disposed.",
       ],
     ]
   `);
@@ -287,7 +287,7 @@ test("cancelation with abort signal", () => {
 
 test("un-aborted promise resolves", async () => {
   const promise = fromEager(() => Promise.resolve(1));
-  promise.subscribe().unsubscribe();
+  promise.subscribe().dispose();
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });

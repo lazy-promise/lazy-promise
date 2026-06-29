@@ -279,7 +279,7 @@ test("yield async", () => {
       ],
     ]
   `);
-  subscription.unsubscribe();
+  subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -812,9 +812,9 @@ test("synchronously unsubscribe in producer", () => {
     });
     yield* new LazyPromise<void>(() => {
       // eslint-disable-next-line no-use-before-define
-      subscription.unsubscribe();
+      subscription.dispose();
       return () => {
-        log("unsubscribe");
+        log("dispose");
       };
     });
     log("never get here");
@@ -825,7 +825,7 @@ test("synchronously unsubscribe in producer", () => {
     [
       "1000 ms passed",
       [
-        "unsubscribe",
+        "dispose",
       ],
     ]
   `);
@@ -840,7 +840,7 @@ test("synchronously unsubscribe then resolve in producer", () => {
     });
     yield* new LazyPromise<void>((subscriber) => {
       // eslint-disable-next-line no-use-before-define
-      subscription.unsubscribe();
+      subscription.dispose();
       subscriber.resolve();
     });
     log("never get here");
@@ -859,7 +859,7 @@ test("synchronously unsubscribe then reject in producer", () => {
     });
     yield* new LazyPromise<void>((subscriber) => {
       // eslint-disable-next-line no-use-before-define
-      subscription.unsubscribe();
+      subscription.dispose();
       subscriber.reject(1);
     });
     log("never get here");
@@ -878,7 +878,7 @@ test("unsubscribe in generator after sync resolve", () => {
     });
     yield* box();
     // eslint-disable-next-line no-use-before-define
-    subscription.unsubscribe();
+    subscription.dispose();
     yield* new LazyPromise<void>(() => {
       log("never get here");
     });
@@ -899,7 +899,7 @@ test("unsubscribe in generator after sync reject", () => {
       yield* rejecting(1);
     } catch {
       // eslint-disable-next-line no-use-before-define
-      subscription.unsubscribe();
+      subscription.dispose();
     }
     yield* new LazyPromise<void>(() => {
       log("never get here");
@@ -918,7 +918,7 @@ test("unsubscribe in generator after async resolve", () => {
       }, 1000);
     });
     // eslint-disable-next-line no-use-before-define
-    subscription.unsubscribe();
+    subscription.dispose();
     yield* new LazyPromise<void>(() => {
       log("never get here");
     });
@@ -938,7 +938,7 @@ test("unsubscribe in generator after async reject", () => {
       });
     } catch {
       // eslint-disable-next-line no-use-before-define
-      subscription.unsubscribe();
+      subscription.dispose();
     }
     yield* new LazyPromise<void>(() => {
       log("never get here");

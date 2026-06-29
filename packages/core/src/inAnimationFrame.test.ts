@@ -64,7 +64,7 @@ test("resolve", () => {
 });
 
 test("cancel", () => {
-  inAnimationFrame().subscribe(logSubscriber).unsubscribe();
+  inAnimationFrame().subscribe(logSubscriber).dispose();
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });

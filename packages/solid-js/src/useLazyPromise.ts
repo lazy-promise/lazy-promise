@@ -20,6 +20,6 @@ export const useLazyPromise: <Value>(
     } as any),
   );
   onCleanup(() => {
-    subscription?.unsubscribe();
+    subscription?.dispose();
   });
 };

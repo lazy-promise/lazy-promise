@@ -137,7 +137,7 @@ test("value of this in the basic scenario", () => {
       log("in dispose", this);
     };
   });
-  promise.subscribe().unsubscribe();
+  promise.subscribe().dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -312,7 +312,7 @@ test("no teardown function", () => {
     log("produce");
   })
     .subscribe()
-    .unsubscribe();
+    .dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -337,7 +337,7 @@ test("cancellation", () => {
       ],
     ]
   `);
-  subscription.unsubscribe();
+  subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -345,13 +345,13 @@ test("cancellation", () => {
       ],
     ]
   `);
-  subscription.unsubscribe();
+  subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
 test("cancellation (class-based)", () => {
   const innerSubscription: InnerSubscription = {
-    unsubscribe() {
+    dispose() {
       log("dispose");
       expect(this).toBe(innerSubscription);
     },
@@ -368,7 +368,7 @@ test("cancellation (class-based)", () => {
       ],
     ]
   `);
-  subscription.unsubscribe();
+  subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -376,7 +376,7 @@ test("cancellation (class-based)", () => {
       ],
     ]
   `);
-  subscription.unsubscribe();
+  subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
@@ -386,7 +386,7 @@ test("unsubscribe from produce", () => {
       subscriber.resolve(
         new LazyPromise(() => {
           // eslint-disable-next-line no-use-before-define
-          subscription.unsubscribe();
+          subscription.dispose();
           subscriber.resolve("value");
           return function () {
             /** @ts-expect-error */
@@ -414,7 +414,7 @@ test("unsubscribe from produce", () => {
 
 test("unsubscribe from produce (class-based)", () => {
   const innerSubscription: InnerSubscription = {
-    unsubscribe() {
+    dispose() {
       log("dispose inner");
       expect(this).toBe(innerSubscription);
     },
@@ -424,7 +424,7 @@ test("unsubscribe from produce (class-based)", () => {
       subscriber.resolve(
         new LazyPromise(() => {
           // eslint-disable-next-line no-use-before-define
-          subscription.unsubscribe();
+          subscription.dispose();
           subscriber.resolve("value");
           return innerSubscription;
         }),
@@ -452,7 +452,7 @@ test("unsubscribe from produce (error in unsubscribe)", () => {
       subscriber.resolve(
         new LazyPromise(() => {
           // eslint-disable-next-line no-use-before-define
-          subscription.unsubscribe();
+          subscription.dispose();
           subscriber.resolve("value");
           return () => {
             log("dispose inner");
@@ -484,7 +484,7 @@ test("unsubscribe from produce (no teardown function)", () => {
       subscriber.resolve(
         new LazyPromise(() => {
           // eslint-disable-next-line no-use-before-define
-          subscription.unsubscribe();
+          subscription.dispose();
           subscriber.resolve("value");
         }),
       );
@@ -508,7 +508,7 @@ test("teardown function is not called if the lazy promise resolves", () => {
   });
   const subscription = promise.subscribe();
   vi.runAllTimers();
-  subscription.unsubscribe();
+  subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
@@ -532,7 +532,7 @@ test("teardown function is not called if the lazy promise rejects", () => {
       ],
     ]
   `);
-  subscription.unsubscribe();
+  subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
@@ -547,7 +547,7 @@ test("teardown function called by consumer", () => {
   });
   const subscription = promise.subscribe({
     resolve: (value) => {
-      subscription.unsubscribe();
+      subscription.dispose();
       log("handleValue", value);
     },
   });
@@ -623,7 +623,7 @@ test("error in teardown function", () => {
       throw "oops";
     };
   });
-  promise.subscribe(logSubscriber).unsubscribe();
+  promise.subscribe(logSubscriber).dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -784,7 +784,7 @@ test("unsubscribed", () => {
       subscriber.reject(3);
     });
   });
-  promise.subscribe(logSubscriber).unsubscribe();
+  promise.subscribe(logSubscriber).dispose();
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [

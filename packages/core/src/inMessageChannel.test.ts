@@ -87,7 +87,7 @@ test("resolve multiple", async () => {
 });
 
 test("cancel", async () => {
-  inMessageChannel().subscribe(logSubscriber).unsubscribe();
+  inMessageChannel().subscribe(logSubscriber).dispose();
   await new Promise((resolve) => {
     setTimeout(resolve);
   });

@@ -8,7 +8,7 @@ import { LazyPromise } from "./lazyPromise.js";
 class InTimeoutSubscription implements InnerSubscription {
   constructor(public id: ReturnType<typeof setTimeout>) {}
 
-  unsubscribe() {
+  dispose() {
     clearTimeout(this.id);
   }
 }

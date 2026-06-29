@@ -184,7 +184,7 @@ test("cancel outer promise", () => {
   const subscription = promise.subscribe();
   vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  subscription.unsubscribe();
+  subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "500 ms passed",
@@ -205,7 +205,7 @@ test("cancel inner promise", () => {
   const subscription = promise.subscribe();
   vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  subscription.unsubscribe();
+  subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "500 ms passed",
@@ -224,7 +224,7 @@ test("unsubscribe in the callback", () => {
     },
   )
     .catchTypedError(() => {
-      subscription.unsubscribe();
+      subscription.dispose();
     })
     .subscribe(logSubscriber);
   subscriber!.resolve(new TypedError(1));
@@ -239,7 +239,7 @@ test("unsubscribe and throw in the callback", () => {
     },
   )
     .catchTypedError(() => {
-      subscription.unsubscribe();
+      subscription.dispose();
       throw "oops";
     })
     .subscribe(logSubscriber);

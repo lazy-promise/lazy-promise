@@ -8,7 +8,7 @@ import { LazyPromise } from "./lazyPromise.js";
 class InIdleCallbackSubscription implements InnerSubscription {
   constructor(public id: ReturnType<typeof requestIdleCallback>) {}
 
-  unsubscribe() {
+  dispose() {
     cancelIdleCallback(this.id);
   }
 }

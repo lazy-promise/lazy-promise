@@ -88,7 +88,7 @@ export const log =
       return () => {
         console.log(...prefix, `[unsubscribe]`);
         bumpStackLevel(() => {
-          subscription.unsubscribe();
+          subscription.dispose();
         });
       };
     });

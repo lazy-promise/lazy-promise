@@ -829,7 +829,7 @@ test("computed: untracked - teardown", () => {
       new LazyPromise<number>(() => {
         log("produce");
         return () => {
-          log("unsubscribe");
+          log("dispose");
         };
       }),
   );
@@ -844,13 +844,13 @@ test("computed: untracked - teardown", () => {
       ],
     ]
   `);
-  subscription1.unsubscribe();
+  subscription1.dispose();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  subscription2.unsubscribe();
+  subscription2.dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "unsubscribe",
+        "dispose",
       ],
     ]
   `);
@@ -1415,7 +1415,7 @@ test("unbox async promise", () => {
         subscriber.resolve(v);
       };
       return () => {
-        log("unsubscribe");
+        log("dispose");
       };
     });
   });
@@ -1467,7 +1467,7 @@ test("unbox async promise", () => {
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "unsubscribe",
+        "dispose",
       ],
       [
         "produce",
@@ -1505,7 +1505,7 @@ test("unbox async promise", () => {
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "unsubscribe",
+        "dispose",
       ],
     ]
   `);

@@ -105,7 +105,7 @@ const { link, unlink, propagate, checkDirty, shallowPropagate } =
           lp.status = undefined;
           lp.result = undefined;
           if (lp.pendingHead === undefined) {
-            lp.originalSub?.unsubscribe();
+            lp.originalSub?.dispose();
             lp.originalSub = undefined;
           }
         }
@@ -156,7 +156,7 @@ class PendingNode {
     public c: ComputedNode,
   ) {}
 
-  unsubscribe() {
+  dispose() {
     const { state, c } = this;
     if (state.pendingHead === this) {
       state.pendingHead = this.next;
@@ -170,7 +170,7 @@ class PendingNode {
       }
     }
     if (state.pendingHead === undefined && c.subs === undefined) {
-      state.originalSub?.unsubscribe();
+      state.originalSub?.dispose();
       state.originalSub = undefined;
       state.status = undefined;
       state.result = undefined;
@@ -272,7 +272,7 @@ const updateLPComputed = (
   const state = c.lp!;
   if (state.originalSub !== undefined) {
     // Old original still pending — unsubscribe it, subscribe new, keep same proxy
-    state.originalSub.unsubscribe();
+    state.originalSub.dispose();
     state.originalSub = undefined;
     state.original = newOriginal;
     subscribeToOriginal(state, c, newOriginal);
@@ -399,7 +399,7 @@ const run = (e: EffectNode): void => {
         activeSub = undefined;
         const lpSub = result.subscribe(undefined as any);
         e.cleanup = () => {
-          lpSub.unsubscribe();
+          lpSub.dispose();
         };
       } else {
         e.cleanup = result;
@@ -635,7 +635,7 @@ export const effect = <T>(
       activeSub = undefined;
       const lpSub = result.subscribe(undefined as any);
       e.cleanup = () => {
-        lpSub.unsubscribe();
+        lpSub.dispose();
       };
     } else {
       e.cleanup = result;

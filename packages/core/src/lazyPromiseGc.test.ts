@@ -44,7 +44,7 @@ test("garbage collect teardown function when unsubscribed", async () => {
   const promise = new LazyPromise<undefined>(() => ref.deref());
   const subscription = promise.subscribe();
   await expectNotCollected(ref);
-  subscription.unsubscribe();
+  subscription.dispose();
   await expectCollected(ref);
 });
 
@@ -110,7 +110,7 @@ test("garbage collect subscriber when unsubscribed", async () => {
   const promise = new LazyPromise<never>(() => () => {});
   const subscription = promise.subscribe(subscriber.deref());
   await expectNotCollected(subscriber);
-  subscription.unsubscribe();
+  subscription.dispose();
   await expectCollected(subscriber);
 });
 
@@ -119,7 +119,7 @@ test("garbage collect subscriber when unsubscribed (no teardown function)", asyn
   const promise = new LazyPromise<never>(() => {});
   const subscription = promise.subscribe(subscriber.deref());
   await expectNotCollected(subscriber);
-  subscription.unsubscribe();
+  subscription.dispose();
   await expectCollected(subscriber);
 });
 

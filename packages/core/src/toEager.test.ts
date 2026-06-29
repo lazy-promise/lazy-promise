@@ -122,7 +122,7 @@ test("signal aborted while subscribing", async () => {
       log("subscribe");
       abortController.abort("reason");
       return () => {
-        log("unsubscribe");
+        log("dispose");
       };
     }),
     { signal: abortController.signal },
@@ -133,7 +133,7 @@ test("signal aborted while subscribing", async () => {
         "subscribe",
       ],
       [
-        "unsubscribe",
+        "dispose",
       ],
     ]
   `);
@@ -146,7 +146,7 @@ test("signal aborted after subscribing", async () => {
     new LazyPromise<never>(() => {
       log("subscribe");
       return () => {
-        log("unsubscribe");
+        log("dispose");
       };
     }),
     { signal: abortController.signal },
@@ -164,7 +164,7 @@ test("signal aborted after subscribing", async () => {
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "unsubscribe",
+        "dispose",
       ],
     ]
   `);

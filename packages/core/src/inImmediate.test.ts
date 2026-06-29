@@ -63,7 +63,7 @@ test("resolve", () => {
 });
 
 test("cancel", () => {
-  inImmediate().subscribe(logSubscriber).unsubscribe();
+  inImmediate().subscribe(logSubscriber).dispose();
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });

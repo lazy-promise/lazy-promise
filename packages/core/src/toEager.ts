@@ -26,7 +26,7 @@ class ToEagerSubscriberListener
 
   handleEvent() {
     this.signal.removeEventListener("abort", this);
-    this.subscription!.unsubscribe();
+    this.subscription!.dispose();
     this.rejectNative(this.signal.reason);
   }
 }
@@ -56,7 +56,7 @@ export const toEager = <Value>(
       return;
     }
     if (signal.aborted) {
-      subscription.unsubscribe();
+      subscription.dispose();
       throw signal.reason;
     }
     subscriberListener.subscription = subscription;

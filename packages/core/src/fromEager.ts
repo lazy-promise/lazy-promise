@@ -21,10 +21,10 @@ class FromEagerOptions {
 class FromEagerSubscription implements InnerSubscription {
   options = new FromEagerOptions();
 
-  unsubscribe() {
+  dispose() {
     this.options.abortController?.abort(
       new DOMException(
-        "The lazy promise subscription was unsubscribed.",
+        "The lazy promise subscription was disposed.",
         "AbortError",
       ),
     );

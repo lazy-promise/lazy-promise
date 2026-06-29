@@ -83,7 +83,7 @@ class InnerSubscriber<in Value> {
       return;
     }
     const subscription = this.subscription;
-    if (subscription.unsubscribed || subscription.settled) {
+    if (subscription.disposed || subscription.settled) {
       return;
     }
     // eslint-disable-next-line no-use-before-define
@@ -120,7 +120,7 @@ class InnerSubscriber<in Value> {
       return;
     }
     const subscription = this.subscription;
-    if (subscription.unsubscribed || subscription.settled) {
+    if (subscription.disposed || subscription.settled) {
       return;
     }
     subscription.settled = true;
@@ -156,7 +156,7 @@ class Subscription {
   /** @internal */
   settled: boolean = false;
   /** @internal */
-  unsubscribed: boolean = false;
+  disposed: boolean = false;
 
   /** @internal */
   constructor(
@@ -190,12 +190,12 @@ class Subscription {
         if (this.settled) {
           return;
         }
-        if (this.unsubscribed) {
+        if (this.disposed) {
           if (innerSubscription) {
             try {
               typeof innerSubscription === "function"
                 ? innerSubscription()
-                : innerSubscription.unsubscribe();
+                : innerSubscription.dispose();
             } catch (error) {
               throwInMicrotask(error);
             }
@@ -209,7 +209,7 @@ class Subscription {
         }
         // For GC purposes.
         this.producer = undefined;
-        if (this.unsubscribed || this.settled) {
+        if (this.disposed || this.settled) {
           return;
         }
         this.settled = true;
@@ -229,18 +229,18 @@ class Subscription {
     }
   }
 
-  unsubscribe(this: Subscription) {
-    if (this.settled || this.unsubscribed) {
+  dispose(this: Subscription) {
+    if (this.settled || this.disposed) {
       return;
     }
-    this.unsubscribed = true;
+    this.disposed = true;
     // For GC purposes.
     this.subscriber = undefined;
     if (this.innerSubscription) {
       try {
         typeof this.innerSubscription === "function"
           ? (0, this.innerSubscription)()
-          : this.innerSubscription.unsubscribe();
+          : this.innerSubscription.dispose();
       } catch (error) {
         throwInMicrotask(error);
       }
@@ -257,7 +257,7 @@ export type { Subscription };
  * promise constructor callback.
  */
 export interface InnerSubscription {
-  unsubscribe: () => void;
+  dispose: () => void;
 }
 
 /**

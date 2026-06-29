@@ -17,18 +17,18 @@ class RaceSubscriberSubscription implements Subscriber<any>, InnerSubscription {
   resolve(value: any) {
     this.innerSubscriber.resolve(value);
     this.settled = true;
-    this.unsubscribe();
+    this.dispose();
   }
 
   reject(error: any) {
     this.innerSubscriber.reject(error);
     this.settled = true;
-    this.unsubscribe();
+    this.dispose();
   }
 
-  unsubscribe() {
+  dispose() {
     for (let index = 0; index < this.subscriptions.length; index++) {
-      this.subscriptions[index]!.unsubscribe();
+      this.subscriptions[index]!.dispose();
     }
   }
 }
@@ -49,7 +49,7 @@ class RaceProducer implements Producer<any> {
         continue;
       }
       innerSubscriber.resolve(source);
-      innerSubscription.unsubscribe();
+      innerSubscription.dispose();
       return;
     }
     return innerSubscription;

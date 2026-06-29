@@ -81,7 +81,7 @@ test("resolve", () => {
 });
 
 test("cancel", () => {
-  inIdleCallback().subscribe(logSubscriber).unsubscribe();
+  inIdleCallback().subscribe(logSubscriber).dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [

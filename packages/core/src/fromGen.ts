@@ -21,7 +21,7 @@ class FromGeneratorSubscriberSubscription<TReturn>
   // The error that a yielded promise rejected with.
   error: any = emptySymbol;
   subscription: Subscription | undefined;
-  unsubscribed = false;
+  disposed = false;
 
   constructor(
     public innerSubscriber: InnerSubscriber<any>,
@@ -37,7 +37,7 @@ class FromGeneratorSubscriberSubscription<TReturn>
     try {
       // May throw.
       const generatorResult = this.generator.next(value);
-      if (this.unsubscribed) {
+      if (this.disposed) {
         return;
       }
       this.subscription = undefined;
@@ -57,7 +57,7 @@ class FromGeneratorSubscriberSubscription<TReturn>
     try {
       // May throw.
       const generatorResult = this.generator.throw(error);
-      if (this.unsubscribed) {
+      if (this.disposed) {
         return;
       }
       this.subscription = undefined;
@@ -76,15 +76,15 @@ class FromGeneratorSubscriberSubscription<TReturn>
         return;
       }
       const subscription = generatorResult.value.subscribe(this);
-      if (this.unsubscribed) {
-        subscription.unsubscribe();
+      if (this.disposed) {
+        subscription.dispose();
         return;
       }
       if (this.value !== emptySymbol) {
         // May throw.
         generatorResult = this.generator.next(this.value);
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (this.unsubscribed) {
+        if (this.disposed) {
           return;
         }
         this.subscription = undefined;
@@ -95,7 +95,7 @@ class FromGeneratorSubscriberSubscription<TReturn>
         // May throw.
         generatorResult = this.generator.throw(this.error);
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (this.unsubscribed) {
+        if (this.disposed) {
           return;
         }
         this.subscription = undefined;
@@ -107,9 +107,9 @@ class FromGeneratorSubscriberSubscription<TReturn>
     }
   }
 
-  unsubscribe() {
-    this.unsubscribed = true;
-    this.subscription?.unsubscribe();
+  dispose() {
+    this.disposed = true;
+    this.subscription?.dispose();
   }
 }
 

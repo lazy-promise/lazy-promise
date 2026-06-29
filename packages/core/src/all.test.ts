@@ -362,7 +362,7 @@ test("internally disposed when a source in an object rejects, internal disposal 
   `);
 });
 
-test("unsubscribe", () => {
+test("dispose", () => {
   const promise = all([
     new LazyPromise<"a">(() => {
       log("produce a");
@@ -381,7 +381,7 @@ test("unsubscribe", () => {
       ],
     ]
   `);
-  subscription.unsubscribe();
+  subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
@@ -487,7 +487,7 @@ test("internally disposed when unsubscribed, a source reject is ignored when int
       };
     }),
   ]);
-  promise.subscribe().unsubscribe();
+  promise.subscribe().dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [

@@ -275,7 +275,7 @@ test("unsubscribe", () => {
       ],
     ]
   `);
-  subscription.unsubscribe();
+  subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -425,7 +425,7 @@ test("internally disposed by the teardown function, a source resolve is ignored 
       };
     }),
   ]);
-  promise.subscribe(logSubscriber).unsubscribe();
+  promise.subscribe(logSubscriber).dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [

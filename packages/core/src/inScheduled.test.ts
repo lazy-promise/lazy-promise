@@ -123,7 +123,7 @@ test("resolve", () => {
 });
 
 test("cancel", () => {
-  inScheduled().subscribe(logSubscriber).unsubscribe();
+  inScheduled().subscribe(logSubscriber).dispose();
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });

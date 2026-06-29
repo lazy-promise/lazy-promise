@@ -179,7 +179,7 @@ test("unsubscribe in the callback (source resolves)", () => {
     subscriber = subscriberLocal;
   })
     .finalize(() => {
-      subscription.unsubscribe();
+      subscription.dispose();
     })
     .subscribe(logSubscriber);
   subscriber!.resolve(1);
@@ -192,7 +192,7 @@ test("unsubscribe in the callback (source rejects)", () => {
     subscriber = subscriberLocal;
   })
     .finalize(() => {
-      subscription.unsubscribe();
+      subscription.dispose();
     })
     .subscribe(logSubscriber);
   subscriber!.reject(1);
@@ -205,7 +205,7 @@ test("unsubscribe and throw in the callback (source resolves)", () => {
     subscriber = subscriberLocal;
   })
     .finalize(() => {
-      subscription.unsubscribe();
+      subscription.dispose();
       throw "oops";
     })
     .subscribe(logSubscriber);
@@ -218,7 +218,7 @@ test("unsubscribe and throw in the callback (source rejects)", () => {
     subscriber = subscriberLocal;
   })
     .finalize(() => {
-      subscription.unsubscribe();
+      subscription.dispose();
       throw "oops";
     })
     .subscribe(logSubscriber);
@@ -322,7 +322,7 @@ test("cancel outer promise", () => {
   const subscription = promise.subscribe();
   vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  subscription.unsubscribe();
+  subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "500 ms passed",
@@ -343,7 +343,7 @@ test("cancel inner promise", () => {
   const subscription = promise.subscribe();
   vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  subscription.unsubscribe();
+  subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "500 ms passed",

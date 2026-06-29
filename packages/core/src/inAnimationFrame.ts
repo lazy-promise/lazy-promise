@@ -8,7 +8,7 @@ import { LazyPromise } from "./lazyPromise.js";
 class InAnimationFrameSubscription implements InnerSubscription {
   constructor(public id: ReturnType<typeof requestAnimationFrame>) {}
 
-  unsubscribe() {
+  dispose() {
     cancelAnimationFrame(this.id);
   }
 }

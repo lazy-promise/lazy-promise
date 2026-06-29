@@ -38,7 +38,7 @@ export const createTrackProcessing = (): [
           .subscribe(subscriber);
         return () => {
           setCount((count) => count - 1);
-          subscription.unsubscribe();
+          subscription.dispose();
         };
       }),
   ];

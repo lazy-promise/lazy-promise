@@ -80,7 +80,7 @@ test("unsubscribe", () => {
   })
     .pipe(log("unsubscribe case"))
     .subscribe()
-    .unsubscribe();
+    .dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "[unsubscribe case] [1] [subscribe]",
