@@ -27,7 +27,7 @@ class CatchTypedErrorSubscriber implements Subscriber<any> {
     this.innerSubscriber.resolve(value);
   }
 
-  reject(error: any) {
+  reject(error: unknown) {
     this.innerSubscriber.reject(error);
   }
 }

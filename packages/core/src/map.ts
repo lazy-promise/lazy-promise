@@ -27,7 +27,7 @@ class MapSubscriber implements Subscriber<any> {
     this.innerSubscriber.resolve(newValue);
   }
 
-  reject(error: any) {
+  reject(error: unknown) {
     this.innerSubscriber.reject(error);
   }
 }

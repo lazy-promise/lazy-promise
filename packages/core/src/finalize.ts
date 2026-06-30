@@ -13,7 +13,7 @@ class FinalizeSubscriberProducer implements Subscriber<any>, Producer<any> {
   // The value that the source promise resolved to.
   value: any = emptySymbol;
   // The error that the source promise rejected with.
-  error: any = emptySymbol;
+  error: unknown = emptySymbol;
 
   constructor(
     public innerSubscriber: InnerSubscriber<any>,
@@ -39,7 +39,7 @@ class FinalizeSubscriberProducer implements Subscriber<any>, Producer<any> {
     this.innerSubscriber.resolve(new LazyPromise(this));
   }
 
-  reject(error: any) {
+  reject(error: unknown) {
     if (this.value !== emptySymbol || this.error !== emptySymbol) {
       this.innerSubscriber.reject(error);
       return;

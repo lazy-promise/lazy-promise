@@ -20,7 +20,7 @@ class RaceSubscriberSubscription implements Subscriber<any>, InnerSubscription {
     this.dispose();
   }
 
-  reject(error: any) {
+  reject(error: unknown) {
     this.innerSubscriber.reject(error);
     this.settled = true;
     this.dispose();

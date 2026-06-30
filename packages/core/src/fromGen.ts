@@ -19,7 +19,7 @@ class FromGeneratorSubscriberSubscription<TReturn>
   // The value that a yielded promise resolved to.
   value: any = emptySymbol;
   // The error that a yielded promise rejected with.
-  error: any = emptySymbol;
+  error: unknown = emptySymbol;
   subscription: Subscription | undefined;
   disposed = false;
 
@@ -48,7 +48,7 @@ class FromGeneratorSubscriberSubscription<TReturn>
     }
   }
 
-  reject(error: any) {
+  reject(error: unknown) {
     // When possible, use the while loop to avoid increasing stack depth.
     if (this.subscription === undefined) {
       this.error = error;

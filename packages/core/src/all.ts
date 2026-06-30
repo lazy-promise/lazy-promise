@@ -37,7 +37,7 @@ class AllSubscriber implements Subscriber<any> {
     innerSubscription.pendingCount--;
   }
 
-  reject(error: any) {
+  reject(error: unknown) {
     const innerSubscription = this.innerSubscription;
     innerSubscription.innerSubscriber.reject(error);
     innerSubscription.initialized = true;

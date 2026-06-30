@@ -43,7 +43,7 @@ class AnySubscriber implements Subscriber<any> {
     return;
   }
 
-  reject(error: any) {
+  reject(error: unknown) {
     const innerSubscription = this.innerSubscription;
     innerSubscription.innerSubscriber.reject(error);
     innerSubscription.initialized = true;

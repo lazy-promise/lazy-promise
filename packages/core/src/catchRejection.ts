@@ -8,14 +8,14 @@ import type {
 class CatchRejectionSubscriber implements Subscriber<any> {
   constructor(
     public innerSubscriber: InnerSubscriber<any>,
-    public callback: (value: any) => any,
+    public callback: (value: unknown) => any,
   ) {}
 
   resolve(value: any) {
     this.innerSubscriber.resolve(value);
   }
 
-  reject(error: any) {
+  reject(error: unknown) {
     let newValue;
     try {
       newValue = (0, this.callback)(error);
@@ -30,7 +30,7 @@ class CatchRejectionSubscriber implements Subscriber<any> {
 export class CatchRejectionProducer implements Producer<any> {
   constructor(
     public source: LazyPromise<any>,
-    public callback: (value: any) => any,
+    public callback: (value: unknown) => any,
   ) {}
 
   produce(innerSubscriber: InnerSubscriber<any>) {

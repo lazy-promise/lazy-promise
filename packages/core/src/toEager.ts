@@ -8,7 +8,7 @@ class ToEagerSubscriberListener
 
   constructor(
     public resolveNative: (value: any) => void,
-    public rejectNative: (error: any) => void,
+    public rejectNative: (error: unknown) => void,
     public signal: AbortSignal,
   ) {}
 
@@ -18,7 +18,7 @@ class ToEagerSubscriberListener
     this.resolveNative(value);
   }
 
-  reject(error: any) {
+  reject(error: unknown) {
     this.settled = true;
     this.signal.removeEventListener("abort", this);
     this.rejectNative(error);
