@@ -1,14 +1,7 @@
-import type {
-  InnerSubscriber,
-  InnerSubscription,
-  Producer,
-} from "./lazyPromise.js";
+import type { Disposable, InnerSubscriber, Producer } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
-class InScheduledSubscription
-  extends AbortController
-  implements InnerSubscription
-{
+class InScheduledSubscription extends AbortController implements Disposable {
   dispose() {
     this.abort();
   }

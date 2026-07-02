@@ -1,15 +1,14 @@
 import type {
+  Disposable,
   InnerSubscriber,
-  InnerSubscription,
   Producer,
   Subscriber,
-  Subscription,
   Unbox,
 } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
-class RaceSubscriberSubscription implements Subscriber<any>, InnerSubscription {
-  subscriptions: Subscription[] = [];
+class RaceSubscriberSubscription implements Subscriber<any>, Disposable {
+  subscriptions: Disposable[] = [];
   settled = false;
 
   constructor(public innerSubscriber: InnerSubscriber<any>) {}

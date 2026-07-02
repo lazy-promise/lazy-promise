@@ -1,9 +1,8 @@
 import type {
+  Disposable,
   InnerSubscriber,
-  InnerSubscription,
   Producer,
   Subscriber,
-  Subscription,
   Unbox,
   Yieldable,
 } from "./lazyPromise.js";
@@ -14,13 +13,13 @@ export type LazyPromiseGenerator<TReturn> = Generator<Yieldable, TReturn>;
 const emptySymbol = Symbol("empty");
 
 class FromGeneratorSubscriberSubscription<TReturn>
-  implements Subscriber<any>, InnerSubscription
+  implements Subscriber<any>, Disposable
 {
   // The value that a yielded promise resolved to.
   value: any = emptySymbol;
   // The error that a yielded promise rejected with.
   error: unknown = emptySymbol;
-  subscription: Subscription | undefined;
+  subscription: Disposable | undefined;
   disposed = false;
 
   constructor(

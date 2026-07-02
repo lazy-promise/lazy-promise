@@ -1,11 +1,7 @@
-import type {
-  InnerSubscriber,
-  InnerSubscription,
-  Producer,
-} from "./lazyPromise.js";
+import type { Disposable, InnerSubscriber, Producer } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
-class InImmediateSubscription implements InnerSubscription {
+class InImmediateSubscription implements Disposable {
   constructor(public id: ReturnType<typeof setImmediate>) {}
 
   dispose() {

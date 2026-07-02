@@ -1,7 +1,6 @@
 import type {
+  Disposable,
   InnerSubscriber,
-  InnerSubscription,
-  Subscription,
   TypedError,
 } from "@lazy-promise/core";
 import { LazyPromise } from "@lazy-promise/core";
@@ -22,7 +21,7 @@ interface LPState {
   original: LazyPromise<any>;
   // eslint-disable-next-line no-use-before-define
   pendingHead: PendingNode | undefined;
-  originalSub: Subscription | undefined;
+  originalSub: Disposable | undefined;
   status: typeof resolvedSymbol | typeof rejectedSymbol | undefined;
   result: any;
 }
@@ -227,7 +226,7 @@ class ProxyProducer {
     private c: ComputedNode,
   ) {}
 
-  produce(innerSub: InnerSubscriber<any>): InnerSubscription | void {
+  produce(innerSub: InnerSubscriber<any>): Disposable | void {
     const { state, c } = this;
     if (state.status === resolvedSymbol) {
       innerSub.resolve(state.result);

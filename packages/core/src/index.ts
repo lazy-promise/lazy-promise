@@ -19,11 +19,10 @@ export {
   TypedError,
 } from "./lazyPromise.js";
 export type {
+  Disposable,
   InnerSubscriber,
-  InnerSubscription,
   Producer,
   Subscriber,
-  Subscription,
   Unbox,
 } from "./lazyPromise.js";
 export { log } from "./log.js";

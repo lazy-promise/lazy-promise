@@ -1,15 +1,15 @@
 import type {
+  Disposable,
   InnerSubscriber,
   Producer,
   Subscriber,
-  Subscription,
 } from "./lazyPromise.js";
 import { LazyPromise, TypedError } from "./lazyPromise.js";
 
 const emptySymbol = Symbol("empty");
 
 class FinalizeSubscriberProducer implements Subscriber<any>, Producer<any> {
-  subscription: Subscription | undefined;
+  subscription: Disposable | undefined;
   // The value that the source promise resolved to.
   value: any = emptySymbol;
   // The error that the source promise rejected with.

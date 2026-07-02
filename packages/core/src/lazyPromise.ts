@@ -142,39 +142,26 @@ class InnerSubscriber<in Value> {
 
 export type { InnerSubscriber };
 
-/**
- * The object returned by `.subscribe` method of a lazy promise.
- */
-class Subscription {
-  /** @internal */
-  innerSubscription:
-    | (() => void)
-    // eslint-disable-next-line no-use-before-define
-    | InnerSubscription
-    | void
-    | undefined;
-  /** @internal */
+export interface Disposable {
+  dispose(): void;
+}
+
+class Subscription implements Disposable {
+  innerSubscription: (() => void) | Disposable | void | undefined;
   settled: boolean = false;
-  /** @internal */
   disposed: boolean = false;
 
-  /** @internal */
   constructor(
-    /** @internal */
     public producer?:
-      | ((
-          subscriber: InnerSubscriber<any>,
-        ) => (() => void) | Subscription | void)
+      | ((subscriber: InnerSubscriber<any>) => (() => void) | Disposable | void)
       // eslint-disable-next-line no-use-before-define
       | Producer<any>,
-    /** @internal */
     public subscriber?: {
       resolve?: (value: any) => void;
       reject?: (error: unknown) => void;
     },
   ) {}
 
-  /** @internal */
   next() {
     while (true) {
       const innerSubscriber = new InnerSubscriber(this);
@@ -229,7 +216,7 @@ class Subscription {
     }
   }
 
-  dispose(this: Subscription) {
+  dispose() {
     if (this.settled || this.disposed) {
       return;
     }
@@ -250,23 +237,13 @@ class Subscription {
   }
 }
 
-export type { Subscription };
-
-/**
- * The class-based equivalent of the teardown function returned by a lazy
- * promise constructor callback.
- */
-export interface InnerSubscription {
-  dispose: () => void;
-}
-
 /**
  * The class-based equivalent of the lazy promise constructor callback.
  */
 export interface Producer<Value> {
   produce: (
     subscriber: InnerSubscriber<Value>,
-  ) => (() => void) | InnerSubscription | void;
+  ) => (() => void) | Disposable | void;
 }
 
 /**
@@ -276,16 +253,14 @@ export interface Producer<Value> {
 export class LazyPromise<out Value> {
   /** @internal */
   public producer:
-    | ((
-        subscriber: InnerSubscriber<Value>,
-      ) => (() => void) | Subscription | void)
+    | ((subscriber: InnerSubscriber<Value>) => (() => void) | Disposable | void)
     | Producer<Value>;
 
   constructor(
     producer:
       | ((
           subscriber: InnerSubscriber<Value>,
-        ) => (() => void) | Subscription | void)
+        ) => (() => void) | Disposable | void)
       | Producer<Value>,
   ) {
     this.producer = producer;
@@ -296,7 +271,7 @@ export class LazyPromise<out Value> {
    * promise can resolve to a TypedError. `resolve` and `reject` are called with
    * `subscriber` object as `this`.
    */
-  subscribe(subscriber: Subscriber<Value>): Subscription {
+  subscribe(subscriber: Subscriber<Value>): Disposable {
     const subscription = new Subscription(
       this.producer,
       subscriber as Subscriber<any>,

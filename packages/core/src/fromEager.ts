@@ -1,6 +1,6 @@
 import type {
+  Disposable,
   InnerSubscriber,
-  InnerSubscription,
   Producer,
   Unbox,
 } from "./lazyPromise.js";
@@ -18,7 +18,7 @@ class FromEagerOptions {
   }
 }
 
-class FromEagerSubscription implements InnerSubscription {
+class FromEagerSubscription implements Disposable {
   options = new FromEagerOptions();
 
   dispose() {

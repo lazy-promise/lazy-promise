@@ -1,9 +1,8 @@
 import type {
+  Disposable,
   InnerSubscriber,
-  InnerSubscription,
   Producer,
   Subscriber,
-  Subscription,
   Unbox,
 } from "./lazyPromise.js";
 import { LazyPromise, TypedError } from "./lazyPromise.js";
@@ -51,10 +50,10 @@ class AnySubscriber implements Subscriber<any> {
   }
 }
 
-class AnySubscription implements InnerSubscription {
+class AnySubscription implements Disposable {
   // A sparse array or an object.
   errors: any;
-  subscriptions: Subscription[] = [];
+  subscriptions: Disposable[] = [];
   pendingCount = 0;
   initialized = false;
 

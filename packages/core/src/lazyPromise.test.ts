@@ -1,6 +1,6 @@
 import type {
+  Disposable,
   InnerSubscriber,
-  InnerSubscription,
   Producer,
   Subscriber,
 } from "@lazy-promise/core";
@@ -350,7 +350,7 @@ test("cancellation", () => {
 });
 
 test("cancellation (class-based)", () => {
-  const innerSubscription: InnerSubscription = {
+  const innerSubscription: Disposable = {
     dispose() {
       log("dispose");
       expect(this).toBe(innerSubscription);
@@ -413,7 +413,7 @@ test("unsubscribe from produce", () => {
 });
 
 test("unsubscribe from produce (class-based)", () => {
-  const innerSubscription: InnerSubscription = {
+  const innerSubscription: Disposable = {
     dispose() {
       log("dispose inner");
       expect(this).toBe(innerSubscription);

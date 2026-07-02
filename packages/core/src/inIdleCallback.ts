@@ -1,11 +1,7 @@
-import type {
-  InnerSubscriber,
-  InnerSubscription,
-  Producer,
-} from "./lazyPromise.js";
+import type { Disposable, InnerSubscriber, Producer } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
-class InIdleCallbackSubscription implements InnerSubscription {
+class InIdleCallbackSubscription implements Disposable {
   constructor(public id: ReturnType<typeof requestIdleCallback>) {}
 
   dispose() {
