@@ -1,8 +1,4 @@
-import type {
-  Disposable,
-  InnerSubscriber,
-  TypedError,
-} from "@lazy-promise/core";
+import type { Disposable, Sink, TypedError } from "@lazy-promise/core";
 import { LazyPromise } from "@lazy-promise/core";
 import type { ReactiveNode } from "alien-signals/system";
 import { createReactiveSystem, ReactiveFlags } from "alien-signals/system";
@@ -150,7 +146,7 @@ class PendingNode {
   next: PendingNode | undefined = undefined;
 
   constructor(
-    public innerSub: InnerSubscriber<any>,
+    public sink: Sink<any>,
     public state: LPState,
     public c: ComputedNode,
   ) {}
@@ -177,7 +173,7 @@ class PendingNode {
   }
 }
 
-class OriginalSubscriber {
+class OriginalConsumer {
   // Set to true when the original settles synchronously during subscribe().
   // Checked in subscribeToOriginal to skip storing an already-done subscription.
   settled = false;
@@ -198,7 +194,7 @@ class OriginalSubscriber {
     let node = state.pendingHead;
     state.pendingHead = undefined;
     while (node !== undefined) {
-      node.innerSub.resolve(v);
+      node.sink.resolve(v);
       node = node.next;
     }
   }
@@ -214,7 +210,7 @@ class OriginalSubscriber {
     let node = state.pendingHead;
     state.pendingHead = undefined;
     while (node !== undefined) {
-      node.innerSub.reject(error);
+      node.sink.reject(error);
       node = node.next;
     }
   }
@@ -226,17 +222,17 @@ class ProxyProducer {
     private c: ComputedNode,
   ) {}
 
-  produce(innerSub: InnerSubscriber<any>): Disposable | void {
+  produce(sink: Sink<any>): Disposable | void {
     const { state, c } = this;
     if (state.status === resolvedSymbol) {
-      innerSub.resolve(state.result);
+      sink.resolve(state.result);
       return;
     }
     if (state.status === rejectedSymbol) {
-      innerSub.reject(state.result);
+      sink.reject(state.result);
       return;
     }
-    const node = new PendingNode(innerSub, state, c);
+    const node = new PendingNode(sink, state, c);
     node.next = state.pendingHead;
     state.pendingHead = node;
     if (state.originalSub === undefined) {
@@ -256,10 +252,10 @@ const subscribeToOriginal = (
   // reactive dependencies on the computed.
   const prevActiveSub = activeSub;
   activeSub = undefined;
-  const subscriber = new OriginalSubscriber(state, c);
-  const sub = original.subscribe(subscriber);
+  const consumer = new OriginalConsumer(state, c);
+  const sub = original.subscribe(consumer);
   activeSub = prevActiveSub;
-  if (!subscriber.settled) {
+  if (!consumer.settled) {
     state.originalSub = sub;
   }
 };
@@ -527,8 +523,8 @@ function computedOper<T>(this: ComputedNode<T>): T {
     // If this was the first initialization of an LP-computed, subscribe to the
     // original now that c.subs is linked. This ensures a synchronously-settling
     // original can set hasCachedValue correctly (the c.subs guard in
-    // OriginalSubscriber.resolve requires c.subs to be set first).
-    // For untracked reads, ProxyProducer.produce handles the subscription.
+    // OriginalConsumer.resolve requires c.subs to be set first). For untracked
+    // reads, ProxyProducer.produce handles the subscription.
     if (!flags && this.lp !== undefined) {
       subscribeToOriginal(this.lp, this, this.lp.original);
     }

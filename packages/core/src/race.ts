@@ -1,26 +1,26 @@
 import type {
+  Consumer,
   Disposable,
-  InnerSubscriber,
   Producer,
-  Subscriber,
+  Sink,
   Unbox,
 } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
-class RaceSubscriberSubscription implements Subscriber<any>, Disposable {
+class RaceConsumerJob implements Consumer<any>, Disposable {
   subscriptions: Disposable[] = [];
   settled = false;
 
-  constructor(public innerSubscriber: InnerSubscriber<any>) {}
+  constructor(public sink: Sink<any>) {}
 
   resolve(value: any) {
-    this.innerSubscriber.resolve(value);
+    this.sink.resolve(value);
     this.settled = true;
     this.dispose();
   }
 
   reject(error: unknown) {
-    this.innerSubscriber.reject(error);
+    this.sink.reject(error);
     this.settled = true;
     this.dispose();
   }
@@ -35,23 +35,21 @@ class RaceSubscriberSubscription implements Subscriber<any>, Disposable {
 class RaceProducer implements Producer<any> {
   constructor(public sources: Iterable<any>) {}
 
-  produce(innerSubscriber: InnerSubscriber<any>) {
-    const innerSubscription = new RaceSubscriberSubscription(innerSubscriber);
+  produce(sink: Sink<any>) {
+    const job = new RaceConsumerJob(sink);
     for (const source of this.sources) {
       if (source instanceof LazyPromise) {
-        innerSubscription.subscriptions.push(
-          source.subscribe(innerSubscription),
-        );
-        if (innerSubscription.settled) {
+        job.subscriptions.push(source.subscribe(job));
+        if (job.settled) {
           return;
         }
         continue;
       }
-      innerSubscriber.resolve(source);
-      innerSubscription.dispose();
+      sink.resolve(source);
+      job.dispose();
       return;
     }
-    return innerSubscription;
+    return job;
   }
 }
 

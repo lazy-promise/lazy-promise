@@ -1,24 +1,24 @@
-import type { InnerSubscriber, Producer } from "./lazyPromise.js";
+import type { Producer, Sink } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
-const subscribers: InnerSubscriber<void>[] = [];
+const sinks: Sink<void>[] = [];
 
 let channel: MessageChannel | undefined;
 
 const createChannel = () => {
   channel = new MessageChannel();
   channel.port1.onmessage = () => {
-    const subscriber = subscribers.shift();
-    subscriber!.resolve();
-    if (subscribers.length === 0) {
+    const sink = sinks.shift();
+    sink!.resolve();
+    if (sinks.length === 0) {
       (channel!.port1 as any).unref?.();
     }
   };
 };
 
 class InMessageChannelProducer implements Producer<void> {
-  produce(innerSubscriber: InnerSubscriber<void>) {
-    subscribers.push(innerSubscriber);
+  produce(sink: Sink<void>) {
+    sinks.push(sink);
     if (!channel) {
       createChannel();
     }

@@ -56,9 +56,9 @@ Another example is LazyPromise constructor:
 effect(() => {
   // ...
 
-  // `subscriber` has methods `resolve` and `reject` and is the
+  // `sink` has methods `resolve` and `reject` and is the
   // equivalent of resolve/reject handles of a Promise.
-  return new LazyPromise((subscriber) => {
+  return new LazyPromise((sink) => {
     // ...
   });
 });
@@ -91,7 +91,7 @@ const lazyPromise = new LazyPromise(foo);
 
 `foo` will be called each time you subscribe to `lazyPromise`. Because of this, if a memo aka `computed` callback returns a LazyPromise, instead of just passing it along, we're going to proxy it with another LazyPromise so that:
 
-- The original lazy promise can have at most one subscriber at a time, and the result will be multi-casted among all the subscribers of the proxy promise.
+- The original lazy promise can have at most one subscription at a time, and the result will be multi-casted among all the subscriptions to the proxy promise.
 
 - As long as the memo is in the dependency graph, it should either be subscribed to the original lazy promise and waiting for it to settle, or hold on to the result once the promise does settle.
 

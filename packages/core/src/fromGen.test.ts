@@ -1,4 +1,4 @@
-import type { LazyPromiseGenerator, Subscriber } from "@lazy-promise/core";
+import type { LazyPromiseGenerator, Consumer } from "@lazy-promise/core";
 import {
   box,
   fromGen,
@@ -29,7 +29,7 @@ const readLog = () => {
   }
 };
 
-const logSubscriber: Subscriber<any> = {
+const logConsumer: Consumer<any> = {
   resolve: (value) => {
     log("handleValue", value);
   },
@@ -180,7 +180,7 @@ test("return value", () => {
     log("in generator");
     return "a";
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -192,7 +192,7 @@ test("return value", () => {
       ],
     ]
   `);
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -208,9 +208,9 @@ test("return value", () => {
 
 test("yield to another generator function", () => {
   const a = function* (): LazyPromiseGenerator<number> {
-    const value = yield* new LazyPromise<string>((subscriber) => {
+    const value = yield* new LazyPromise<string>((sink) => {
       setTimeout(() => {
-        subscriber.resolve("value");
+        sink.resolve("value");
       }, 1000);
     });
     expect(value).toMatchInlineSnapshot(`"value"`);
@@ -219,7 +219,7 @@ test("yield to another generator function", () => {
   const promise = fromGen(function* () {
     return yield* a();
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -253,10 +253,10 @@ test("yield resolved", () => {
 });
 
 test("yield async", () => {
-  const inner = new LazyPromise<"a">((subscriber) => {
+  const inner = new LazyPromise<"a">((sink) => {
     log("subscribe inner");
     const timeoutId = setTimeout(() => {
-      subscriber.resolve("a");
+      sink.resolve("a");
     }, 1000);
     return () => {
       log("dispose inner");
@@ -312,9 +312,9 @@ test("yield async", () => {
 
 test("multiple yields", () => {
   const getAsyncPromise = <T>(value: T) =>
-    new LazyPromise<T>((subscriber) => {
+    new LazyPromise<T>((sink) => {
       const timeoutId = setTimeout(() => {
-        subscriber.resolve(value);
+        sink.resolve(value);
       }, 1000);
       return () => {
         clearTimeout(timeoutId);
@@ -402,7 +402,7 @@ test("yield to a sync rejected (uncaught)", () => {
   fromGen(function* () {
     log("in generator");
     yield* rejecting("a");
-  }).subscribe(logSubscriber);
+  }).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -426,7 +426,7 @@ test("yield to a sync rejected (caught)", () => {
       expect(e).toMatchInlineSnapshot(`"a"`);
       return "b";
     }
-  }).subscribe(logSubscriber);
+  }).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -446,12 +446,12 @@ test("yield to a sync rejected (caught)", () => {
 test("yield to an async rejected (uncaught)", () => {
   fromGen(function* () {
     log("in generator");
-    yield* new LazyPromise((subscriber) => {
+    yield* new LazyPromise((sink) => {
       setTimeout(() => {
-        subscriber.reject("a");
+        sink.reject("a");
       }, 1000);
     });
-  }).subscribe(logSubscriber);
+  }).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -475,9 +475,9 @@ test("yield to an async rejected (caught)", () => {
   fromGen(function* () {
     log("in generator");
     try {
-      yield* new LazyPromise((subscriber) => {
+      yield* new LazyPromise((sink) => {
         setTimeout(() => {
-          subscriber.reject("a");
+          sink.reject("a");
         }, 1000);
       });
     } catch (e) {
@@ -485,7 +485,7 @@ test("yield to an async rejected (caught)", () => {
       expect(e).toMatchInlineSnapshot(`"a"`);
       return "b";
     }
-  }).subscribe(logSubscriber);
+  }).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -512,7 +512,7 @@ test("throw in callback", () => {
   const promise = fromGen(() => {
     throw "oops";
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -526,7 +526,7 @@ test("throw in callback", () => {
 test("throw at the start of the generator", () => {
   fromGen(function* () {
     throw "oops";
-  }).subscribe(logSubscriber);
+  }).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -541,7 +541,7 @@ test("throw in the middle of a sync generator", () => {
   fromGen(function* () {
     yield* box();
     throw "oops";
-  }).subscribe(logSubscriber);
+  }).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -554,13 +554,13 @@ test("throw in the middle of a sync generator", () => {
 
 test("throw in the middle of an async generator", () => {
   fromGen(function* () {
-    yield* new LazyPromise<void>((subscriber) => {
+    yield* new LazyPromise<void>((sink) => {
       setTimeout(() => {
-        subscriber.resolve();
+        sink.resolve();
       }, 1000);
     });
     throw "oops";
-  }).subscribe(logSubscriber);
+  }).subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -579,7 +579,7 @@ test("empty iterator", () => {
     yield* [];
     return "a";
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -602,7 +602,7 @@ test("return in try clause", () => {
       log("yielded", yield* box(1));
     }
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -628,7 +628,7 @@ test("throw in try clause", () => {
     } finally {
       log("yielded", yield* box(1));
     }
-  }).subscribe(logSubscriber);
+  }).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -656,7 +656,7 @@ test("override an error thrown in try clause with return", () => {
       // eslint-disable-next-line no-unsafe-finally
       return undefined;
     }
-  }).subscribe(logSubscriber);
+  }).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -683,7 +683,7 @@ test("override rejection with another rejection in finally clause (sync)", () =>
       yield* rejecting("b");
     }
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -701,20 +701,20 @@ test("override rejection with another rejection in finally clause (async)", () =
   const promise = fromGen(function* () {
     log("in generator");
     try {
-      return yield* new LazyPromise<never>((subscriber) => {
+      return yield* new LazyPromise<never>((sink) => {
         setTimeout(() => {
-          subscriber.reject("a");
+          sink.reject("a");
         }, 1000);
       });
     } finally {
-      yield* new LazyPromise<never>((subscriber) => {
+      yield* new LazyPromise<never>((sink) => {
         setTimeout(() => {
-          subscriber.reject("b");
+          sink.reject("b");
         }, 1000);
       });
     }
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -740,7 +740,7 @@ test("override rejection with throw in finally clause (sync)", () => {
       throw "b";
     }
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -758,9 +758,9 @@ test("override rejection with throw in finally clause (async)", () => {
   const promise = fromGen(function* () {
     log("in generator");
     try {
-      return yield* new LazyPromise<never>((subscriber) => {
+      return yield* new LazyPromise<never>((sink) => {
         setTimeout(() => {
-          subscriber.reject("a");
+          sink.reject("a");
         }, 1000);
       });
     } finally {
@@ -768,7 +768,7 @@ test("override rejection with throw in finally clause (async)", () => {
       throw "b";
     }
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -805,9 +805,9 @@ test("ignore the finally clause when unsubscribed", () => {
 
 test("synchronously unsubscribe in producer", () => {
   const promise = fromGen(function* () {
-    yield* new LazyPromise<void>((subscriber) => {
+    yield* new LazyPromise<void>((sink) => {
       setTimeout(() => {
-        subscriber.resolve();
+        sink.resolve();
       }, 1000);
     });
     yield* new LazyPromise<void>(() => {
@@ -819,7 +819,7 @@ test("synchronously unsubscribe in producer", () => {
     });
     log("never get here");
   });
-  const subscription = promise.subscribe(logSubscriber);
+  const subscription = promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -833,47 +833,47 @@ test("synchronously unsubscribe in producer", () => {
 
 test("synchronously unsubscribe then resolve in producer", () => {
   const promise = fromGen(function* () {
-    yield* new LazyPromise<void>((subscriber) => {
+    yield* new LazyPromise<void>((sink) => {
       setTimeout(() => {
-        subscriber.resolve();
+        sink.resolve();
       }, 1000);
     });
-    yield* new LazyPromise<void>((subscriber) => {
+    yield* new LazyPromise<void>((sink) => {
       // eslint-disable-next-line no-use-before-define
       subscription.dispose();
-      subscriber.resolve();
+      sink.resolve();
     });
     log("never get here");
   });
-  const subscription = promise.subscribe(logSubscriber);
+  const subscription = promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
 test("synchronously unsubscribe then reject in producer", () => {
   const promise = fromGen(function* () {
-    yield* new LazyPromise<void>((subscriber) => {
+    yield* new LazyPromise<void>((sink) => {
       setTimeout(() => {
-        subscriber.resolve();
+        sink.resolve();
       }, 1000);
     });
-    yield* new LazyPromise<void>((subscriber) => {
+    yield* new LazyPromise<void>((sink) => {
       // eslint-disable-next-line no-use-before-define
       subscription.dispose();
-      subscriber.reject(1);
+      sink.reject(1);
     });
     log("never get here");
   });
-  const subscription = promise.subscribe(logSubscriber);
+  const subscription = promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
 test("unsubscribe in generator after sync resolve", () => {
   const promise = fromGen(function* () {
-    yield* new LazyPromise<void>((subscriber) => {
+    yield* new LazyPromise<void>((sink) => {
       setTimeout(() => {
-        subscriber.resolve();
+        sink.resolve();
       }, 1000);
     });
     yield* box();
@@ -883,16 +883,16 @@ test("unsubscribe in generator after sync resolve", () => {
       log("never get here");
     });
   });
-  const subscription = promise.subscribe(logSubscriber);
+  const subscription = promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
 test("unsubscribe in generator after sync reject", () => {
   const promise = fromGen(function* () {
-    yield* new LazyPromise<void>((subscriber) => {
+    yield* new LazyPromise<void>((sink) => {
       setTimeout(() => {
-        subscriber.resolve();
+        sink.resolve();
       }, 1000);
     });
     try {
@@ -905,16 +905,16 @@ test("unsubscribe in generator after sync reject", () => {
       log("never get here");
     });
   });
-  const subscription = promise.subscribe(logSubscriber);
+  const subscription = promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
 test("unsubscribe in generator after async resolve", () => {
   const promise = fromGen(function* () {
-    yield* new LazyPromise<void>((subscriber) => {
+    yield* new LazyPromise<void>((sink) => {
       setTimeout(() => {
-        subscriber.resolve();
+        sink.resolve();
       }, 1000);
     });
     // eslint-disable-next-line no-use-before-define
@@ -923,7 +923,7 @@ test("unsubscribe in generator after async resolve", () => {
       log("never get here");
     });
   });
-  const subscription = promise.subscribe(logSubscriber);
+  const subscription = promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
@@ -931,9 +931,9 @@ test("unsubscribe in generator after async resolve", () => {
 test("unsubscribe in generator after async reject", () => {
   const promise = fromGen(function* () {
     try {
-      yield* new LazyPromise<void>((subscriber) => {
+      yield* new LazyPromise<void>((sink) => {
         setTimeout(() => {
-          subscriber.reject(1);
+          sink.reject(1);
         }, 1000);
       });
     } catch {
@@ -944,7 +944,7 @@ test("unsubscribe in generator after async reject", () => {
       log("never get here");
     });
   });
-  const subscription = promise.subscribe(logSubscriber);
+  const subscription = promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
@@ -965,9 +965,9 @@ test("stack overflow with resolved lazy promises", () => {
   }).subscribe();
 
   const getInner = (index: number) =>
-    new LazyPromise<void>((subscriber) => {
+    new LazyPromise<void>((sink) => {
       log("start", index);
-      subscriber.resolve();
+      sink.resolve();
       log("end", index);
     });
   fromGen(function* () {
@@ -1024,9 +1024,9 @@ test("stack overflow with rejected lazy promises", () => {
   }).subscribe();
 
   const getInner = (index: number) =>
-    new LazyPromise<void>((subscriber) => {
+    new LazyPromise<void>((sink) => {
       log("start", index);
-      subscriber.reject(undefined);
+      sink.reject(undefined);
       log("end", index);
     });
   fromGen(function* () {

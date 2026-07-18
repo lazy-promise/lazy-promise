@@ -1,8 +1,6 @@
-import type { Disposable, LazyPromise, Subscriber } from "./lazyPromise.js";
+import type { Consumer, Disposable, LazyPromise } from "./lazyPromise.js";
 
-class ToEagerSubscriberListener
-  implements Subscriber<any>, EventListenerObject
-{
+class ToEagerConsumerListener implements Consumer<any>, EventListenerObject {
   subscription?: Disposable;
   settled = false;
 
@@ -46,19 +44,19 @@ export const toEager = <Value>(
       return;
     }
     signal.throwIfAborted();
-    const subscriberListener = new ToEagerSubscriberListener(
+    const consumerListener = new ToEagerConsumerListener(
       resolve,
       reject,
       signal,
     );
-    const subscription = lazyPromise.subscribe(subscriberListener);
-    if (subscriberListener.settled) {
+    const subscription = lazyPromise.subscribe(consumerListener);
+    if (consumerListener.settled) {
       return;
     }
     if (signal.aborted) {
       subscription.dispose();
       throw signal.reason;
     }
-    subscriberListener.subscription = subscription;
-    signal.addEventListener("abort", subscriberListener);
+    consumerListener.subscription = subscription;
+    signal.addEventListener("abort", consumerListener);
   });

@@ -1,7 +1,7 @@
-import type { Disposable, InnerSubscriber, Producer } from "./lazyPromise.js";
+import type { Disposable, Producer, Sink } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
-class InTimeoutSubscription implements Disposable {
+class InTimeoutJob implements Disposable {
   constructor(public id: ReturnType<typeof setTimeout>) {}
 
   dispose() {
@@ -9,17 +9,15 @@ class InTimeoutSubscription implements Disposable {
   }
 }
 
-const callback = (innerSubscriber: InnerSubscriber<void>) => {
-  innerSubscriber.resolve();
+const callback = (sink: Sink<void>) => {
+  sink.resolve();
 };
 
 class InTimeoutProducer implements Producer<void> {
   constructor(public ms?: number) {}
 
-  produce(innerSubscriber: InnerSubscriber<void>) {
-    return new InTimeoutSubscription(
-      setTimeout(callback, this.ms, innerSubscriber),
-    );
+  produce(sink: Sink<void>) {
+    return new InTimeoutJob(setTimeout(callback, this.ms, sink));
   }
 }
 

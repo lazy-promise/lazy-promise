@@ -1,8 +1,8 @@
 import type {
+  Consumer,
   Disposable,
-  InnerSubscriber,
   Producer,
-  Subscriber,
+  Sink,
   Unbox,
 } from "./lazyPromise.js";
 import { LazyPromise, TypedError } from "./lazyPromise.js";
@@ -11,65 +11,60 @@ import type {
   NeverIfRecordContainsNever,
 } from "./utils.js";
 
-class AnySubscriber implements Subscriber<any> {
+class AnyConsumer implements Consumer<any> {
   constructor(
     public key: any,
     // eslint-disable-next-line no-use-before-define
-    public innerSubscription: AnySubscription,
+    public job: AnyJob,
   ) {}
 
   resolve(value: any) {
-    const innerSubscription = this.innerSubscription;
+    const job = this.job;
     if (value instanceof TypedError) {
-      innerSubscription.errors[this.key] = value.error;
-      if (
-        innerSubscription.initialized &&
-        innerSubscription.pendingCount === 1
-      ) {
-        innerSubscription.innerSubscriber.resolve(
-          new TypedError(innerSubscription.errors),
-        );
+      job.errors[this.key] = value.error;
+      if (job.initialized && job.pendingCount === 1) {
+        job.sink.resolve(new TypedError(job.errors));
         // No need to unsubscribe since all sources that are promises have
         // resolved.
         return;
       }
-      innerSubscription.pendingCount--;
+      job.pendingCount--;
       return;
     }
-    innerSubscription.innerSubscriber.resolve(value);
-    innerSubscription.initialized = true;
-    innerSubscription.dispose();
+    job.sink.resolve(value);
+    job.initialized = true;
+    job.dispose();
     return;
   }
 
   reject(error: unknown) {
-    const innerSubscription = this.innerSubscription;
-    innerSubscription.innerSubscriber.reject(error);
-    innerSubscription.initialized = true;
-    innerSubscription.dispose();
+    const job = this.job;
+    job.sink.reject(error);
+    job.initialized = true;
+    job.dispose();
   }
 }
 
-class AnySubscription implements Disposable {
+class AnyJob implements Disposable {
   // A sparse array or an object.
   errors: any;
   subscriptions: Disposable[] = [];
   pendingCount = 0;
   initialized = false;
 
-  constructor(public innerSubscriber: InnerSubscriber<any>) {}
+  constructor(public sink: Sink<any>) {}
 
   next(key: any, source: any) {
     if (source instanceof LazyPromise) {
       this.pendingCount++;
-      this.subscriptions.push(source.subscribe(new AnySubscriber(key, this)));
+      this.subscriptions.push(source.subscribe(new AnyConsumer(key, this)));
       return;
     }
     if (source instanceof TypedError) {
       this.errors[key] = source.error;
       return;
     }
-    this.innerSubscriber.resolve(source);
+    this.sink.resolve(source);
     this.initialized = true;
     this.dispose();
   }
@@ -84,35 +79,35 @@ class AnySubscription implements Disposable {
 class AnyProducer implements Producer<any> {
   constructor(public sources: Iterable<any> | Record<any, any>) {}
 
-  produce(innerSubscriber: InnerSubscriber<any>) {
-    const innerSubscription = new AnySubscription(innerSubscriber);
+  produce(sink: Sink<any>) {
+    const job = new AnyJob(sink);
     if (Symbol.iterator in this.sources) {
-      innerSubscription.errors = [];
+      job.errors = [];
       let index = 0;
       for (const source of this.sources) {
-        innerSubscription.next(index, source);
-        if (innerSubscription.initialized) {
+        job.next(index, source);
+        if (job.initialized) {
           return;
         }
         index++;
       }
     } else {
-      innerSubscription.errors = {};
+      job.errors = {};
       for (const key in this.sources) {
-        innerSubscription.next(key, this.sources[key]);
-        if (innerSubscription.initialized) {
+        job.next(key, this.sources[key]);
+        if (job.initialized) {
           return;
         }
       }
     }
-    if (innerSubscription.pendingCount === 0) {
-      innerSubscriber.resolve(new TypedError(innerSubscription.errors));
+    if (job.pendingCount === 0) {
+      sink.resolve(new TypedError(job.errors));
       // No need to unsubscribe since all sources that are promises have
       // resolved.
       return;
     }
-    innerSubscription.initialized = true;
-    return innerSubscription;
+    job.initialized = true;
+    return job;
   }
 }
 

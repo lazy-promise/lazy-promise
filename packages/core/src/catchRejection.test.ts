@@ -1,4 +1,4 @@
-import type { InnerSubscriber, Subscriber } from "@lazy-promise/core";
+import type { Sink, Consumer } from "@lazy-promise/core";
 import { box, LazyPromise, rejecting } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
@@ -24,7 +24,7 @@ const readLog = () => {
   }
 };
 
-const logSubscriber: Subscriber<any> = {
+const logConsumer: Consumer<any> = {
   resolve: (value) => {
     log("handleValue", value);
   },
@@ -83,10 +83,10 @@ test("value of this", () => {
 });
 
 test("falling back to a value", () => {
-  const promise = new LazyPromise((subscriber) => {
-    subscriber.reject("oops");
+  const promise = new LazyPromise((sink) => {
+    sink.reject("oops");
   }).catchRejection((error) => error);
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -99,7 +99,7 @@ test("falling back to a value", () => {
 
 test("outer promise resolves", () => {
   const promise = box(1).catchRejection(() => undefined);
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -111,13 +111,13 @@ test("outer promise resolves", () => {
 });
 
 test("inner promise resolves", () => {
-  const promise = new LazyPromise((subscriber) => {
-    subscriber.reject("oops");
+  const promise = new LazyPromise((sink) => {
+    sink.reject("oops");
   }).catchRejection((error) => {
     log("caught", error);
     return box("b");
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -133,15 +133,15 @@ test("inner promise resolves", () => {
 });
 
 test("inner promise rejects", () => {
-  const promise = new LazyPromise((subscriber) => {
-    subscriber.reject("oops 1");
+  const promise = new LazyPromise((sink) => {
+    sink.reject("oops 1");
   }).catchRejection((error) => {
     log("caught", error);
-    return new LazyPromise((subscriber) => {
-      subscriber.reject("oops 2");
+    return new LazyPromise((sink) => {
+      sink.reject("oops 2");
     });
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -157,12 +157,12 @@ test("inner promise rejects", () => {
 });
 
 test("callback throws", () => {
-  const promise = new LazyPromise((subscriber) => {
-    subscriber.reject("oops 1");
+  const promise = new LazyPromise((sink) => {
+    sink.reject("oops 1");
   }).catchRejection(() => {
     throw "oops 2";
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -192,8 +192,8 @@ test("cancel outer promise", () => {
 });
 
 test("cancel inner promise", () => {
-  const promise = new LazyPromise<never>((subscriber) => {
-    subscriber.reject("oops");
+  const promise = new LazyPromise<never>((sink) => {
+    sink.reject("oops");
   }).catchRejection(
     () =>
       new LazyPromise<never>(() => () => {
@@ -215,27 +215,27 @@ test("cancel inner promise", () => {
 });
 
 test("unsubscribe in the callback", () => {
-  let subscriber: InnerSubscriber<never>;
-  const subscription = new LazyPromise<never>((subscriberLocal) => {
-    subscriber = subscriberLocal;
+  let sink: Sink<never>;
+  const subscription = new LazyPromise<never>((sinkLocal) => {
+    sink = sinkLocal;
   })
     .catchRejection(() => {
       subscription.dispose();
     })
-    .subscribe(logSubscriber);
-  subscriber!.reject("oops");
+    .subscribe(logConsumer);
+  sink!.reject("oops");
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
 test("unsubscribe and throw in the callback", () => {
-  let subscriber: InnerSubscriber<never>;
-  const subscription = new LazyPromise<never>((subscriberLocal) => {
-    subscriber = subscriberLocal;
+  let sink: Sink<never>;
+  const subscription = new LazyPromise<never>((sinkLocal) => {
+    sink = sinkLocal;
   })
     .catchRejection(() => {
       subscription.dispose();
       throw "oops";
     })
-    .subscribe(logSubscriber);
-  subscriber!.reject(1);
+    .subscribe(logConsumer);
+  sink!.reject(1);
 });

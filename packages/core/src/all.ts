@@ -1,8 +1,8 @@
 import type {
+  Consumer,
   Disposable,
-  InnerSubscriber,
   Producer,
-  Subscriber,
+  Sink,
   Unbox,
 } from "./lazyPromise.js";
 import { LazyPromise, TypedError } from "./lazyPromise.js";
@@ -11,56 +11,56 @@ import type {
   NeverIfRecordContainsNever,
 } from "./utils.js";
 
-class AllSubscriber implements Subscriber<any> {
+class AllConsumer implements Consumer<any> {
   constructor(
     public key: any,
     // eslint-disable-next-line no-use-before-define
-    public innerSubscription: AllSubscription,
+    public job: AllJob,
   ) {}
 
   resolve(value: any) {
-    const innerSubscription = this.innerSubscription;
+    const job = this.job;
     if (value instanceof TypedError) {
-      innerSubscription.innerSubscriber.resolve(value);
-      innerSubscription.initialized = true;
-      innerSubscription.dispose();
+      job.sink.resolve(value);
+      job.initialized = true;
+      job.dispose();
       return;
     }
-    innerSubscription.values[this.key] = value;
-    if (innerSubscription.initialized && innerSubscription.pendingCount === 1) {
-      innerSubscription.innerSubscriber.resolve(innerSubscription.values);
+    job.values[this.key] = value;
+    if (job.initialized && job.pendingCount === 1) {
+      job.sink.resolve(job.values);
       // No need to unsubscribe since all sources that are promises have
       // resolved.
       return;
     }
-    innerSubscription.pendingCount--;
+    job.pendingCount--;
   }
 
   reject(error: unknown) {
-    const innerSubscription = this.innerSubscription;
-    innerSubscription.innerSubscriber.reject(error);
-    innerSubscription.initialized = true;
-    innerSubscription.dispose();
+    const job = this.job;
+    job.sink.reject(error);
+    job.initialized = true;
+    job.dispose();
   }
 }
 
-class AllSubscription implements Disposable {
+class AllJob implements Disposable {
   // A sparse array or an object.
   values: any;
   subscriptions: Disposable[] = [];
   pendingCount = 0;
   initialized = false;
 
-  constructor(public innerSubscriber: InnerSubscriber<any>) {}
+  constructor(public sink: Sink<any>) {}
 
   next(key: any, source: any) {
     if (source instanceof LazyPromise) {
       this.pendingCount++;
-      this.subscriptions.push(source.subscribe(new AllSubscriber(key, this)));
+      this.subscriptions.push(source.subscribe(new AllConsumer(key, this)));
       return;
     }
     if (source instanceof TypedError) {
-      this.innerSubscriber.resolve(source);
+      this.sink.resolve(source);
       this.initialized = true;
       this.dispose();
       return;
@@ -78,35 +78,35 @@ class AllSubscription implements Disposable {
 class AllProducer implements Producer<any> {
   constructor(public sources: Iterable<any> | Record<any, any>) {}
 
-  produce(innerSubscriber: InnerSubscriber<any>) {
-    const innerSubscription = new AllSubscription(innerSubscriber);
+  produce(sink: Sink<any>) {
+    const job = new AllJob(sink);
     if (Symbol.iterator in this.sources) {
-      innerSubscription.values = [];
+      job.values = [];
       let index = 0;
       for (const source of this.sources) {
-        innerSubscription.next(index, source);
-        if (innerSubscription.initialized) {
+        job.next(index, source);
+        if (job.initialized) {
           return;
         }
         index++;
       }
     } else {
-      innerSubscription.values = {};
+      job.values = {};
       for (const key in this.sources) {
-        innerSubscription.next(key, this.sources[key]);
-        if (innerSubscription.initialized) {
+        job.next(key, this.sources[key]);
+        if (job.initialized) {
           return;
         }
       }
     }
-    if (innerSubscription.pendingCount === 0) {
-      innerSubscriber.resolve(innerSubscription.values);
+    if (job.pendingCount === 0) {
+      sink.resolve(job.values);
       // No need to unsubscribe since all sources that are promises have
       // resolved.
       return;
     }
-    innerSubscription.initialized = true;
-    return innerSubscription;
+    job.initialized = true;
+    return job;
   }
 }
 

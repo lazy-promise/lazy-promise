@@ -1,9 +1,4 @@
-import type {
-  Disposable,
-  InnerSubscriber,
-  Producer,
-  Unbox,
-} from "./lazyPromise.js";
+import type { Disposable, Producer, Sink, Unbox } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
 class FromEagerOptions {
@@ -18,7 +13,7 @@ class FromEagerOptions {
   }
 }
 
-class FromEagerSubscription implements Disposable {
+class FromEagerJob implements Disposable {
   options = new FromEagerOptions();
 
   dispose() {
@@ -36,22 +31,22 @@ class FromEagerProducer implements Producer<any> {
     public callback: (options: { readonly signal: AbortSignal }) => any,
   ) {}
 
-  produce(innerSubscriber: InnerSubscriber<any>) {
-    const innerSubscription = new FromEagerSubscription();
+  produce(sink: Sink<any>) {
+    const job = new FromEagerJob();
     // May throw.
-    const callbackReturn = (0, this.callback)(innerSubscription.options);
+    const callbackReturn = (0, this.callback)(job.options);
     if (callbackReturn instanceof Promise) {
       callbackReturn.then(
         (value) => {
-          innerSubscriber.resolve(value);
+          sink.resolve(value);
         },
         (error) => {
-          innerSubscriber.reject(error);
+          sink.reject(error);
         },
       );
-      return innerSubscription;
+      return job;
     }
-    innerSubscriber.resolve(callbackReturn);
+    sink.resolve(callbackReturn);
   }
 }
 

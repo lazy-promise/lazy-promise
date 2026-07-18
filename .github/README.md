@@ -36,15 +36,15 @@ Unlike both Observable and Promise, LazyPromise supports typed errors. This feat
 
 ## Usage
 
-You create a LazyPromise like you create a native Promise, except you have a `subscriber` object instead of `resolve, reject` pair, and you can optionally return a teardown function:
+You create a LazyPromise like you create a native Promise, except you have a `sink` object instead of `resolve, reject` pair, and you can optionally return a teardown function:
 
 ```ts
-const lazyPromise = new LazyPromise<"value">((subscriber) => {
+const lazyPromise = new LazyPromise<"value">((sink) => {
   const timeoutId = setTimeout(() => {
     if (...) {
-      subscriber.resolve("value");
+      sink.resolve("value");
     } else {
-      subscriber.reject("error");
+      sink.reject("error");
     }
   }, 1000);
 
@@ -176,4 +176,4 @@ One last thing to keep in mind is that instead of writing `yield* fromGen(foo)`,
 
 ## Class-based API
 
-To get the best performance, for instance when working on a library, you can avoid the overhead of creating and garbage-collecting functions by using objects in their place. Instead of passing a callback to the `LazyPromise` constructor, you can pass an object with `.produce` method (a `Producer`), and instead of returning a teardown function, you can return an object with `.dispose` method (a `Disposable`).
+To get the best performance, for instance when working on a library, you can avoid the overhead of creating and garbage-collecting functions by using objects in their place. Instead of passing a callback to the `LazyPromise` constructor, you can pass an object with `.produce` method (a `Producer`), and instead of returning a teardown function, you can return an object with `.dispose` method (a "job" `Disposable`).

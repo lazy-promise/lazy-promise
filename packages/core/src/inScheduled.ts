@@ -1,7 +1,7 @@
-import type { Disposable, InnerSubscriber, Producer } from "./lazyPromise.js";
+import type { Disposable, Producer, Sink } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
-class InScheduledSubscription extends AbortController implements Disposable {
+class InScheduledJob extends AbortController implements Disposable {
   dispose() {
     this.abort();
   }
@@ -16,21 +16,21 @@ class InScheduledProducer implements Producer<void> {
     },
   ) {}
 
-  produce(innerSubscriber: InnerSubscriber<void>) {
-    const subscription = new InScheduledSubscription();
+  produce(sink: Sink<void>) {
+    const job = new InScheduledJob();
     scheduler
       .postTask(
         () => {
-          innerSubscriber.resolve();
+          sink.resolve();
         },
         {
           priority: this.options?.priority!,
-          signal: subscription.signal,
+          signal: job.signal,
         },
       )
       // Catch abort error.
       .catch(noop);
-    return subscription;
+    return job;
   }
 }
 

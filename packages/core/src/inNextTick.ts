@@ -1,13 +1,13 @@
-import type { InnerSubscriber, Producer } from "./lazyPromise.js";
+import type { Producer, Sink } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
-const callback = (innerSubscriber: InnerSubscriber<void>) => {
-  innerSubscriber.resolve();
+const callback = (sink: Sink<void>) => {
+  sink.resolve();
 };
 
 class InNextTickProducer implements Producer<void> {
-  produce(innerSubscriber: InnerSubscriber<void>) {
-    process.nextTick(callback, innerSubscriber);
+  produce(sink: Sink<void>) {
+    process.nextTick(callback, sink);
   }
 }
 

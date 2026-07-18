@@ -1,7 +1,7 @@
-import type { Disposable, InnerSubscriber, Producer } from "./lazyPromise.js";
+import type { Disposable, Producer, Sink } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
-class InAnimationFrameSubscription implements Disposable {
+class InAnimationFrameJob implements Disposable {
   constructor(public id: ReturnType<typeof requestAnimationFrame>) {}
 
   dispose() {
@@ -10,10 +10,10 @@ class InAnimationFrameSubscription implements Disposable {
 }
 
 class InAnimationFrameProducer implements Producer<DOMHighResTimeStamp> {
-  produce(innerSubscriber: InnerSubscriber<DOMHighResTimeStamp>) {
-    return new InAnimationFrameSubscription(
+  produce(sink: Sink<DOMHighResTimeStamp>) {
+    return new InAnimationFrameJob(
       requestAnimationFrame((timestamp) => {
-        innerSubscriber.resolve(timestamp);
+        sink.resolve(timestamp);
       }),
     );
   }

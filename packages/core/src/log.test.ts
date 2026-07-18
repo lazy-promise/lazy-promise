@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import type { Subscriber } from "@lazy-promise/core";
+import type { Consumer } from "@lazy-promise/core";
 import { box, LazyPromise, log, rejecting } from "@lazy-promise/core";
 import { afterEach, expect, test, vi } from "vitest";
 
@@ -14,7 +14,7 @@ const readLog = () => {
   }
 };
 
-const logSubscriber: Subscriber<any> = {
+const logConsumer: Consumer<any> = {
   resolve: (value) => {
     console.log("handleValue", value);
   },
@@ -39,12 +39,12 @@ test("base case", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  new LazyPromise((subscriber) => {
+  new LazyPromise((sink) => {
     console.log("subscribing");
-    subscriber.resolve(1);
+    sink.resolve(1);
   })
     .pipe(log("base case"))
-    .subscribe(logSubscriber);
+    .subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "[base case] [1] [subscribe]",
@@ -60,7 +60,7 @@ test("rejection", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  rejecting(1).pipe(log("rejection case")).subscribe(logSubscriber);
+  rejecting(1).pipe(log("rejection case")).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "[rejection case] [1] [subscribe]",

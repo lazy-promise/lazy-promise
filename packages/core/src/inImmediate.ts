@@ -1,7 +1,7 @@
-import type { Disposable, InnerSubscriber, Producer } from "./lazyPromise.js";
+import type { Disposable, Producer, Sink } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
-class InImmediateSubscription implements Disposable {
+class InImmediateJob implements Disposable {
   constructor(public id: ReturnType<typeof setImmediate>) {}
 
   dispose() {
@@ -9,13 +9,13 @@ class InImmediateSubscription implements Disposable {
   }
 }
 
-const callback = (innerSubscriber: InnerSubscriber<void>) => {
-  innerSubscriber.resolve();
+const callback = (sink: Sink<void>) => {
+  sink.resolve();
 };
 
 class InImmediateProducer implements Producer<void> {
-  produce(innerSubscriber: InnerSubscriber<void>) {
-    return new InImmediateSubscription(setImmediate(callback, innerSubscriber));
+  produce(sink: Sink<void>) {
+    return new InImmediateJob(setImmediate(callback, sink));
   }
 }
 

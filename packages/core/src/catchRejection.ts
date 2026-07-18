@@ -1,18 +1,13 @@
-import type {
-  InnerSubscriber,
-  LazyPromise,
-  Producer,
-  Subscriber,
-} from "./lazyPromise.js";
+import type { Consumer, LazyPromise, Producer, Sink } from "./lazyPromise.js";
 
-class CatchRejectionSubscriber implements Subscriber<any> {
+class CatchRejectionConsumer implements Consumer<any> {
   constructor(
-    public innerSubscriber: InnerSubscriber<any>,
+    public sink: Sink<any>,
     public callback: (value: unknown) => any,
   ) {}
 
   resolve(value: any) {
-    this.innerSubscriber.resolve(value);
+    this.sink.resolve(value);
   }
 
   reject(error: unknown) {
@@ -20,10 +15,10 @@ class CatchRejectionSubscriber implements Subscriber<any> {
     try {
       newValue = (0, this.callback)(error);
     } catch (callbackError) {
-      this.innerSubscriber.reject(callbackError);
+      this.sink.reject(callbackError);
       return;
     }
-    this.innerSubscriber.resolve(newValue);
+    this.sink.resolve(newValue);
   }
 }
 
@@ -33,9 +28,9 @@ export class CatchRejectionProducer implements Producer<any> {
     public callback: (value: unknown) => any,
   ) {}
 
-  produce(innerSubscriber: InnerSubscriber<any>) {
+  produce(sink: Sink<any>) {
     return this.source.subscribe(
-      new CatchRejectionSubscriber(innerSubscriber, this.callback),
+      new CatchRejectionConsumer(sink, this.callback),
     );
   }
 }

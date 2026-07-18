@@ -1,4 +1,4 @@
-import type { InnerSubscriber } from "@lazy-promise/core";
+import type { Sink } from "@lazy-promise/core";
 import { box, LazyPromise, rejecting, toEager } from "@lazy-promise/core";
 import { afterEach, expect, test } from "vitest";
 
@@ -49,17 +49,17 @@ test("signal, sync resolve", async () => {
 });
 
 test("signal, async resolve", async () => {
-  let subscriber: InnerSubscriber<"value">;
+  let sink: Sink<"value">;
   // eslint-disable-next-line @typescript-eslint/no-floating-promises
   toEager(
-    new LazyPromise<"value">((subscriberLocal) => {
-      subscriber = subscriberLocal;
+    new LazyPromise<"value">((sinkLocal) => {
+      sink = sinkLocal;
     }),
     { signal: new AbortController().signal },
   ).then((value) => {
     log("resolve", value);
   });
-  subscriber!.resolve("value");
+  sink!.resolve("value");
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -79,16 +79,16 @@ test("signal, sync reject", async () => {
 });
 
 test("signal, async reject", async () => {
-  let subscriber: InnerSubscriber<never>;
+  let sink: Sink<never>;
   toEager(
-    new LazyPromise<never>((subscriberLocal) => {
-      subscriber = subscriberLocal;
+    new LazyPromise<never>((sinkLocal) => {
+      sink = sinkLocal;
     }),
     { signal: new AbortController().signal },
   ).catch((error) => {
     log("rejected", error);
   });
-  subscriber!.reject("oops");
+  sink!.reject("oops");
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   await flushMicrotasks();
   expect(readLog()).toMatchInlineSnapshot(`

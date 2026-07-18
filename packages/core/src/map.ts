@@ -1,34 +1,29 @@
-import type {
-  InnerSubscriber,
-  LazyPromise,
-  Producer,
-  Subscriber,
-} from "./lazyPromise.js";
+import type { Consumer, LazyPromise, Producer, Sink } from "./lazyPromise.js";
 import { TypedError } from "./lazyPromise.js";
 
-class MapSubscriber implements Subscriber<any> {
+class MapConsumer implements Consumer<any> {
   constructor(
-    public innerSubscriber: InnerSubscriber<any>,
+    public sink: Sink<any>,
     public callback: (value: any) => any,
   ) {}
 
   resolve(value: any) {
     if (value instanceof TypedError) {
-      this.innerSubscriber.resolve(value);
+      this.sink.resolve(value);
       return;
     }
     let newValue;
     try {
       newValue = (0, this.callback)(value);
     } catch (callbackError) {
-      this.innerSubscriber.reject(callbackError);
+      this.sink.reject(callbackError);
       return;
     }
-    this.innerSubscriber.resolve(newValue);
+    this.sink.resolve(newValue);
   }
 
   reject(error: unknown) {
-    this.innerSubscriber.reject(error);
+    this.sink.reject(error);
   }
 }
 
@@ -38,9 +33,7 @@ export class MapProducer implements Producer<any> {
     public callback: (value: any) => any,
   ) {}
 
-  produce(innerSubscriber: InnerSubscriber<any>) {
-    return this.source.subscribe(
-      new MapSubscriber(innerSubscriber, this.callback),
-    );
+  produce(sink: Sink<any>) {
+    return this.source.subscribe(new MapConsumer(sink, this.callback));
   }
 }

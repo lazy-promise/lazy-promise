@@ -1,7 +1,7 @@
-import type { Disposable, InnerSubscriber, Producer } from "./lazyPromise.js";
+import type { Disposable, Producer, Sink } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
-class InIdleCallbackSubscription implements Disposable {
+class InIdleCallbackJob implements Disposable {
   constructor(public id: ReturnType<typeof requestIdleCallback>) {}
 
   dispose() {
@@ -12,10 +12,10 @@ class InIdleCallbackSubscription implements Disposable {
 class InIdleCallbackProducer implements Producer<IdleDeadline> {
   constructor(public options?: IdleRequestOptions) {}
 
-  produce(innerSubscriber: InnerSubscriber<IdleDeadline>) {
-    return new InIdleCallbackSubscription(
+  produce(sink: Sink<IdleDeadline>) {
+    return new InIdleCallbackJob(
       requestIdleCallback((idleDeadline) => {
-        innerSubscriber.resolve(idleDeadline);
+        sink.resolve(idleDeadline);
       }, this.options),
     );
   }

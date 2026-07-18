@@ -186,9 +186,9 @@ test("computed: proxy LazyPromise fires when original settles", () => {
 
   const memo = computed(
     () =>
-      new LazyPromise<number>((subscriber) => {
+      new LazyPromise<number>((sink) => {
         resolveOriginal = (v) => {
-          subscriber.resolve(v);
+          sink.resolve(v);
         };
       }),
   );
@@ -218,9 +218,9 @@ test("computed: proxy propagates rejection from original", () => {
 
   const memo = computed(
     () =>
-      new LazyPromise<number>((subscriber) => {
+      new LazyPromise<number>((sink) => {
         rejectOriginal = (e) => {
-          subscriber.reject(e);
+          sink.reject(e);
         };
       }),
   );
@@ -250,10 +250,10 @@ test("computed: multiple subscribers to proxy share result, original subscribed 
 
   const memo = computed(
     () =>
-      new LazyPromise<number>((subscriber) => {
+      new LazyPromise<number>((sink) => {
         log("subscribed");
         resolveOriginal = (v) => {
-          subscriber.resolve(v);
+          sink.resolve(v);
         };
       }),
   );
@@ -301,10 +301,10 @@ test("computed: original stays subscribed when effect re-runs while proxy is pen
 
   const memo = computed(
     () =>
-      new LazyPromise<number>((subscriber) => {
+      new LazyPromise<number>((sink) => {
         log("original subscribed");
         resolveOriginal = (v) => {
-          subscriber.resolve(v);
+          sink.resolve(v);
         };
       }),
   );
@@ -450,9 +450,9 @@ test("computed: new proxy when new original synchronously resolves to different 
   const memo = computed(() => {
     a();
     const v = value;
-    return new LazyPromise<number>((subscriber) => {
+    return new LazyPromise<number>((sink) => {
       log("produce");
-      subscriber.resolve(v);
+      sink.resolve(v);
     });
   });
 
@@ -520,9 +520,9 @@ test("computed: new proxy when new original synchronously rejects with different
   const memo = computed(() => {
     a();
     const e = error;
-    return new LazyPromise<number>((subscriber) => {
+    return new LazyPromise<number>((sink) => {
       log("produce");
-      subscriber.reject(e);
+      sink.reject(e);
     });
   });
 
@@ -589,10 +589,10 @@ test("computed: new proxy returned when getter re-runs, previous original resolv
 
   const memo = computed(() => {
     a();
-    return new LazyPromise<number>((subscriber) => {
+    return new LazyPromise<number>((sink) => {
       log("produce");
       resolveOriginal = (v) => {
-        subscriber.resolve(v);
+        sink.resolve(v);
       };
     });
   });
@@ -651,9 +651,9 @@ test("computed: same proxy returned when getter re-runs and settled value is str
   const memo = computed(() => {
     log("memo");
     a();
-    return new LazyPromise<number>((subscriber) => {
+    return new LazyPromise<number>((sink) => {
       log("produce");
-      subscriber.resolve(42);
+      sink.resolve(42);
     });
   });
 
@@ -709,10 +709,10 @@ test("computed: untracked - overlapping subscriptions share result, original sub
 
   const memo = computed(
     () =>
-      new LazyPromise<number>((subscriber) => {
+      new LazyPromise<number>((sink) => {
         log("produce");
         resolveOriginal = (v) => {
-          subscriber.resolve(v);
+          sink.resolve(v);
         };
       }),
   );
@@ -764,10 +764,10 @@ test("computed: untracked - non-overlapping subscriptions each cause a fresh ori
 
   const memo = computed(
     () =>
-      new LazyPromise<number>((subscriber) => {
+      new LazyPromise<number>((sink) => {
         log("produce");
         resolveOriginal = (v) => {
-          subscriber.resolve(v);
+          sink.resolve(v);
         };
       }),
   );
@@ -885,10 +885,10 @@ test("computed: does not hold cached result after leaving dependency graph", () 
 
   const memo = computed(
     () =>
-      new LazyPromise<number>((subscriber) => {
+      new LazyPromise<number>((sink) => {
         log("produce");
         resolveOriginal = (v) => {
-          subscriber.resolve(v);
+          sink.resolve(v);
         };
       }),
   );
@@ -941,10 +941,10 @@ test("computed: does not hold cached rejection after leaving dependency graph", 
 
   const memo = computed(
     () =>
-      new LazyPromise<number>((subscriber) => {
+      new LazyPromise<number>((sink) => {
         log("produce");
         rejectOriginal = (e) => {
-          subscriber.reject(e);
+          sink.reject(e);
         };
       }),
   );
@@ -995,10 +995,10 @@ test("computed: in dependency graph - cached result delivered immediately to lat
 
   const memo = computed(
     () =>
-      new LazyPromise<number>((subscriber) => {
+      new LazyPromise<number>((sink) => {
         log("produce");
         resolveOriginal = (v) => {
-          subscriber.resolve(v);
+          sink.resolve(v);
         };
       }),
   );
@@ -1041,10 +1041,10 @@ test("computed: in dependency graph - cached rejection delivered immediately to 
 
   const memo = computed(
     () =>
-      new LazyPromise<number>((subscriber) => {
+      new LazyPromise<number>((sink) => {
         log("produce");
         rejectOriginal = (e) => {
-          subscriber.reject(e);
+          sink.reject(e);
         };
       }),
   );
@@ -1409,10 +1409,10 @@ test("unbox async promise", () => {
 
   const b = unbox(() => {
     a();
-    return new LazyPromise<number>((subscriber) => {
+    return new LazyPromise<number>((sink) => {
       log("produce");
       resolveOriginal = (v) => {
-        subscriber.resolve(v);
+        sink.resolve(v);
       };
       return () => {
         log("dispose");

@@ -1,10 +1,10 @@
-import type { InnerSubscriber, Producer } from "./lazyPromise.js";
+import type { Producer, Sink } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
 class InMicrotaskProducer implements Producer<void> {
-  produce(innerSubscriber: InnerSubscriber<void>) {
+  produce(sink: Sink<void>) {
     queueMicrotask(() => {
-      innerSubscriber.resolve();
+      sink.resolve();
     });
   }
 }

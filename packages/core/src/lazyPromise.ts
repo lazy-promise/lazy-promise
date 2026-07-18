@@ -49,7 +49,7 @@ class LazyPromiseIterator<TYield> implements Iterator<TYield> {
  * The object passed to `.subscribe` method of a lazy promise. `resolve` handler
  * is required if the promise can resolve to a TypedError.
  */
-export type Subscriber<Value> = [TypedError<any>] extends [Value]
+export type Consumer<Value> = [TypedError<any>] extends [Value]
   ? {
       resolve: (value: Value) => void;
       reject?: (error: unknown) => void;
@@ -63,7 +63,7 @@ export type Subscriber<Value> = [TypedError<any>] extends [Value]
  * The object passed to a lazy promise constructor callback or to the `.produce`
  * method of a Producer.
  */
-class InnerSubscriber<in Value> {
+class Sink<in Value> {
   /** @internal */
   resolvedWithAPromise: boolean = false;
 
@@ -75,7 +75,7 @@ class InnerSubscriber<in Value> {
   ) {}
 
   resolve(
-    this: InnerSubscriber<Value>,
+    this: Sink<Value>,
     // eslint-disable-next-line no-use-before-define
     value: Value | LazyPromise<Value>,
   ) {
@@ -95,16 +95,16 @@ class InnerSubscriber<in Value> {
         return;
       }
       subscription.producer = value.producer;
-      subscription.innerSubscription = undefined;
+      subscription.job = undefined;
       subscription.next();
       return;
     }
     subscription.settled = true;
     // For GC purposes.
-    subscription.innerSubscription = undefined;
-    if (subscription.subscriber?.resolve) {
+    subscription.job = undefined;
+    if (subscription.consumer?.resolve) {
       try {
-        subscription.subscriber.resolve(value);
+        subscription.consumer.resolve(value);
       } catch (error) {
         throwInMicrotask(error);
       }
@@ -112,10 +112,10 @@ class InnerSubscriber<in Value> {
       throwInMicrotask(value);
     }
     // For GC purposes.
-    subscription.subscriber = undefined;
+    subscription.consumer = undefined;
   }
 
-  reject(this: InnerSubscriber<Value>, error: unknown) {
+  reject(this: Sink<Value>, error: unknown) {
     if (this.resolvedWithAPromise) {
       return;
     }
@@ -125,10 +125,10 @@ class InnerSubscriber<in Value> {
     }
     subscription.settled = true;
     // For GC purposes.
-    subscription.innerSubscription = undefined;
-    if (subscription.subscriber?.reject) {
+    subscription.job = undefined;
+    if (subscription.consumer?.reject) {
       try {
-        subscription.subscriber.reject(error);
+        subscription.consumer.reject(error);
       } catch (error) {
         throwInMicrotask(error);
       }
@@ -136,27 +136,27 @@ class InnerSubscriber<in Value> {
       throwInMicrotask(error);
     }
     // For GC purposes.
-    subscription.subscriber = undefined;
+    subscription.consumer = undefined;
   }
 }
 
-export type { InnerSubscriber };
+export type { Sink };
 
 export interface Disposable {
   dispose(): void;
 }
 
 class Subscription implements Disposable {
-  innerSubscription: (() => void) | Disposable | void | undefined;
+  job: (() => void) | Disposable | void | undefined;
   settled: boolean = false;
   disposed: boolean = false;
 
   constructor(
     public producer?:
-      | ((subscriber: InnerSubscriber<any>) => (() => void) | Disposable | void)
+      | ((sink: Sink<any>) => (() => void) | Disposable | void)
       // eslint-disable-next-line no-use-before-define
       | Producer<any>,
-    public subscriber?: {
+    public consumer?: {
       resolve?: (value: any) => void;
       reject?: (error: unknown) => void;
     },
@@ -164,13 +164,13 @@ class Subscription implements Disposable {
 
   next() {
     while (true) {
-      const innerSubscriber = new InnerSubscriber(this);
+      const sink = new Sink(this);
       try {
-        const innerSubscription =
+        const job =
           typeof this.producer === "function"
-            ? (0, this.producer)(innerSubscriber)
-            : this.producer!.produce(innerSubscriber);
-        if (innerSubscriber.resolvedWithAPromise) {
+            ? (0, this.producer)(sink)
+            : this.producer!.produce(sink);
+        if (sink.resolvedWithAPromise) {
           continue;
         }
         this.producer = undefined;
@@ -178,20 +178,18 @@ class Subscription implements Disposable {
           return;
         }
         if (this.disposed) {
-          if (innerSubscription) {
+          if (job) {
             try {
-              typeof innerSubscription === "function"
-                ? innerSubscription()
-                : innerSubscription.dispose();
+              typeof job === "function" ? job() : job.dispose();
             } catch (error) {
               throwInMicrotask(error);
             }
           }
           return;
         }
-        this.innerSubscription = innerSubscription;
+        this.job = job;
       } catch (error) {
-        if (innerSubscriber.resolvedWithAPromise) {
+        if (sink.resolvedWithAPromise) {
           continue;
         }
         // For GC purposes.
@@ -200,9 +198,9 @@ class Subscription implements Disposable {
           return;
         }
         this.settled = true;
-        if (this.subscriber?.reject) {
+        if (this.consumer?.reject) {
           try {
-            this.subscriber.reject(error);
+            this.consumer.reject(error);
           } catch (error) {
             throwInMicrotask(error);
           }
@@ -210,7 +208,7 @@ class Subscription implements Disposable {
           throwInMicrotask(error);
         }
         // For GC purposes.
-        this.subscriber = undefined;
+        this.consumer = undefined;
       }
       return;
     }
@@ -222,17 +220,15 @@ class Subscription implements Disposable {
     }
     this.disposed = true;
     // For GC purposes.
-    this.subscriber = undefined;
-    if (this.innerSubscription) {
+    this.consumer = undefined;
+    if (this.job) {
       try {
-        typeof this.innerSubscription === "function"
-          ? (0, this.innerSubscription)()
-          : this.innerSubscription.dispose();
+        typeof this.job === "function" ? (0, this.job)() : this.job.dispose();
       } catch (error) {
         throwInMicrotask(error);
       }
       // For GC purposes.
-      this.innerSubscription = undefined;
+      this.job = undefined;
     }
   }
 }
@@ -241,9 +237,7 @@ class Subscription implements Disposable {
  * The class-based equivalent of the lazy promise constructor callback.
  */
 export interface Producer<Value> {
-  produce: (
-    subscriber: InnerSubscriber<Value>,
-  ) => (() => void) | Disposable | void;
+  produce: (sink: Sink<Value>) => (() => void) | Disposable | void;
 }
 
 /**
@@ -253,14 +247,12 @@ export interface Producer<Value> {
 export class LazyPromise<out Value> {
   /** @internal */
   public producer:
-    | ((subscriber: InnerSubscriber<Value>) => (() => void) | Disposable | void)
+    | ((sink: Sink<Value>) => (() => void) | Disposable | void)
     | Producer<Value>;
 
   constructor(
     producer:
-      | ((
-          subscriber: InnerSubscriber<Value>,
-        ) => (() => void) | Disposable | void)
+      | ((sink: Sink<Value>) => (() => void) | Disposable | void)
       | Producer<Value>,
   ) {
     this.producer = producer;
@@ -269,12 +261,12 @@ export class LazyPromise<out Value> {
   /**
    * Subscribes to the lazy promise. `resolve` handler is required if the
    * promise can resolve to a TypedError. `resolve` and `reject` are called with
-   * `subscriber` object as `this`.
+   * `consumer` object as `this`.
    */
-  subscribe(subscriber: Subscriber<Value>): Disposable {
+  subscribe(consumer: Consumer<Value>): Disposable {
     const subscription = new Subscription(
       this.producer,
-      subscriber as Subscriber<any>,
+      consumer as Consumer<any>,
     );
     subscription.next();
     return subscription;
@@ -356,8 +348,8 @@ export class LazyPromise<out Value> {
 class ResolvingProducer<Value> implements Producer<Value> {
   constructor(public value: Value) {}
 
-  produce(subscriber: InnerSubscriber<Value>) {
-    subscriber.resolve(this.value);
+  produce(sink: Sink<Value>) {
+    sink.resolve(this.value);
   }
 }
 
@@ -380,8 +372,8 @@ export const box: {
 class RejectingProducer implements Producer<never> {
   constructor(public error: unknown) {}
 
-  produce(subscriber: InnerSubscriber<never>) {
-    subscriber.reject(this.error);
+  produce(sink: Sink<never>) {
+    sink.reject(this.error);
   }
 }
 

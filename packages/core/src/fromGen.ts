@@ -1,8 +1,8 @@
 import type {
+  Consumer,
   Disposable,
-  InnerSubscriber,
   Producer,
-  Subscriber,
+  Sink,
   Unbox,
   Yieldable,
 } from "./lazyPromise.js";
@@ -12,9 +12,7 @@ export type LazyPromiseGenerator<TReturn> = Generator<Yieldable, TReturn>;
 
 const emptySymbol = Symbol("empty");
 
-class FromGeneratorSubscriberSubscription<TReturn>
-  implements Subscriber<any>, Disposable
-{
+class FromGeneratorConsumerJob<TReturn> implements Consumer<any>, Disposable {
   // The value that a yielded promise resolved to.
   value: any = emptySymbol;
   // The error that a yielded promise rejected with.
@@ -23,7 +21,7 @@ class FromGeneratorSubscriberSubscription<TReturn>
   disposed = false;
 
   constructor(
-    public innerSubscriber: InnerSubscriber<any>,
+    public sink: Sink<any>,
     public generator: Generator<Yieldable, TReturn, any>,
   ) {}
 
@@ -43,7 +41,7 @@ class FromGeneratorSubscriberSubscription<TReturn>
       // May throw.
       this.next(generatorResult);
     } catch (error) {
-      this.innerSubscriber.reject(error);
+      this.sink.reject(error);
     }
   }
 
@@ -63,7 +61,7 @@ class FromGeneratorSubscriberSubscription<TReturn>
       // May throw.
       this.next(generatorResult);
     } catch (error) {
-      this.innerSubscriber.reject(error);
+      this.sink.reject(error);
     }
   }
 
@@ -71,7 +69,7 @@ class FromGeneratorSubscriberSubscription<TReturn>
   next(generatorResult: IteratorResult<Yieldable, TReturn | void>) {
     while (true) {
       if (generatorResult.done) {
-        this.innerSubscriber.resolve(generatorResult.value);
+        this.sink.resolve(generatorResult.value);
         return;
       }
       const subscription = generatorResult.value.subscribe(this);
@@ -115,19 +113,16 @@ class FromGeneratorSubscriberSubscription<TReturn>
 class FromGeneratorProducer<TReturn> implements Producer<any> {
   constructor(public generatorFunction: () => LazyPromiseGenerator<TReturn>) {}
 
-  produce(innerSubscriber: InnerSubscriber<any>) {
+  produce(sink: Sink<any>) {
     // This may throw and cause promise rejection.
     const generator = (0, this.generatorFunction)();
-    const innerSubscription = new FromGeneratorSubscriberSubscription(
-      innerSubscriber,
-      generator,
-    );
+    const job = new FromGeneratorConsumerJob(sink, generator);
     // This may throw and cause promise rejection.
-    innerSubscription.next(
+    job.next(
       // This may throw and cause promise rejection.
       generator.next(),
     );
-    return innerSubscription;
+    return job;
   }
 }
 

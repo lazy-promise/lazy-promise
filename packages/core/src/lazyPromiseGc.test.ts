@@ -1,4 +1,4 @@
-import type { InnerSubscriber, Subscriber } from "@lazy-promise/core";
+import type { Consumer, Sink } from "@lazy-promise/core";
 import { LazyPromise, never } from "@lazy-promise/core";
 import { test } from "vitest";
 
@@ -50,23 +50,23 @@ test("garbage collect teardown function when unsubscribed", async () => {
 
 test("garbage collect teardown function when resolved", async () => {
   const ref = new WeakRef(() => {});
-  let subscriber: InnerSubscriber<undefined>;
-  const promise = new LazyPromise<undefined>((subscriberLocal) => {
-    subscriber = subscriberLocal;
+  let sink: Sink<undefined>;
+  const promise = new LazyPromise<undefined>((sinkLocal) => {
+    sink = sinkLocal;
     return ref.deref();
   });
   // It's necessary to hold on to the subscription.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const subscription = promise.subscribe();
   await expectNotCollected(ref);
-  subscriber!.resolve(undefined);
+  sink!.resolve(undefined);
   await expectCollected(ref);
 });
 
 test("garbage collect teardown function when synchronously resolved with a promise", async () => {
   const ref = new WeakRef(() => {});
-  const promise = new LazyPromise<undefined>((subscriber) => {
-    subscriber.resolve(never);
+  const promise = new LazyPromise<undefined>((sink) => {
+    sink.resolve(never);
     return ref.deref();
   });
   // It's necessary to hold on to the subscription.
@@ -77,93 +77,93 @@ test("garbage collect teardown function when synchronously resolved with a promi
 
 test("garbage collect teardown function when asynchronously resolved with a promise", async () => {
   const ref = new WeakRef(() => {});
-  let subscriber: InnerSubscriber<undefined>;
-  const promise = new LazyPromise<undefined>((subscriberLocal) => {
-    subscriber = subscriberLocal;
+  let sink: Sink<undefined>;
+  const promise = new LazyPromise<undefined>((sinkLocal) => {
+    sink = sinkLocal;
     return ref.deref();
   });
   // It's necessary to hold on to the subscription.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const subscription = promise.subscribe();
   await expectNotCollected(ref);
-  subscriber!.resolve(never);
+  sink!.resolve(never);
   await expectCollected(ref);
 });
 
 test("garbage collect teardown function when rejected", async () => {
   const ref = new WeakRef(() => {});
-  let subscriber: InnerSubscriber<undefined>;
-  const promise = new LazyPromise<undefined>((subscriberLocal) => {
-    subscriber = subscriberLocal;
+  let sink: Sink<undefined>;
+  const promise = new LazyPromise<undefined>((sinkLocal) => {
+    sink = sinkLocal;
     return ref.deref();
   });
   // It's necessary to hold on to the subscription.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const subscription = promise.subscribe({ reject: () => {} });
   await expectNotCollected(ref);
-  subscriber!.reject(undefined);
+  sink!.reject(undefined);
   await expectCollected(ref);
 });
 
-test("garbage collect subscriber when unsubscribed", async () => {
-  const subscriber = new WeakRef({});
+test("garbage collect consumer when unsubscribed", async () => {
+  const consumer = new WeakRef({});
   const promise = new LazyPromise<never>(() => () => {});
-  const subscription = promise.subscribe(subscriber.deref());
-  await expectNotCollected(subscriber);
+  const subscription = promise.subscribe(consumer.deref());
+  await expectNotCollected(consumer);
   subscription.dispose();
-  await expectCollected(subscriber);
+  await expectCollected(consumer);
 });
 
-test("garbage collect subscriber when unsubscribed (no teardown function)", async () => {
-  const subscriber = new WeakRef({});
+test("garbage collect consumer when unsubscribed (no teardown function)", async () => {
+  const consumer = new WeakRef({});
   const promise = new LazyPromise<never>(() => {});
-  const subscription = promise.subscribe(subscriber.deref());
-  await expectNotCollected(subscriber);
+  const subscription = promise.subscribe(consumer.deref());
+  await expectNotCollected(consumer);
   subscription.dispose();
-  await expectCollected(subscriber);
+  await expectCollected(consumer);
 });
 
-test("garbage collect subscriber when resolved", async () => {
-  const subscriber = new WeakRef({});
-  let innerSubscriber: InnerSubscriber<undefined>;
-  const promise = new LazyPromise<undefined>((subscriberLocal) => {
-    innerSubscriber = subscriberLocal;
+test("garbage collect consumer when resolved", async () => {
+  const consumer = new WeakRef({});
+  let sink: Sink<undefined>;
+  const promise = new LazyPromise<undefined>((sinkLocal) => {
+    sink = sinkLocal;
   });
   // It's necessary to hold on to the subscription.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const subscription = promise.subscribe(subscriber.deref());
-  await expectNotCollected(subscriber);
-  innerSubscriber!.resolve(undefined);
-  await expectCollected(subscriber);
+  const subscription = promise.subscribe(consumer.deref());
+  await expectNotCollected(consumer);
+  sink!.resolve(undefined);
+  await expectCollected(consumer);
 });
 
-test("garbage collect subscriber when rejected", async () => {
-  const subscriber = new WeakRef({
+test("garbage collect consumer when rejected", async () => {
+  const consumer = new WeakRef({
     reject: () => {},
-  } satisfies Subscriber<undefined>);
-  let innerSubscriber: InnerSubscriber<undefined>;
-  const promise = new LazyPromise<undefined>((subscriberLocal) => {
-    innerSubscriber = subscriberLocal;
+  } satisfies Consumer<undefined>);
+  let sink: Sink<undefined>;
+  const promise = new LazyPromise<undefined>((sinkLocal) => {
+    sink = sinkLocal;
   });
   // It's necessary to hold on to the subscription.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const subscription = promise.subscribe(subscriber.deref());
-  await expectNotCollected(subscriber);
-  innerSubscriber!.reject(undefined);
-  await expectCollected(subscriber);
+  const subscription = promise.subscribe(consumer.deref());
+  await expectNotCollected(consumer);
+  sink!.reject(undefined);
+  await expectCollected(consumer);
 });
 
-test("garbage collect subscriber when producer throws", async () => {
-  const subscriber = new WeakRef({
+test("garbage collect consumer when producer throws", async () => {
+  const consumer = new WeakRef({
     reject: () => {},
-  } satisfies Subscriber<undefined>);
+  } satisfies Consumer<undefined>);
   const promise = new LazyPromise<undefined>(() => {
     throw "oops";
   });
   // It's necessary to hold on to the subscription.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const subscription = promise.subscribe(subscriber.deref());
-  await expectCollected(subscriber);
+  const subscription = promise.subscribe(consumer.deref());
+  await expectCollected(consumer);
 });
 
 test("garbage collect producer", async () => {

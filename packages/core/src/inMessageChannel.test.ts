@@ -1,4 +1,4 @@
-import type { Subscriber } from "@lazy-promise/core";
+import type { Consumer } from "@lazy-promise/core";
 import { box, inMessageChannel } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test } from "vitest";
 
@@ -16,7 +16,7 @@ const readLog = () => {
   }
 };
 
-const logSubscriber: Subscriber<any> = {
+const logConsumer: Consumer<any> = {
   resolve: (value) => {
     log("handleValue", value);
   },
@@ -38,7 +38,7 @@ afterEach(() => {
 });
 
 test("resolve", async () => {
-  inMessageChannel().subscribe(logSubscriber);
+  inMessageChannel().subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   await new Promise((resolve) => {
     setTimeout(resolve);
@@ -87,7 +87,7 @@ test("resolve multiple", async () => {
 });
 
 test("cancel", async () => {
-  inMessageChannel().subscribe(logSubscriber).dispose();
+  inMessageChannel().subscribe(logConsumer).dispose();
   await new Promise((resolve) => {
     setTimeout(resolve);
   });

@@ -1,9 +1,4 @@
-import type {
-  Disposable,
-  InnerSubscriber,
-  Producer,
-  Subscriber,
-} from "@lazy-promise/core";
+import type { Consumer, Disposable, Producer, Sink } from "@lazy-promise/core";
 import {
   box,
   LazyPromise,
@@ -35,7 +30,7 @@ const readLog = () => {
   }
 };
 
-const logSubscriber: Subscriber<any> = {
+const logConsumer: Consumer<any> = {
   resolve: (value) => {
     log("handleValue", value);
   },
@@ -120,8 +115,8 @@ test("types", () => {
   expectTypeOf<LazyPromise<"a">>().toExtend<LazyPromise<string>>();
   expectTypeOf<LazyPromise<string>>().not.toExtend<LazyPromise<"a">>();
 
-  expectTypeOf<InnerSubscriber<string>>().toExtend<InnerSubscriber<"a">>();
-  expectTypeOf<InnerSubscriber<"a">>().not.toExtend<InnerSubscriber<string>>();
+  expectTypeOf<Sink<string>>().toExtend<Sink<"a">>();
+  expectTypeOf<Sink<"a">>().not.toExtend<Sink<string>>();
 
   expectTypeOf(
     (never as LazyPromise<1> | LazyPromise<2>).pipe((x) => x),
@@ -153,15 +148,15 @@ test("value of this in the basic scenario", () => {
 });
 
 test("async resolve", () => {
-  const promise = new LazyPromise<string>((subscriber) => {
+  const promise = new LazyPromise<string>((sink) => {
     setTimeout(() => {
-      subscriber.resolve("value");
+      sink.resolve("value");
     }, 1000);
     return () => {
       log("dispose");
     };
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -176,10 +171,10 @@ test("async resolve", () => {
 
 test("async resolve (class-based)", () => {
   const producer: Producer<string> = {
-    produce(subscriber) {
+    produce(sink) {
       expect(this).toBe(producer);
       setTimeout(() => {
-        subscriber.resolve("value");
+        sink.resolve("value");
       }, 1000);
       return () => {
         log("dispose");
@@ -187,7 +182,7 @@ test("async resolve (class-based)", () => {
     },
   };
   const promise = new LazyPromise<string>(producer);
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -201,15 +196,15 @@ test("async resolve (class-based)", () => {
 });
 
 test("async resolve (flattening)", () => {
-  const promise = new LazyPromise<string>((subscriber) => {
+  const promise = new LazyPromise<string>((sink) => {
     setTimeout(() => {
-      subscriber.resolve(box("value"));
+      sink.resolve(box("value"));
     }, 1000);
     return () => {
       log("dispose");
     };
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -223,13 +218,13 @@ test("async resolve (flattening)", () => {
 });
 
 test("sync resolve", () => {
-  new LazyPromise<string>((subscriber) => {
+  new LazyPromise<string>((sink) => {
     log("produce");
-    subscriber.resolve("value");
+    sink.resolve("value");
     return () => {
       log("dispose");
     };
-  }).subscribe(logSubscriber);
+  }).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -244,13 +239,13 @@ test("sync resolve", () => {
 });
 
 test("sync resolve (flattening)", () => {
-  new LazyPromise<string>((subscriber) => {
+  new LazyPromise<string>((sink) => {
     log("produce");
-    subscriber.resolve(box("value"));
+    sink.resolve(box("value"));
     return () => {
       log("dispose");
     };
-  }).subscribe(logSubscriber);
+  }).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -265,15 +260,15 @@ test("sync resolve (flattening)", () => {
 });
 
 test("async reject", () => {
-  const promise = new LazyPromise<unknown>((subscriber) => {
+  const promise = new LazyPromise<unknown>((sink) => {
     setTimeout(() => {
-      subscriber.reject("oops");
+      sink.reject("oops");
     }, 1000);
     return () => {
       log("dispose");
     };
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -287,13 +282,13 @@ test("async reject", () => {
 });
 
 test("sync reject", () => {
-  new LazyPromise<unknown>((subscriber) => {
+  new LazyPromise<unknown>((sink) => {
     log("produce");
-    subscriber.reject("oops");
+    sink.reject("oops");
     return () => {
       log("dispose");
     };
-  }).subscribe(logSubscriber);
+  }).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -350,15 +345,15 @@ test("cancellation", () => {
 });
 
 test("cancellation (class-based)", () => {
-  const innerSubscription: Disposable = {
+  const job: Disposable = {
     dispose() {
       log("dispose");
-      expect(this).toBe(innerSubscription);
+      expect(this).toBe(job);
     },
   };
   const promise = new LazyPromise<string>(() => {
     log("produce");
-    return innerSubscription;
+    return job;
   });
   const subscription = promise.subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -381,13 +376,13 @@ test("cancellation (class-based)", () => {
 });
 
 test("unsubscribe from produce", () => {
-  const promise = new LazyPromise<string>((subscriber) => {
+  const promise = new LazyPromise<string>((sink) => {
     setTimeout(() => {
-      subscriber.resolve(
+      sink.resolve(
         new LazyPromise(() => {
           // eslint-disable-next-line no-use-before-define
           subscription.dispose();
-          subscriber.resolve("value");
+          sink.resolve("value");
           return function () {
             /** @ts-expect-error */
             log("dispose inner", this);
@@ -399,7 +394,7 @@ test("unsubscribe from produce", () => {
       log("dispose outer");
     };
   });
-  const subscription = promise.subscribe(logSubscriber);
+  const subscription = promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -413,20 +408,20 @@ test("unsubscribe from produce", () => {
 });
 
 test("unsubscribe from produce (class-based)", () => {
-  const innerSubscription: Disposable = {
+  const job: Disposable = {
     dispose() {
       log("dispose inner");
-      expect(this).toBe(innerSubscription);
+      expect(this).toBe(job);
     },
   };
-  const promise = new LazyPromise<string>((subscriber) => {
+  const promise = new LazyPromise<string>((sink) => {
     setTimeout(() => {
-      subscriber.resolve(
+      sink.resolve(
         new LazyPromise(() => {
           // eslint-disable-next-line no-use-before-define
           subscription.dispose();
-          subscriber.resolve("value");
-          return innerSubscription;
+          sink.resolve("value");
+          return job;
         }),
       );
     }, 1000);
@@ -434,7 +429,7 @@ test("unsubscribe from produce (class-based)", () => {
       log("dispose outer");
     };
   });
-  const subscription = promise.subscribe(logSubscriber);
+  const subscription = promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -447,13 +442,13 @@ test("unsubscribe from produce (class-based)", () => {
 });
 
 test("unsubscribe from produce (error in unsubscribe)", () => {
-  const promise = new LazyPromise<string>((subscriber) => {
+  const promise = new LazyPromise<string>((sink) => {
     setTimeout(() => {
-      subscriber.resolve(
+      sink.resolve(
         new LazyPromise(() => {
           // eslint-disable-next-line no-use-before-define
           subscription.dispose();
-          subscriber.resolve("value");
+          sink.resolve("value");
           return () => {
             log("dispose inner");
             throw "oops";
@@ -465,7 +460,7 @@ test("unsubscribe from produce (error in unsubscribe)", () => {
       log("dispose outer");
     };
   });
-  const subscription = promise.subscribe(logSubscriber);
+  const subscription = promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -479,13 +474,13 @@ test("unsubscribe from produce (error in unsubscribe)", () => {
 });
 
 test("unsubscribe from produce (no teardown function)", () => {
-  const promise = new LazyPromise<string>((subscriber) => {
+  const promise = new LazyPromise<string>((sink) => {
     setTimeout(() => {
-      subscriber.resolve(
+      sink.resolve(
         new LazyPromise(() => {
           // eslint-disable-next-line no-use-before-define
           subscription.dispose();
-          subscriber.resolve("value");
+          sink.resolve("value");
         }),
       );
     }, 1000);
@@ -493,14 +488,14 @@ test("unsubscribe from produce (no teardown function)", () => {
       log("dispose outer");
     };
   });
-  const subscription = promise.subscribe(logSubscriber);
+  const subscription = promise.subscribe(logConsumer);
   vi.runAllTimers();
 });
 
 test("teardown function is not called if the lazy promise resolves", () => {
-  const promise = new LazyPromise<number>((subscriber) => {
+  const promise = new LazyPromise<number>((sink) => {
     setTimeout(() => {
-      subscriber.resolve(1);
+      sink.resolve(1);
     }, 1000);
     return () => {
       log("dispose");
@@ -513,15 +508,15 @@ test("teardown function is not called if the lazy promise resolves", () => {
 });
 
 test("teardown function is not called if the lazy promise rejects", () => {
-  const promise = new LazyPromise<number>((subscriber) => {
+  const promise = new LazyPromise<number>((sink) => {
     setTimeout(() => {
-      subscriber.reject(1);
+      sink.reject(1);
     }, 1000);
     return () => {
       log("dispose");
     };
   });
-  const subscription = promise.subscribe(logSubscriber);
+  const subscription = promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -537,9 +532,9 @@ test("teardown function is not called if the lazy promise rejects", () => {
 });
 
 test("teardown function called by consumer", () => {
-  const promise = new LazyPromise<"a">((subscriber) => {
+  const promise = new LazyPromise<"a">((sink) => {
     setTimeout(() => {
-      subscriber.resolve("a");
+      sink.resolve("a");
     }, 1000);
     return () => {
       log("dispose");
@@ -566,7 +561,7 @@ test("teardown function called by consumer", () => {
 test("error in produce function before settling", () => {
   new LazyPromise(() => {
     throw "oops";
-  }).subscribe(logSubscriber);
+  }).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -601,11 +596,11 @@ test("error in produce function before settling", () => {
 });
 
 test("error in produce function after settling", () => {
-  const promise = new LazyPromise<number>((subscriber) => {
-    subscriber.resolve(1);
+  const promise = new LazyPromise<number>((sink) => {
+    sink.resolve(1);
     throw "oops";
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -623,7 +618,7 @@ test("error in teardown function", () => {
       throw "oops";
     };
   });
-  promise.subscribe(logSubscriber).dispose();
+  promise.subscribe(logConsumer).dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -635,9 +630,9 @@ test("error in teardown function", () => {
 });
 
 test("error in value handler function", () => {
-  const promise = new LazyPromise<string>((subscriber) => {
+  const promise = new LazyPromise<string>((sink) => {
     setTimeout(() => {
-      subscriber.resolve("value");
+      sink.resolve("value");
     }, 1000);
   });
   promise.subscribe({
@@ -648,7 +643,7 @@ test("error in value handler function", () => {
       log("handleError");
     },
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -663,9 +658,9 @@ test("error in value handler function", () => {
 });
 
 test("error in error handler function", () => {
-  const promise = new LazyPromise<string>((subscriber) => {
+  const promise = new LazyPromise<string>((sink) => {
     setTimeout(() => {
-      subscriber.reject("error");
+      sink.reject("error");
     }, 1000);
   });
   promise.subscribe({
@@ -688,9 +683,9 @@ test("error in error handler function", () => {
 });
 
 test("unhandled typed error", () => {
-  const promise = new LazyPromise<TypedError<"oops">>((subscriber) => {
+  const promise = new LazyPromise<TypedError<"oops">>((sink) => {
     setTimeout(() => {
-      subscriber.resolve(new TypedError("oops"));
+      sink.resolve(new TypedError("oops"));
     }, 1000);
   });
   // @ts-expect-error
@@ -711,9 +706,9 @@ test("unhandled typed error", () => {
 });
 
 test("unhandled error", () => {
-  const promise = new LazyPromise<never>((subscriber) => {
+  const promise = new LazyPromise<never>((sink) => {
     setTimeout(() => {
-      subscriber.reject("oops");
+      sink.reject("oops");
     }, 1000);
   });
   promise.subscribe();
@@ -723,13 +718,13 @@ test("unhandled error", () => {
 });
 
 test("already resolved", () => {
-  const promise = new LazyPromise<number>((subscriber) => {
-    subscriber.resolve(1);
-    subscriber.resolve(2);
-    subscriber.reject(3);
+  const promise = new LazyPromise<number>((sink) => {
+    sink.resolve(1);
+    sink.resolve(2);
+    sink.reject(3);
     throw 4;
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -741,13 +736,13 @@ test("already resolved", () => {
 });
 
 test("already rejected", () => {
-  const promise = new LazyPromise<number>((subscriber) => {
-    subscriber.reject(1);
-    subscriber.resolve(2);
-    subscriber.reject(3);
+  const promise = new LazyPromise<number>((sink) => {
+    sink.reject(1);
+    sink.resolve(2);
+    sink.reject(3);
     throw 4;
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -759,13 +754,13 @@ test("already rejected", () => {
 });
 
 test("already resolved with a promise", () => {
-  const promise = new LazyPromise<number>((subscriber) => {
-    subscriber.resolve(box(1));
-    subscriber.resolve(2);
-    subscriber.reject(3);
+  const promise = new LazyPromise<number>((sink) => {
+    sink.resolve(box(1));
+    sink.resolve(2);
+    sink.reject(3);
     throw 4;
   });
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -777,14 +772,14 @@ test("already resolved with a promise", () => {
 });
 
 test("unsubscribed", () => {
-  const promise = new LazyPromise<number>((subscriber) => {
+  const promise = new LazyPromise<number>((sink) => {
     log("produce");
     setTimeout(() => {
-      subscriber.resolve(2);
-      subscriber.reject(3);
+      sink.resolve(2);
+      sink.reject(3);
     });
   });
-  promise.subscribe(logSubscriber).dispose();
+  promise.subscribe(logConsumer).dispose();
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -805,10 +800,10 @@ test("stack overflow", () => {
   };
   const maxStackDepth = getMaxStackDepth();
   const getInner = (count: number) =>
-    new LazyPromise((subscriber) => {
-      subscriber.resolve(count === 1 ? "value" : getInner(count - 1));
+    new LazyPromise((sink) => {
+      sink.resolve(count === 1 ? "value" : getInner(count - 1));
     });
-  getInner(maxStackDepth + 10).subscribe(logSubscriber);
+  getInner(maxStackDepth + 10).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -819,14 +814,12 @@ test("stack overflow", () => {
   `);
 
   const getInnerWithLogging = (count: number) =>
-    new LazyPromise((subscriber) => {
+    new LazyPromise((sink) => {
       log("start", count);
-      subscriber.resolve(
-        count === 1 ? "value" : getInnerWithLogging(count - 1),
-      );
+      sink.resolve(count === 1 ? "value" : getInnerWithLogging(count - 1));
       log("end", count);
     });
-  getInnerWithLogging(3).subscribe(logSubscriber);
+  getInnerWithLogging(3).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -864,7 +857,7 @@ test("stack overflow", () => {
 test("box", () => {
   const promise = box(1);
   expect(promise instanceof LazyPromise).toMatchInlineSnapshot(`true`);
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -885,7 +878,7 @@ test("box", () => {
 test("rejected", () => {
   const promise = rejecting("error");
   expect(promise instanceof LazyPromise).toMatchInlineSnapshot(`true`);
-  promise.subscribe(logSubscriber);
+  promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -906,7 +899,7 @@ test("rejected", () => {
 
 test("never", () => {
   expect(never instanceof LazyPromise).toMatchInlineSnapshot(`true`);
-  never.subscribe(logSubscriber);
+  never.subscribe(logConsumer);
 });
 
 test("pipe", () => {

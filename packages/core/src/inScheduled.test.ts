@@ -1,4 +1,4 @@
-import type { Subscriber } from "@lazy-promise/core";
+import type { Consumer } from "@lazy-promise/core";
 import { inScheduled } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 
@@ -22,7 +22,7 @@ const readLog = () => {
   }
 };
 
-const logSubscriber: Subscriber<any> = {
+const logConsumer: Consumer<any> = {
   resolve: (value) => {
     log("handleValue", value);
   },
@@ -95,7 +95,7 @@ afterEach(() => {
 });
 
 test("resolve", () => {
-  inScheduled().subscribe(logSubscriber);
+  inScheduled().subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -108,7 +108,7 @@ test("resolve", () => {
     ]
   `);
 
-  inScheduled({ priority: "background" }).subscribe(logSubscriber);
+  inScheduled({ priority: "background" }).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
@@ -123,7 +123,7 @@ test("resolve", () => {
 });
 
 test("cancel", () => {
-  inScheduled().subscribe(logSubscriber).dispose();
+  inScheduled().subscribe(logConsumer).dispose();
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
