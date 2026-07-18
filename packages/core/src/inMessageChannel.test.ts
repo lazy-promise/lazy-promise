@@ -25,6 +25,17 @@ const logConsumer: Consumer<any> = {
   },
 };
 
+const flushMessageQueue = () =>
+  new Promise<void>((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      channel.port2.close();
+      resolve();
+    };
+    channel.port2.postMessage(null);
+  });
+
 beforeEach(() => {});
 
 afterEach(() => {
@@ -40,9 +51,7 @@ afterEach(() => {
 test("resolve", async () => {
   inMessageChannel().subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  await new Promise((resolve) => {
-    setTimeout(resolve);
-  });
+  await flushMessageQueue();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -69,9 +78,7 @@ test("resolve multiple", async () => {
       },
     });
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  await new Promise((resolve) => {
-    setTimeout(resolve);
-  });
+  await flushMessageQueue();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -88,8 +95,6 @@ test("resolve multiple", async () => {
 
 test("cancel", async () => {
   inMessageChannel().subscribe(logConsumer).dispose();
-  await new Promise((resolve) => {
-    setTimeout(resolve);
-  });
+  await flushMessageQueue();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
