@@ -1,5 +1,5 @@
-import type { Sink, Consumer } from "@lazy-promise/core";
-import { box, LazyPromise, rejecting, TypedError } from "@lazy-promise/core";
+import type { Consumer, Sink } from "@lazy-promise/core";
+import { box, ErrorBox, LazyPromise, rejecting } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -60,20 +60,18 @@ afterEach(() => {
 
 test("types", () => {
   expectTypeOf(
-    new LazyPromise<"value a" | TypedError<"error a">>(() => {}).map(
-      (value) => {
-        expectTypeOf(value).toEqualTypeOf<"value a">();
-        return "value b" as const;
-      },
-    ),
-  ).toEqualTypeOf<LazyPromise<TypedError<"error a"> | "value b">>();
+    new LazyPromise<"value a" | ErrorBox<"error a">>(() => {}).map((value) => {
+      expectTypeOf(value).toEqualTypeOf<"value a">();
+      return "value b" as const;
+    }),
+  ).toEqualTypeOf<LazyPromise<ErrorBox<"error a"> | "value b">>();
 
   expectTypeOf(
-    new LazyPromise<"value a" | TypedError<"error a">>(() => {}).map(
-      () => new LazyPromise<"value b" | TypedError<"error b">>(() => {}),
+    new LazyPromise<"value a" | ErrorBox<"error a">>(() => {}).map(
+      () => new LazyPromise<"value b" | ErrorBox<"error b">>(() => {}),
     ),
   ).toEqualTypeOf<
-    LazyPromise<"value b" | TypedError<"error a"> | TypedError<"error b">>
+    LazyPromise<"value b" | ErrorBox<"error a"> | ErrorBox<"error b">>
   >();
 });
 
@@ -106,14 +104,14 @@ test("mapping to a value", () => {
   `);
 });
 
-test("outer promise resolves with a typed error", () => {
-  const promise = box(new TypedError(1)).map((value) => value + 1);
+test("outer promise resolves with a boxed error", () => {
+  const promise = box(new ErrorBox(1)).map((value) => value + 1);
   promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleValue",
-        TypedError {
+        ErrorBox {
           "error": 1,
         },
       ],

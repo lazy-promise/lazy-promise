@@ -5,7 +5,7 @@ import type {
   Sink,
   Unbox,
 } from "./lazyPromise.js";
-import { LazyPromise, TypedError } from "./lazyPromise.js";
+import { ErrorBox, LazyPromise } from "./lazyPromise.js";
 import type {
   NeverIfArrayContainsNever,
   NeverIfRecordContainsNever,
@@ -20,7 +20,7 @@ class AllConsumer implements Consumer<any> {
 
   resolve(value: any) {
     const job = this.job;
-    if (value instanceof TypedError) {
+    if (value instanceof ErrorBox) {
       job.sink.resolve(value);
       job.initialized = true;
       job.dispose();
@@ -59,7 +59,7 @@ class AllJob implements Disposable {
       this.subscriptions.push(source.subscribe(new AllConsumer(key, this)));
       return;
     }
-    if (source instanceof TypedError) {
+    if (source instanceof ErrorBox) {
       this.sink.resolve(source);
       this.initialized = true;
       this.dispose();
@@ -120,23 +120,23 @@ export const all: {
     sources: [...Sources],
   ): LazyPromise<
     | NeverIfArrayContainsNever<{
-        [Key in keyof Sources]: Exclude<Unbox<Sources[Key]>, TypedError<any>>;
+        [Key in keyof Sources]: Exclude<Unbox<Sources[Key]>, ErrorBox<any>>;
       }>
-    | Extract<Unbox<Sources[number]>, TypedError<any>>
+    | Extract<Unbox<Sources[number]>, ErrorBox<any>>
   >;
   <const Source = never>(
     sources: Iterable<Source>,
   ): LazyPromise<
-    | Exclude<Unbox<Source>, TypedError<any>>[]
-    | Extract<Unbox<Source>, TypedError<any>>
+    | Exclude<Unbox<Source>, ErrorBox<any>>[]
+    | Extract<Unbox<Source>, ErrorBox<any>>
   >;
   <const Sources extends Record<any, any>>(
     sources: Sources,
   ): LazyPromise<
     | NeverIfRecordContainsNever<{
-        [Key in keyof Sources]: Exclude<Unbox<Sources[Key]>, TypedError<any>>;
+        [Key in keyof Sources]: Exclude<Unbox<Sources[Key]>, ErrorBox<any>>;
       }>
-    | Extract<Unbox<Sources[keyof Sources]>, TypedError<any>>
+    | Extract<Unbox<Sources[keyof Sources]>, ErrorBox<any>>
   >;
 } = (sources: Iterable<any> | Record<any, any>): LazyPromise<any> =>
   new LazyPromise(new AllProducer(sources));

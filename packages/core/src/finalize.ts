@@ -1,5 +1,5 @@
 import type { Consumer, Producer, Sink } from "./lazyPromise.js";
-import { LazyPromise, TypedError } from "./lazyPromise.js";
+import { ErrorBox, LazyPromise } from "./lazyPromise.js";
 
 const emptySymbol = Symbol("empty");
 
@@ -16,11 +16,11 @@ class FinalizeConsumerProducer implements Consumer<any>, Producer<any> {
 
   resolve(value: any) {
     if (this.value !== emptySymbol) {
-      this.sink.resolve(value instanceof TypedError ? value : this.value);
+      this.sink.resolve(value instanceof ErrorBox ? value : this.value);
       return;
     }
     if (this.error !== emptySymbol) {
-      if (value instanceof TypedError) {
+      if (value instanceof ErrorBox) {
         this.sink.resolve(value);
         return;
       }

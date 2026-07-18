@@ -97,15 +97,17 @@ Aside from superficial differences, LazyPromise API mirrors that of native Promi
 
 ## Typed errors
 
-Whereas untyped errors are represented by rejections, typed errors are represented by instances of `TypedError<YourError>` class that a lazy promise can resolve to. `new TypedError(<your error>)` creates an object that simply stores `<your error>` in its `.error` property. It is treated differently from other values by LazyPromise API:
+The way that LazyPromise supports typed errors closely reflects the JavaScript reality that you cannot type the errors that you throw and have to represent typed errors with return values. Instead of having an extra type parameter like `LazyPromise<Value, Error>`, we use `LazyPromise<Value | ErrorBox<Error>>`, in other words you emit a typed error by resolving a lazy promise with an instance of the ErrorBox class. `new ErrorBox(error)` is simply a wrapper that stores `error` in its `.error` property.
 
-- If you subscribe to a lazy promise that can resolve to a typed error, the type system will want you to provide a `resolve` handler. So if for example in your server code you add a new error to an api endpoint, you'll get TypeScript errors in all the places on the client where you failed to handle that error.
+ErrorBox instances are treated differently from other values by LazyPromise API:
 
-- `map`, `all`, and `race` operators pass typed errors through, the same way they pass through rejections.
+- If you subscribe to a lazy promise that can resolve to a boxed error, the type system will want you to provide a `resolve` handler, so if in your server code you add a new error to an api endpoint, you'll get TypeScript errors in all the places on the client where you failed to handle that error.
 
-- There is an operator `catchTypedError` which is a typed error counterpart of `catchRejection`.
+- `map`, `all`, and `race` operators pass boxed errors through the same way they pass through rejections.
 
-Typed errors are optional in the sense that you can pretend that the concept does not exist as long as you don't use `TypedError` class, with one exception which is the `any` operator. When one of the promises passed to the native `Promise.any` rejects because of a bug, the bug ends up undetected if some other input promise resolves. The LazyPromise version of `any` works like `Promise.any` when it comes to typed errors, but rejects if just one input rejects.
+- There is an operator `catchBoxedError` which is a typed error counterpart of `catchRejection`.
+
+Typed errors are optional in the sense that you can pretend that the concept does not exist as long as you don't use the `ErrorBox` class. There's one exception to this which is the `any` operator, but that operator isn't ergonomic without typed errors anyway. When one of the promises passed to the native `Promise.any` rejects because of a bug, the bug ends up undetected if some other input promise resolves. The LazyPromise version of `any` works like `Promise.any` when it comes to boxed errors, but rejects if just one input rejects.
 
 ## Utilities
 
@@ -135,14 +137,14 @@ Typed errors are optional in the sense that you can pretend that the concept doe
 
 ## Async-await syntax
 
-You cannot `await` a lazy promise, but there is nothing stopping you from returning a `TypedError` from an async function, and that makes it easy to produce typed errors when working with Promise-based APIs:
+You cannot `await` a lazy promise, but there is nothing stopping you from returning an `ErrorBox` from an async function, and that makes it easy to produce typed errors when working with Promise-based APIs:
 
 ```ts
-// Type inferred as LazyPromise<Data | TypedError<number>>
+// Type inferred as LazyPromise<Data | ErrorBox<number>>
 const lazyPromise = fromEager(async ({ signal }) => {
   const response = await fetch("https://...", { signal });
   if (!response.ok) {
-    return new TypedError(response.status);
+    return new ErrorBox(response.status);
   }
   return (await response.json()) as Data;
 });
@@ -168,7 +170,7 @@ const lazyPromise = fromGen(function* () {
 });
 ```
 
-Whereas rejections are handled similarly to async-await syntax, typed errors are in this case treated like any other values that a lazy promise can resolve to.
+Whereas rejections are handled similarly to async-await syntax, boxed errors are in this case treated like any other values that a lazy promise can resolve to.
 
 Similarly to the `finalize` operator, a `finally` block does not execute if the lazy promise returned by `fromGen` is unsubscribed before reaching it. If you don't `yield*` inside `try`/`catch`, you keep the guarantee that `finally` will run no matter what.
 

@@ -1,4 +1,4 @@
-import type { Disposable, Sink, TypedError } from "@lazy-promise/core";
+import type { Disposable, ErrorBox, Sink } from "@lazy-promise/core";
 import { LazyPromise } from "@lazy-promise/core";
 import type { ReactiveNode } from "alien-signals/system";
 import { createReactiveSystem, ReactiveFlags } from "alien-signals/system";
@@ -607,7 +607,7 @@ export const effect = <T>(
   fn: () =>
     | void
     | (() => void)
-    | (Extract<T, TypedError<any>> extends never ? LazyPromise<T> : never),
+    | (Extract<T, ErrorBox<any>> extends never ? LazyPromise<T> : never),
 ): (() => void) => {
   const e: EffectNode = {
     fn: fn as () => (() => void) | LazyPromise<any> | void,

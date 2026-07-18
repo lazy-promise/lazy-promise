@@ -11,13 +11,7 @@ export { inMicrotask } from "./inMicrotask.js";
 export { inNextTick } from "./inNextTick.js";
 export { inScheduled } from "./inScheduled.js";
 export { inTimeout } from "./inTimeout.js";
-export {
-  box,
-  LazyPromise,
-  never,
-  rejecting,
-  TypedError,
-} from "./lazyPromise.js";
+export { box, ErrorBox, LazyPromise, never, rejecting } from "./lazyPromise.js";
 export type {
   Consumer,
   Disposable,

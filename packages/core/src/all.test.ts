@@ -1,11 +1,5 @@
-import type { Sink, Consumer } from "@lazy-promise/core";
-import {
-  all,
-  box,
-  LazyPromise,
-  rejecting,
-  TypedError,
-} from "@lazy-promise/core";
+import type { Consumer, Sink } from "@lazy-promise/core";
+import { all, box, ErrorBox, LazyPromise, rejecting } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -69,33 +63,33 @@ test("types", () => {
 
   expectTypeOf(
     all([
-      new LazyPromise<"value a" | TypedError<"error a">>(() => {}),
-      (true as boolean) ? "value b" : new TypedError("error b"),
+      new LazyPromise<"value a" | ErrorBox<"error a">>(() => {}),
+      (true as boolean) ? "value b" : new ErrorBox("error b"),
     ]),
   ).toEqualTypeOf<
     LazyPromise<
-      ["value a", "value b"] | TypedError<"error a"> | TypedError<"error b">
+      ["value a", "value b"] | ErrorBox<"error a"> | ErrorBox<"error b">
     >
   >();
 
   expectTypeOf(
     all([
-      new LazyPromise<"value a" | TypedError<"error a">>(() => {}),
+      new LazyPromise<"value a" | ErrorBox<"error a">>(() => {}),
       new LazyPromise<never>(() => {}),
     ]),
-  ).toEqualTypeOf<LazyPromise<TypedError<"error a">>>();
+  ).toEqualTypeOf<LazyPromise<ErrorBox<"error a">>>();
 
   expectTypeOf(all({})).toEqualTypeOf<LazyPromise<{}>>();
 
   expectTypeOf(
     all({
-      a: new LazyPromise<"value a" | TypedError<"error a">>(() => {}),
-      b: (true as boolean) ? "value b" : new TypedError("error b"),
+      a: new LazyPromise<"value a" | ErrorBox<"error a">>(() => {}),
+      b: (true as boolean) ? "value b" : new ErrorBox("error b"),
     }),
   ).toEqualTypeOf<
     LazyPromise<
-      | TypedError<"error a">
-      | TypedError<"error b">
+      | ErrorBox<"error a">
+      | ErrorBox<"error b">
       | {
           readonly a: "value a";
           readonly b: "value b";
@@ -105,24 +99,24 @@ test("types", () => {
 
   expectTypeOf(
     all({
-      a: new LazyPromise<"value a" | TypedError<"error a">>(() => {}),
+      a: new LazyPromise<"value a" | ErrorBox<"error a">>(() => {}),
       b: new LazyPromise<never>(() => {}),
     }),
-  ).toEqualTypeOf<LazyPromise<TypedError<"error a">>>();
+  ).toEqualTypeOf<LazyPromise<ErrorBox<"error a">>>();
 
   expectTypeOf(all(new Set([]))).toEqualTypeOf<LazyPromise<never[]>>();
 
   expectTypeOf(
     all(
       new Set([
-        new LazyPromise<"value a" | TypedError<"error a">>(() => {}),
+        new LazyPromise<"value a" | ErrorBox<"error a">>(() => {}),
         "value b" as const,
-        new TypedError("error b"),
+        new ErrorBox("error b"),
       ]),
     ),
   ).toEqualTypeOf<
     LazyPromise<
-      TypedError<"error a"> | TypedError<"error b"> | ("value a" | "value b")[]
+      ErrorBox<"error a"> | ErrorBox<"error b"> | ("value a" | "value b")[]
     >
   >();
 });
@@ -231,14 +225,14 @@ test("async resolve", () => {
   `);
 });
 
-test("typed error passed as one of the sources should be passed on as result", () => {
-  const promise = all(["a", new TypedError("oops")]);
+test("boxed error passed as one of the sources should be passed on as result", () => {
+  const promise = all(["a", new ErrorBox("oops")]);
   promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleValue",
-        TypedError {
+        ErrorBox {
           "error": "oops",
         },
       ],
@@ -246,14 +240,14 @@ test("typed error passed as one of the sources should be passed on as result", (
   `);
 });
 
-test("typed error emitted by one of the sources should be passed on as result", () => {
+test("boxed error emitted by one of the sources should be passed on as result", () => {
   const promise = all([
     new LazyPromise<"a">(() => () => {
       log("dispose a");
     }),
-    new LazyPromise<"b" | TypedError<"oops">>((sink) => {
+    new LazyPromise<"b" | ErrorBox<"oops">>((sink) => {
       setTimeout(() => {
-        sink.resolve(new TypedError("oops"));
+        sink.resolve(new ErrorBox("oops"));
       }, 1000);
     }),
   ]);
@@ -264,7 +258,7 @@ test("typed error emitted by one of the sources should be passed on as result", 
       "1000 ms passed",
       [
         "handleValue",
-        TypedError {
+        ErrorBox {
           "error": "oops",
         },
       ],

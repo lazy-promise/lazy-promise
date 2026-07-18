@@ -79,7 +79,7 @@ effect(() => {
 
 the Promise constructor callback would execute synchronously, so as long as you track the effect callback, you'd also be tracking the Promise constructor callback.
 
-Since LazyPromise supports typed errors, there's one more twist which you can ignore if you're not interested in that functionality: we'll make `effect(...)` show a typechecking error if the LazyPromise returned by the callback can resolve to a TypedError. This makes sure that if, for example, there is a new typed error that a server endpoint can return, you don't forget to handle it in all the relevant places on the client.
+Since LazyPromise supports typed errors, there's one more twist which you can ignore if you're not interested in that functionality: we'll make `effect(...)` show a typechecking error if the LazyPromise returned by the callback can resolve to an ErrorBox. This makes sure that if, for example, there is a new typed error that a server endpoint can return, you don't forget to handle it in all the relevant places on the client.
 
 ## Step 2: memos
 
@@ -161,7 +161,7 @@ When implementing `unbox`, the trick is not to write (or `trigger`) signals sync
 const unbox = <T>(
   // Errors are expected to have been handled, so do not accept
   // promises that can resolve to typed errors.
-  getter: () => Extract<T, TypedError<any>> extends never
+  getter: () => Extract<T, ErrorBox<any>> extends never
     ? LazyPromise<T>
     : never,
 ): (() => T | undefined) => {

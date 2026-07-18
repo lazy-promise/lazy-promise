@@ -5,7 +5,7 @@ import type {
   Sink,
   Unbox,
 } from "./lazyPromise.js";
-import { LazyPromise, TypedError } from "./lazyPromise.js";
+import { ErrorBox, LazyPromise } from "./lazyPromise.js";
 import type {
   NeverIfArrayContainsNever,
   NeverIfRecordContainsNever,
@@ -20,10 +20,10 @@ class AnyConsumer implements Consumer<any> {
 
   resolve(value: any) {
     const job = this.job;
-    if (value instanceof TypedError) {
+    if (value instanceof ErrorBox) {
       job.errors[this.key] = value.error;
       if (job.initialized && job.pendingCount === 1) {
-        job.sink.resolve(new TypedError(job.errors));
+        job.sink.resolve(new ErrorBox(job.errors));
         // No need to unsubscribe since all sources that are promises have
         // resolved.
         return;
@@ -60,7 +60,7 @@ class AnyJob implements Disposable {
       this.subscriptions.push(source.subscribe(new AnyConsumer(key, this)));
       return;
     }
-    if (source instanceof TypedError) {
+    if (source instanceof ErrorBox) {
       this.errors[key] = source.error;
       return;
     }
@@ -101,7 +101,7 @@ class AnyProducer implements Producer<any> {
       }
     }
     if (job.pendingCount === 0) {
-      sink.resolve(new TypedError(job.errors));
+      sink.resolve(new ErrorBox(job.errors));
       // No need to unsubscribe since all sources that are promises have
       // resolved.
       return;
@@ -111,20 +111,19 @@ class AnyProducer implements Producer<any> {
   }
 }
 
-type TypedErrorOrNever<Error> = Error extends never ? never : TypedError<Error>;
-type UnwrapTypedError<T> = T extends TypedError<infer Error> ? Error : never;
+type ErrorBoxOrNever<Error> = Error extends never ? never : ErrorBox<Error>;
+type UnboxError<T> = T extends ErrorBox<infer Error> ? Error : never;
 
 /**
  * Acts as `Promise.any` with respect to typed errors. In addition to an
  * iterable, accepts inputs in the form of a plain object.
  *
- * If one of the inputs resolves with a value other than a typed error, the
+ * If one of the inputs resolves with a value other than a boxed error, the
  * resulting promise will immediately resolve with that value.
  *
- * If all inputs resolve with typed errors, the resulting promise will resolve
- * with a typed error that wraps an array (if the inputs we provided as an
- * iterable) or an object (if the inputs were provided as an object) with the
- * errors.
+ * If all inputs resolve with boxed errors, the resulting promise will resolve
+ * with a boxed array (if the inputs we provided as an iterable) or an object
+ * (if the inputs were provided as an object) with the errors.
  *
  * If one of the inputs rejects, the resulting promise will immediately pass on
  * the untyped error.
@@ -133,26 +132,26 @@ export const any: {
   <const Sources extends any[]>(
     sources: [...Sources],
   ): LazyPromise<
-    | Exclude<Unbox<Sources[number]>, TypedError<any>>
-    | TypedErrorOrNever<
+    | Exclude<Unbox<Sources[number]>, ErrorBox<any>>
+    | ErrorBoxOrNever<
         NeverIfArrayContainsNever<{
-          [Key in keyof Sources]: UnwrapTypedError<Unbox<Sources[Key]>>;
+          [Key in keyof Sources]: UnboxError<Unbox<Sources[Key]>>;
         }>
       >
   >;
   <const Source = never>(
     sources: Iterable<Source>,
   ): LazyPromise<
-    | Exclude<Unbox<Source>, TypedError<any>>
-    | TypedError<UnwrapTypedError<Unbox<Source>>[]>
+    | Exclude<Unbox<Source>, ErrorBox<any>>
+    | ErrorBox<UnboxError<Unbox<Source>>[]>
   >;
   <const Sources extends Record<any, any>>(
     sources: Sources,
   ): LazyPromise<
-    | Exclude<Unbox<Sources[keyof Sources]>, TypedError<any>>
-    | TypedErrorOrNever<
+    | Exclude<Unbox<Sources[keyof Sources]>, ErrorBox<any>>
+    | ErrorBoxOrNever<
         NeverIfRecordContainsNever<{
-          [Key in keyof Sources]: UnwrapTypedError<Unbox<Sources[Key]>>;
+          [Key in keyof Sources]: UnboxError<Unbox<Sources[Key]>>;
         }>
       >
   >;

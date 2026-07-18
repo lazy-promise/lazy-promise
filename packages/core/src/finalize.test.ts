@@ -1,5 +1,5 @@
-import type { Sink, Consumer } from "@lazy-promise/core";
-import { box, LazyPromise, rejecting, TypedError } from "@lazy-promise/core";
+import type { Consumer, Sink } from "@lazy-promise/core";
+import { box, ErrorBox, LazyPromise, rejecting } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -63,17 +63,17 @@ test("types", () => {
 
   expectTypeOf(box(1).finalize(() => box(2))).toEqualTypeOf<LazyPromise<1>>();
 
-  expectTypeOf(box(new TypedError(1)).finalize(() => {})).toEqualTypeOf<
-    LazyPromise<TypedError<1>>
+  expectTypeOf(box(new ErrorBox(1)).finalize(() => {})).toEqualTypeOf<
+    LazyPromise<ErrorBox<1>>
   >();
 
   expectTypeOf(
-    box(new TypedError(1)).finalize(() => new TypedError(2)),
-  ).toEqualTypeOf<LazyPromise<TypedError<1> | TypedError<2>>>();
+    box(new ErrorBox(1)).finalize(() => new ErrorBox(2)),
+  ).toEqualTypeOf<LazyPromise<ErrorBox<1> | ErrorBox<2>>>();
 
   expectTypeOf(
-    box(new TypedError(1)).finalize(() => box(new TypedError(2))),
-  ).toEqualTypeOf<LazyPromise<TypedError<1> | TypedError<2>>>();
+    box(new ErrorBox(1)).finalize(() => box(new ErrorBox(2))),
+  ).toEqualTypeOf<LazyPromise<ErrorBox<1> | ErrorBox<2>>>();
 });
 
 test("value of this", () => {
@@ -128,14 +128,14 @@ test("source rejects", () => {
   `);
 });
 
-test("callback returns a typed error", () => {
-  const promise = box(1).finalize(() => new TypedError(1));
+test("callback returns a boxed error", () => {
+  const promise = box(1).finalize(() => new ErrorBox(1));
   promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleValue",
-        TypedError {
+        ErrorBox {
           "error": 1,
         },
       ],
@@ -272,14 +272,14 @@ test("inner promise resolves (source rejects)", () => {
   `);
 });
 
-test("inner promise resolves with a typed error (source resolves)", () => {
-  const promise = box(new TypedError(1)).finalize(() => box(new TypedError(2)));
+test("inner promise resolves with a boxed error (source resolves)", () => {
+  const promise = box(new ErrorBox(1)).finalize(() => box(new ErrorBox(2)));
   promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleValue",
-        TypedError {
+        ErrorBox {
           "error": 2,
         },
       ],
@@ -287,14 +287,14 @@ test("inner promise resolves with a typed error (source resolves)", () => {
   `);
 });
 
-test("inner promise resolves with a typed error (source rejects)", () => {
-  const promise = rejecting(1).finalize(() => box(new TypedError(2)));
+test("inner promise resolves with a boxed error (source rejects)", () => {
+  const promise = rejecting(1).finalize(() => box(new ErrorBox(2)));
   promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "handleValue",
-        TypedError {
+        ErrorBox {
           "error": 2,
         },
       ],

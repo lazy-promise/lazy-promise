@@ -18,7 +18,7 @@ Simply subscribes to a lazy promise and unsubscribes when the scope is disposed.
 useLazyPromise(yourLazyPromise);
 ```
 
-Since this function takes a lazy promise that cannot resolve with a TypedError, type system will catch any unhandled typed errors. All callbacks are run outside the scope and so are untracked:
+Since this function takes a lazy promise that cannot resolve with an ErrorBox, type system will catch any unhandled typed errors. All callbacks are run outside the scope and so are untracked:
 
 ```ts
 createEffect(() => {
@@ -35,7 +35,7 @@ To error out the scope, reject the lazy promise:
 
 ```ts
 useLazyPromise(
-  yourLazyPromise.catchTypedError((error) => {
+  yourLazyPromise.catchBoxedError((error) => {
     // Trigger the error boundary.
     throw new Error("oops");
   }),

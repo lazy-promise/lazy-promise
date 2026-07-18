@@ -1,10 +1,10 @@
 import type { Consumer, Disposable, Producer, Sink } from "@lazy-promise/core";
 import {
   box,
+  ErrorBox,
   LazyPromise,
   never,
   rejecting,
-  TypedError,
 } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
@@ -65,7 +65,7 @@ afterEach(() => {
 });
 
 test("types", () => {
-  const promise1 = new LazyPromise<"value a" | TypedError<"error a">>(() => {});
+  const promise1 = new LazyPromise<"value a" | ErrorBox<"error a">>(() => {});
 
   promise1.subscribe({ resolve: () => {} });
 
@@ -101,16 +101,16 @@ test("types", () => {
     box(
       (true as boolean)
         ? "a"
-        : new LazyPromise<"value" | TypedError<"error">>(() => {}),
+        : new LazyPromise<"value" | ErrorBox<"error">>(() => {}),
     ),
-  ).toEqualTypeOf<LazyPromise<"a" | "value" | TypedError<"error">>>();
+  ).toEqualTypeOf<LazyPromise<"a" | "value" | ErrorBox<"error">>>();
 
   expectTypeOf(rejecting("a")).toEqualTypeOf<LazyPromise<never>>();
 
   expectTypeOf(rejecting()).toEqualTypeOf<LazyPromise<never>>();
 
-  // Check that typed errors are nominally typed.
-  expectTypeOf({ error: "a" }).not.toExtend<TypedError<string>>();
+  // Check that boxed errors are nominally typed.
+  expectTypeOf({ error: "a" }).not.toExtend<ErrorBox<string>>();
 
   expectTypeOf<LazyPromise<"a">>().toExtend<LazyPromise<string>>();
   expectTypeOf<LazyPromise<string>>().not.toExtend<LazyPromise<"a">>();
@@ -683,9 +683,9 @@ test("error in error handler function", () => {
 });
 
 test("unhandled typed error", () => {
-  const promise = new LazyPromise<TypedError<"oops">>((sink) => {
+  const promise = new LazyPromise<ErrorBox<"oops">>((sink) => {
     setTimeout(() => {
-      sink.resolve(new TypedError("oops"));
+      sink.resolve(new ErrorBox("oops"));
     }, 1000);
   });
   // @ts-expect-error
@@ -699,7 +699,7 @@ test("unhandled typed error", () => {
     error = errorLocal;
   }
   expect(error).toMatchInlineSnapshot(`
-    TypedError {
+    ErrorBox {
       "error": "oops",
     }
   `);

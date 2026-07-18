@@ -1,11 +1,11 @@
-import type { LazyPromiseGenerator, Consumer } from "@lazy-promise/core";
+import type { Consumer, LazyPromiseGenerator } from "@lazy-promise/core";
 import {
   box,
+  ErrorBox,
   fromGen,
   LazyPromise,
   never,
   rejecting,
-  TypedError,
 } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
@@ -57,31 +57,29 @@ afterEach(() => {
 test("types", () => {
   expectTypeOf(
     fromGen(function* () {
-      const value = yield* new LazyPromise<"a" | "b" | TypedError<"error1">>(
+      const value = yield* new LazyPromise<"a" | "b" | ErrorBox<"error1">>(
         () => {},
       );
-      expectTypeOf(value).toEqualTypeOf<"a" | "b" | TypedError<"error1">>();
+      expectTypeOf(value).toEqualTypeOf<"a" | "b" | ErrorBox<"error1">>();
       if (value === "a") {
-        return yield* new LazyPromise<TypedError<"error2">>(() => {});
+        return yield* new LazyPromise<ErrorBox<"error2">>(() => {});
       }
       return value;
     }),
-  ).toEqualTypeOf<
-    LazyPromise<TypedError<"error2"> | TypedError<"error1"> | "b">
-  >();
+  ).toEqualTypeOf<LazyPromise<ErrorBox<"error2"> | ErrorBox<"error1"> | "b">>();
 
   const generatorFunction = function* () {
-    const value = yield* new LazyPromise<"a" | "b" | TypedError<"error1">>(
+    const value = yield* new LazyPromise<"a" | "b" | ErrorBox<"error1">>(
       () => {},
     );
-    expectTypeOf(value).toEqualTypeOf<"a" | "b" | TypedError<"error1">>();
+    expectTypeOf(value).toEqualTypeOf<"a" | "b" | ErrorBox<"error1">>();
     if (value === "a") {
-      return yield* new LazyPromise<TypedError<"error2">>(() => {});
+      return yield* new LazyPromise<ErrorBox<"error2">>(() => {});
     }
     return value;
   };
   expectTypeOf(fromGen(generatorFunction)).toEqualTypeOf<
-    LazyPromise<TypedError<"error2"> | TypedError<"error1"> | "b">
+    LazyPromise<ErrorBox<"error2"> | ErrorBox<"error1"> | "b">
   >();
 
   expectTypeOf(
@@ -95,11 +93,11 @@ test("types", () => {
   expectTypeOf(
     fromGen(function* () {
       if (true as boolean) {
-        return new LazyPromise<TypedError<"error1">>(() => {});
+        return new LazyPromise<ErrorBox<"error1">>(() => {});
       }
       return new LazyPromise<"a">(() => {});
     }),
-  ).toEqualTypeOf<LazyPromise<"a" | TypedError<"error1">>>();
+  ).toEqualTypeOf<LazyPromise<"a" | ErrorBox<"error1">>>();
 
   expectTypeOf(
     fromGen(function* () {
@@ -151,7 +149,7 @@ test("types", () => {
   // Yield generic type.
   const f2 = <T>(arg: T) => {
     const promise = fromGen(function* () {
-      yield* box(new TypedError(arg));
+      yield* box(new ErrorBox(arg));
       return { prop: yield* box(arg) };
     });
     return promise.map((x) => x);

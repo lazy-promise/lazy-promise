@@ -1,11 +1,11 @@
+import { CatchBoxedErrorProducer } from "./catchBoxedError.js";
 import { CatchRejectionProducer } from "./catchRejection.js";
-import { CatchTypedErrorProducer } from "./catchTypedError.js";
 import { FinalizeProducer } from "./finalize.js";
 import { MapProducer } from "./map.js";
 
 declare const yieldableSymbol: unique symbol;
 
-export class TypedError<const Error> {
+export class ErrorBox<const Error> {
   constructor(public readonly error: Error) {}
   declare private brand: any;
 }
@@ -47,9 +47,9 @@ class LazyPromiseIterator<TYield> implements Iterator<TYield> {
 
 /**
  * The object passed to `.subscribe` method of a lazy promise. `resolve` handler
- * is required if the promise can resolve to a TypedError.
+ * is required if the promise can resolve to an ErrorBox.
  */
-export type Consumer<Value> = [TypedError<any>] extends [Value]
+export type Consumer<Value> = [ErrorBox<any>] extends [Value]
   ? {
       resolve: (value: Value) => void;
       reject?: (error: unknown) => void;
@@ -108,7 +108,7 @@ class Sink<in Value> {
       } catch (error) {
         throwInMicrotask(error);
       }
-    } else if (value instanceof TypedError) {
+    } else if (value instanceof ErrorBox) {
       throwInMicrotask(value);
     }
     // For GC purposes.
@@ -260,7 +260,7 @@ export class LazyPromise<out Value> {
 
   /**
    * Subscribes to the lazy promise. `resolve` handler is required if the
-   * promise can resolve to a TypedError. `resolve` and `reject` are called with
+   * promise can resolve to an ErrorBox. `resolve` and `reject` are called with
    * `consumer` object as `this`.
    */
   subscribe(consumer: Consumer<Value>): Disposable {
@@ -276,13 +276,11 @@ export class LazyPromise<out Value> {
    * The LazyPromise equivalent of `promise.then(...)`.
    */
   map<NewValue>(
-    callback: (
-      value: Value extends TypedError<any> ? never : Value,
-    ) => NewValue,
+    callback: (value: Value extends ErrorBox<any> ? never : Value) => NewValue,
   ): LazyPromise<
     // eslint-disable-next-line no-use-before-define
     | Unbox<NewValue>
-    | (Value extends TypedError<infer Error> ? TypedError<Error> : never)
+    | (Value extends ErrorBox<infer Error> ? ErrorBox<Error> : never)
   > {
     return new LazyPromise<any>(new MapProducer(this, callback));
   }
@@ -300,15 +298,15 @@ export class LazyPromise<out Value> {
   /**
    * The LazyPromise equivalent of `promise.catch(...)` for typed errors.
    */
-  catchTypedError<NewValue>(
+  catchBoxedError<NewValue>(
     callback: (
-      error: Value extends TypedError<infer Error> ? Error : never,
+      error: Value extends ErrorBox<infer Error> ? Error : never,
     ) => NewValue,
   ): LazyPromise<
     // eslint-disable-next-line no-use-before-define
-    (Value extends TypedError<any> ? never : Value) | Unbox<NewValue>
+    (Value extends ErrorBox<any> ? never : Value) | Unbox<NewValue>
   > {
-    return new LazyPromise<any>(new CatchTypedErrorProducer(this, callback));
+    return new LazyPromise<any>(new CatchBoxedErrorProducer(this, callback));
   }
 
   /**
@@ -319,9 +317,7 @@ export class LazyPromise<out Value> {
   finalize<NewValue>(callback: () => NewValue): LazyPromise<
     | Value
     // eslint-disable-next-line no-use-before-define
-    | (Unbox<NewValue> extends TypedError<infer Error>
-        ? TypedError<Error>
-        : never)
+    | (Unbox<NewValue> extends ErrorBox<infer Error> ? ErrorBox<Error> : never)
   > {
     return new LazyPromise<any>(new FinalizeProducer(this, callback));
   }

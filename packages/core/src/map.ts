@@ -1,5 +1,5 @@
 import type { Consumer, LazyPromise, Producer, Sink } from "./lazyPromise.js";
-import { TypedError } from "./lazyPromise.js";
+import { ErrorBox } from "./lazyPromise.js";
 
 class MapConsumer implements Consumer<any> {
   constructor(
@@ -8,7 +8,7 @@ class MapConsumer implements Consumer<any> {
   ) {}
 
   resolve(value: any) {
-    if (value instanceof TypedError) {
+    if (value instanceof ErrorBox) {
       this.sink.resolve(value);
       return;
     }
