@@ -18,6 +18,7 @@ export type {
   Producer,
   Sink,
   Unbox,
+  UnboxError,
 } from "./lazyPromise.js";
 export { log } from "./log.js";
 export { race } from "./race.js";

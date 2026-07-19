@@ -10,6 +10,8 @@ export class ErrorBox<const Error> {
   declare private brand: any;
 }
 
+export type UnboxError<T> = T extends ErrorBox<infer Error> ? Error : never;
+
 const throwInMicrotask = (error: unknown) => {
   queueMicrotask(() => {
     throw error;

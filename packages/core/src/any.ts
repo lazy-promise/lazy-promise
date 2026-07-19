@@ -4,6 +4,7 @@ import type {
   Producer,
   Sink,
   Unbox,
+  UnboxError,
 } from "./lazyPromise.js";
 import { ErrorBox, LazyPromise } from "./lazyPromise.js";
 import type {
@@ -112,7 +113,6 @@ class AnyProducer implements Producer<any> {
 }
 
 type ErrorBoxOrNever<Error> = Error extends never ? never : ErrorBox<Error>;
-type UnboxError<T> = T extends ErrorBox<infer Error> ? Error : never;
 
 /**
  * Acts as `Promise.any` with respect to typed errors. In addition to an
