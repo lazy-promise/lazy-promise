@@ -121,7 +121,7 @@ test("types", () => {
 
 test("empty iterable", () => {
   const promise = any([]);
-  promise.subscribe(logConsumer);
+  promise.subscribe<unknown>(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -136,7 +136,7 @@ test("empty iterable", () => {
 
 test("empty object", () => {
   const promise = any({});
-  promise.subscribe(logConsumer);
+  promise.subscribe<unknown>(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -154,7 +154,7 @@ test("sync resolve (iterable)", () => {
     box(new ErrorBox("a" as const)),
     new ErrorBox("b" as const),
   ]);
-  promise.subscribe(logConsumer);
+  promise.subscribe<unknown>(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -175,7 +175,7 @@ test("sync resolve (object)", () => {
     a: box(new ErrorBox("a" as const)),
     b: new ErrorBox("b" as const),
   });
-  promise.subscribe(logConsumer);
+  promise.subscribe<unknown>(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -193,7 +193,7 @@ test("sync resolve (object)", () => {
 
 test("non-array iterable", () => {
   const promise = any(new Set([box(new ErrorBox("a"))]));
-  promise.subscribe(logConsumer);
+  promise.subscribe<unknown>(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -222,7 +222,7 @@ test("async resolve with typed errors", () => {
     }),
     box(new ErrorBox("c")),
   ]);
-  promise.subscribe(logConsumer);
+  promise.subscribe<unknown>(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [

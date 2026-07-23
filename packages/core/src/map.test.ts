@@ -106,7 +106,7 @@ test("mapping to a value", () => {
 
 test("outer promise resolves with a boxed error", () => {
   const promise = box(new ErrorBox(1)).map((value) => value + 1);
-  promise.subscribe(logConsumer);
+  promise.subscribe<unknown>(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [

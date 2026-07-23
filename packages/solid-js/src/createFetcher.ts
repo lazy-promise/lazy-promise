@@ -1,10 +1,12 @@
-import type { LazyPromise } from "@lazy-promise/core";
+import type { LazyPromise, UnboxError } from "@lazy-promise/core";
 import type { ResourceFetcher, ResourceFetcherInfo } from "solid-js";
 import { onCleanup, runWithOwner } from "solid-js";
 
 export const createFetcher =
   <S, T, R = unknown>(
-    callback: (k: S, info: ResourceFetcherInfo<T, R>) => LazyPromise<T>,
+    callback: UnboxError<T> extends never
+      ? (k: S, info: ResourceFetcherInfo<T, R>) => LazyPromise<T>
+      : never,
   ): ResourceFetcher<S, T, R> =>
   (k: S, info: ResourceFetcherInfo<T, R>): T | Promise<T> => {
     const lazyPromise = callback(k, info);
@@ -14,7 +16,7 @@ export const createFetcher =
     let resolve: ((value: T) => void) | undefined;
     let reject: ((error: unknown) => void) | undefined;
     const subscription = runWithOwner(null, () =>
-      lazyPromise.subscribe({
+      lazyPromise.subscribe<any>({
         resolve: (value) => {
           if (resolve) {
             resolve(value);

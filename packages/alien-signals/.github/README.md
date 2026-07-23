@@ -161,9 +161,7 @@ When implementing `unbox`, the trick is not to write (or `trigger`) signals sync
 const unbox = <T>(
   // Errors are expected to have been handled, so do not accept
   // promises that can resolve to typed errors.
-  getter: () => Extract<T, ErrorBox<any>> extends never
-    ? LazyPromise<T>
-    : never,
+  getter: UnboxError<T> extends never ? () => LazyPromise<T> : never,
 ): (() => T | undefined) => {
   let returnValue: T | undefined, returnValuePromise: unknown;
   const memoizedGetter = computed(getter);

@@ -227,7 +227,7 @@ test("async resolve", () => {
 
 test("boxed error passed as one of the sources should be passed on as result", () => {
   const promise = all(["a", new ErrorBox("oops")]);
-  promise.subscribe(logConsumer);
+  promise.subscribe<unknown>(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -251,7 +251,7 @@ test("boxed error emitted by one of the sources should be passed on as result", 
       }, 1000);
     }),
   ]);
-  promise.subscribe(logConsumer);
+  promise.subscribe<unknown>(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`
     [

@@ -1,4 +1,4 @@
-import type { ErrorBox } from "@lazy-promise/core";
+import type { ErrorBox, UnboxError } from "@lazy-promise/core";
 import { LazyPromise, box } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { computed, effect, flush, signal, trigger } from "./index.js";
@@ -1342,9 +1342,7 @@ test("signal written inside effect during flush can be written again afterwards"
 const unbox = <T>(
   // Errors are expected to have been handled, so do not accept
   // promises that can resolve to typed errors.
-  getter: () => Extract<T, ErrorBox<any>> extends never
-    ? LazyPromise<T>
-    : never,
+  getter: UnboxError<T> extends never ? () => LazyPromise<T> : never,
 ): (() => T | undefined) => {
   let returnValue: T | undefined, returnValuePromise: unknown;
   const memoizedGetter = computed(getter);

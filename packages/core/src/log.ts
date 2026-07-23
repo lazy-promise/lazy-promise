@@ -67,10 +67,10 @@ export const log =
     const id = counter + 1;
     instanceCountMap.set(label, id);
     const prefix = [...(label === undefined ? [] : [`[${label}]`]), `[${id}]`];
-    return new LazyPromise((sink) => {
+    return new LazyPromise<any>((sink) => {
       console.log(...prefix, `[subscribe]`);
       const subscription = bumpStackLevel(() =>
-        lazyPromise.subscribe({
+        lazyPromise.subscribe<any>({
           resolve: (value) => {
             console.log(...prefix, `[resolve]`, value);
             bumpStackLevel(() => {

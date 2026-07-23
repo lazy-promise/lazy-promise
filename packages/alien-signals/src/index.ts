@@ -253,7 +253,7 @@ const subscribeToOriginal = (
   const prevActiveSub = activeSub;
   activeSub = undefined;
   const consumer = new OriginalConsumer(state, c);
-  const sub = original.subscribe(consumer);
+  const sub = original.subscribe<any>(consumer);
   activeSub = prevActiveSub;
   if (!consumer.settled) {
     state.originalSub = sub;
@@ -392,7 +392,7 @@ const run = (e: EffectNode): void => {
       const result = e.fn();
       if (result instanceof LazyPromise) {
         activeSub = undefined;
-        const lpSub = result.subscribe(undefined as any);
+        const lpSub = result.subscribe<any>();
         e.cleanup = () => {
           lpSub.dispose();
         };
@@ -628,7 +628,7 @@ export const effect = <T>(
     const result = e.fn();
     if (result instanceof LazyPromise) {
       activeSub = undefined;
-      const lpSub = result.subscribe(undefined as any);
+      const lpSub = result.subscribe<any>();
       e.cleanup = () => {
         lpSub.dispose();
       };

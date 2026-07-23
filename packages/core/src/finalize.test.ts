@@ -74,6 +74,12 @@ test("types", () => {
   expectTypeOf(
     box(new ErrorBox(1)).finalize(() => box(new ErrorBox(2))),
   ).toEqualTypeOf<LazyPromise<ErrorBox<1> | ErrorBox<2>>>();
+
+  expectTypeOf(
+    box(1).finalize(() => {
+      throw "oops";
+    }),
+  ).toEqualTypeOf<LazyPromise<1>>();
 });
 
 test("value of this", () => {
@@ -130,7 +136,7 @@ test("source rejects", () => {
 
 test("callback returns a boxed error", () => {
   const promise = box(1).finalize(() => new ErrorBox(1));
-  promise.subscribe(logConsumer);
+  promise.subscribe<unknown>(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -274,7 +280,7 @@ test("inner promise resolves (source rejects)", () => {
 
 test("inner promise resolves with a boxed error (source resolves)", () => {
   const promise = box(new ErrorBox(1)).finalize(() => box(new ErrorBox(2)));
-  promise.subscribe(logConsumer);
+  promise.subscribe<unknown>(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -289,7 +295,7 @@ test("inner promise resolves with a boxed error (source resolves)", () => {
 
 test("inner promise resolves with a boxed error (source rejects)", () => {
   const promise = rejecting(1).finalize(() => box(new ErrorBox(2)));
-  promise.subscribe(logConsumer);
+  promise.subscribe<unknown>(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [

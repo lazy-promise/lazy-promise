@@ -34,6 +34,6 @@ export class MapProducer implements Producer<any> {
   ) {}
 
   produce(sink: Sink<any>) {
-    return this.source.subscribe(new MapConsumer(sink, this.callback));
+    return this.source.subscribe<any>(new MapConsumer(sink, this.callback));
   }
 }

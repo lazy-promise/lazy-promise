@@ -40,7 +40,7 @@ export const toEager = <Value>(
   new Promise((resolve, reject) => {
     const signal = options?.signal;
     if (!signal) {
-      lazyPromise.subscribe({ resolve, reject });
+      lazyPromise.subscribe<any>({ resolve, reject });
       return;
     }
     signal.throwIfAborted();
@@ -49,7 +49,7 @@ export const toEager = <Value>(
       reject,
       signal,
     );
-    const subscription = lazyPromise.subscribe(consumerListener);
+    const subscription = lazyPromise.subscribe<any>(consumerListener);
     if (consumerListener.settled) {
       return;
     }

@@ -34,7 +34,7 @@ export class CatchBoxedErrorProducer implements Producer<any> {
   ) {}
 
   produce(sink: Sink<any>) {
-    return this.source.subscribe(
+    return this.source.subscribe<any>(
       new CatchBoxedErrorConsumer(sink, this.callback),
     );
   }

@@ -97,17 +97,17 @@ Aside from superficial differences, LazyPromise API mirrors that of native Promi
 
 ## Typed errors
 
-The way that LazyPromise supports typed errors closely reflects the JavaScript reality that you cannot type the errors that you throw and have to represent typed errors with return values. Instead of having an extra type parameter like `LazyPromise<Value, Error>`, we use `LazyPromise<Value | ErrorBox<Error>>`, in other words you emit a typed error by resolving a lazy promise with an instance of the ErrorBox class. `new ErrorBox(error)` is simply a wrapper that stores `error` in its `.error` property.
+The way that LazyPromise supports typed errors reflects the JavaScript reality that you cannot typecheck errors that you throw and have to represent typed errors with return values. Instead of having an extra channel in addition to `resolve` and `reject`, we pass typed errors through the `resolve` channel, wrapping them in ErrorBox class to differentiate them from other values. `new ErrorBox(error)` simply stores `error` in its `.error` property. Although `LazyPromise<"value" | ErrorBox<"error">>` is a little bit harder to read than `LazyPromise<"value", "error">`, an extra channel and type parameter would have introduced unnecessary complexity when it comes to using LazyPromise together with native promises and generator syntax.
 
 ErrorBox instances are treated differently from other values by LazyPromise API:
 
-- If you subscribe to a lazy promise that can resolve to a boxed error, the type system will want you to provide a `resolve` handler, so if in your server code you add a new error to an api endpoint, you'll get TypeScript errors in all the places on the client where you failed to handle that error.
+- By default, if you `.subscribe` to a lazy promise that can resolve to boxed errors, you'll get a typechecking error. Sometimes you do want to subscribe nonetheless, and you can do that by whitelisting expected typed errors using the generic type parameter of `.subscribe`. This makes sure that if for example you add a new error to a server endpoint, you'll catch all the places on the client where that error isn't handled.
 
 - `map`, `all`, and `race` operators pass boxed errors through the same way they pass through rejections.
 
-- There is an operator `catchBoxedError` which is a typed error counterpart of `catchRejection`.
+There is an operator `catchBoxedError` which is a boxed error counterpart of `catchRejection`, and a helper type `UnboxError` that extracts what's inside an ErrorBox.
 
-Typed errors are optional in the sense that you can pretend that the concept does not exist as long as you don't use the `ErrorBox` class. There's one exception to this which is the `any` operator, but that operator isn't ergonomic without typed errors anyway. When one of the promises passed to the native `Promise.any` rejects because of a bug, the bug ends up undetected if some other input promise resolves. The LazyPromise version of `any` works like `Promise.any` when it comes to boxed errors, but rejects if just one input rejects.
+Typed errors are optional in the sense that you can pretend that the concept does not exist as long as you don't use the `ErrorBox` class. There's one exception to this which is the `any` operator, but this is only because that operator isn't ergonomic without typed errors anyway. When one of the promises passed to the native `Promise.any` rejects because of a bug, the bug passes undetected if some other input promise resolves. The LazyPromise version of `any` works like `Promise.any` with respect to boxed errors, but rejects if just one input rejects.
 
 ## Utilities
 

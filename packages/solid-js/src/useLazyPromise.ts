@@ -1,4 +1,4 @@
-import type { ErrorBox, LazyPromise } from "@lazy-promise/core";
+import type { LazyPromise, UnboxError } from "@lazy-promise/core";
 import { getOwner, onCleanup, runWithOwner } from "solid-js";
 
 /**
@@ -7,7 +7,7 @@ import { getOwner, onCleanup, runWithOwner } from "solid-js";
  * the lazy promise.
  */
 export const useLazyPromise: <Value>(
-  lazyPromise: Value extends ErrorBox<any> ? never : LazyPromise<Value>,
+  lazyPromise: UnboxError<Value> extends never ? LazyPromise<Value> : never,
 ) => void = (lazyPromise) => {
   const owner = getOwner();
   const subscription = runWithOwner(null, () =>

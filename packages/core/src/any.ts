@@ -58,7 +58,9 @@ class AnyJob implements Disposable {
   next(key: any, source: any) {
     if (source instanceof LazyPromise) {
       this.pendingCount++;
-      this.subscriptions.push(source.subscribe(new AnyConsumer(key, this)));
+      this.subscriptions.push(
+        source.subscribe<any>(new AnyConsumer(key, this)),
+      );
       return;
     }
     if (source instanceof ErrorBox) {

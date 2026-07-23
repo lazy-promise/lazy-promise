@@ -72,7 +72,7 @@ class FromGeneratorConsumerJob<TReturn> implements Consumer<any>, Disposable {
         this.sink.resolve(generatorResult.value);
         return;
       }
-      const subscription = generatorResult.value.subscribe(this);
+      const subscription = generatorResult.value.subscribe<any>(this);
       if (this.disposed) {
         subscription.dispose();
         return;

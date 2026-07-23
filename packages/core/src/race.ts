@@ -39,7 +39,7 @@ class RaceProducer implements Producer<any> {
     const job = new RaceConsumerJob(sink);
     for (const source of this.sources) {
       if (source instanceof LazyPromise) {
-        job.subscriptions.push(source.subscribe(job));
+        job.subscriptions.push(source.subscribe<any>(job));
         if (job.settled) {
           return;
         }

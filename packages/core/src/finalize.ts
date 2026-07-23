@@ -44,7 +44,7 @@ class FinalizeConsumerProducer implements Consumer<any>, Producer<any> {
     this.sink = sink;
     const callbackResult = (0, this.callback)();
     if (callbackResult instanceof LazyPromise) {
-      return callbackResult.subscribe(this);
+      return callbackResult.subscribe<any>(this);
     }
     this.resolve(callbackResult);
   }
@@ -57,7 +57,7 @@ export class FinalizeProducer implements Producer<any> {
   ) {}
 
   produce(sink: Sink<any>) {
-    return this.source.subscribe(
+    return this.source.subscribe<any>(
       new FinalizeConsumerProducer(sink, this.callback),
     );
   }

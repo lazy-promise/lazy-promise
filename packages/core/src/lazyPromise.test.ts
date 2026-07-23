@@ -1,11 +1,11 @@
-import type { Consumer, Disposable, Producer, Sink } from "@lazy-promise/core";
-import {
-  box,
+import type {
+  Consumer,
+  Disposable,
   ErrorBox,
-  LazyPromise,
-  never,
-  rejecting,
+  Producer,
+  Sink,
 } from "@lazy-promise/core";
+import { box, LazyPromise, never, rejecting } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
@@ -65,29 +65,61 @@ afterEach(() => {
 });
 
 test("types", () => {
-  const promise1 = new LazyPromise<"value a" | ErrorBox<"error a">>(() => {});
+  const promise1 = new LazyPromise<
+    "value a" | ErrorBox<"error a"> | ErrorBox<"error b">
+  >(() => {});
 
-  promise1.subscribe({ resolve: () => {} });
+  promise1.subscribe<"error a" | "error b">();
+
+  promise1.subscribe<"error a" | "error b">(undefined);
+
+  promise1.subscribe<"error a" | "error b">({});
+
+  promise1.subscribe<"error a" | "error b">({
+    resolve: (value) =>
+      expectTypeOf(value).toEqualTypeOf<
+        "value a" | ErrorBox<"error a"> | ErrorBox<"error b">
+      >(),
+    reject: () => {},
+  });
+
+  promise1.subscribe<"error a" | "error b" | "error c">();
+
+  promise1.subscribe<unknown>();
+
+  promise1.subscribe<any>();
 
   /** @ts-expect-error */
   promise1.subscribe();
 
   /** @ts-expect-error */
-  promise1.subscribe({ reject: () => {} });
-
-  /** @ts-expect-error */
-  promise1.subscribe(undefined);
-
-  /** @ts-expect-error */
-  promise1.subscribe({});
+  promise1.subscribe<"error a">();
 
   const promise2 = new LazyPromise<"value a">(() => {});
 
   promise2.subscribe();
 
-  promise2.subscribe({ reject: () => {} });
+  promise2.subscribe<"error a">();
 
-  promise2.subscribe(undefined);
+  const promise3 = never as
+    | LazyPromise<1 | ErrorBox<"error a">>
+    | LazyPromise<2 | ErrorBox<"error b">>;
+
+  promise3.subscribe<"error a" | "error b">({
+    resolve: (value) =>
+      expectTypeOf(value).toEqualTypeOf<
+        1 | 2 | ErrorBox<"error a"> | ErrorBox<"error b">
+      >(),
+  });
+
+  /** @ts-expect-error */
+  promise3.subscribe();
+
+  /** @ts-expect-error */
+  promise3.subscribe<"error a">();
+
+  /** @ts-expect-error */
+  promise3.subscribe<"error b">();
 
   expectTypeOf(box("a")).toEqualTypeOf<LazyPromise<"a">>();
 
@@ -118,8 +150,9 @@ test("types", () => {
   expectTypeOf<Sink<string>>().toExtend<Sink<"a">>();
   expectTypeOf<Sink<"a">>().not.toExtend<Sink<string>>();
 
+  const operator = <Value>(lazyPromise: LazyPromise<Value>) => lazyPromise;
   expectTypeOf(
-    (never as LazyPromise<1> | LazyPromise<2>).pipe((x) => x),
+    (never as LazyPromise<1> | LazyPromise<2>).pipe(operator),
   ).toEqualTypeOf<LazyPromise<1 | 2>>();
 });
 
@@ -682,30 +715,7 @@ test("error in error handler function", () => {
   expect(processMockMicrotaskQueue).toThrow("oops");
 });
 
-test("unhandled typed error", () => {
-  const promise = new LazyPromise<ErrorBox<"oops">>((sink) => {
-    setTimeout(() => {
-      sink.resolve(new ErrorBox("oops"));
-    }, 1000);
-  });
-  // @ts-expect-error
-  promise.subscribe();
-  expect(mockMicrotaskQueue.length).toMatchInlineSnapshot(`0`);
-  vi.runAllTimers();
-  let error;
-  try {
-    processMockMicrotaskQueue();
-  } catch (errorLocal) {
-    error = errorLocal;
-  }
-  expect(error).toMatchInlineSnapshot(`
-    ErrorBox {
-      "error": "oops",
-    }
-  `);
-});
-
-test("unhandled error", () => {
+test("unhandled rejection", () => {
   const promise = new LazyPromise<never>((sink) => {
     setTimeout(() => {
       sink.reject("oops");

@@ -3,7 +3,7 @@ import { CatchRejectionProducer } from "./catchRejection.js";
 import { FinalizeProducer } from "./finalize.js";
 import { MapProducer } from "./map.js";
 
-declare const yieldableSymbol: unique symbol;
+declare const ERROR_MESSAGE: unique symbol;
 
 export class ErrorBox<const Error> {
   constructor(public readonly error: Error) {}
@@ -20,7 +20,7 @@ const throwInMicrotask = (error: unknown) => {
 
 // eslint-disable-next-line no-use-before-define
 export type Yieldable = LazyPromise<any> & {
-  [yieldableSymbol]: `Did you forget a star (*) after yield?`;
+  [ERROR_MESSAGE]: `Did you forget a star (*) after yield?`;
 };
 
 class LazyPromiseIterator<TYield> implements Iterator<TYield> {
@@ -48,18 +48,12 @@ class LazyPromiseIterator<TYield> implements Iterator<TYield> {
 }
 
 /**
- * The object passed to `.subscribe` method of a lazy promise. `resolve` handler
- * is required if the promise can resolve to an ErrorBox.
+ * The object passed to `.subscribe` method of a lazy promise.
  */
-export type Consumer<Value> = [ErrorBox<any>] extends [Value]
-  ? {
-      resolve: (value: Value) => void;
-      reject?: (error: unknown) => void;
-    }
-  : {
-      resolve?: (value: Value) => void;
-      reject?: (error: unknown) => void;
-    } | void;
+export interface Consumer<Value> {
+  resolve?: (value: Value) => void;
+  reject?: (error: unknown) => void;
+}
 
 /**
  * The object passed to a lazy promise constructor callback or to the `.produce`
@@ -110,8 +104,6 @@ class Sink<in Value> {
       } catch (error) {
         throwInMicrotask(error);
       }
-    } else if (value instanceof ErrorBox) {
-      throwInMicrotask(value);
     }
     // For GC purposes.
     subscription.consumer = undefined;
@@ -261,14 +253,28 @@ export class LazyPromise<out Value> {
   }
 
   /**
-   * Subscribes to the lazy promise. `resolve` handler is required if the
-   * promise can resolve to an ErrorBox. `resolve` and `reject` are called with
-   * `consumer` object as `this`.
+   * Subscribes to the lazy promise.
+   *
+   * The type parameter `WhitelistedError` is used to constrain the type of
+   * boxed errors that the promise is allowed to resolve to. If you do not
+   * expect  _any_ boxed errors, just omit the type parameter so it would
+   * default to `never`. If you do expect errors of a certain type, specify it
+   * explicitly: `.subscribe<"error1" | "error2">()`. To bypass the check, use
+   * `unknown` or `any`.
+   *
+   * `resolve` and `reject` are called with `consumer` object as `this`.
    */
-  subscribe(consumer: Consumer<Value>): Disposable {
+  subscribe<WhitelistedError = never>(
+    this: UnboxError<Value> extends WhitelistedError
+      ? unknown
+      : {
+          [ERROR_MESSAGE]: `Unhandled boxed errors detected. Either catch them before subscribing, or whitelist them using the type parameter of the .subscribe method.`;
+        },
+    consumer?: Consumer<Value>,
+  ): Disposable {
     const subscription = new Subscription(
-      this.producer,
-      consumer as Consumer<any>,
+      (this as LazyPromise<Value>).producer,
+      consumer,
     );
     subscription.next();
     return subscription;
@@ -316,22 +322,21 @@ export class LazyPromise<out Value> {
    * is called if the source promise resolves or rejects, but not if it's
    * unsubscribed before settling.
    */
-  finalize<NewValue>(callback: () => NewValue): LazyPromise<
-    | Value
+  finalize<NewValue>(
+    callback: () => NewValue,
     // eslint-disable-next-line no-use-before-define
-    | (Unbox<NewValue> extends ErrorBox<infer Error> ? ErrorBox<Error> : never)
-  > {
+  ): LazyPromise<Value | Extract<Unbox<NewValue>, ErrorBox<any>>> {
     return new LazyPromise<any>(new FinalizeProducer(this, callback));
   }
 
   /**
    * Passes the lazy promise to a callback and returns the callback result.
    */
-  pipe<Value, TReturn>(
-    // Infers `Value` type param which is needed to make things work when you
-    // call pipe on a union like `LazyPromise<1> | LazyPromise<2>`.
-    this: LazyPromise<Value>,
-    callback: (value: LazyPromise<Value>) => TReturn,
+  pipe<This, TReturn>(
+    // Infers `This` type param which is needed to make things work when you
+    // call `pipe` on a union like `LazyPromise<1> | LazyPromise<2>`.
+    this: This,
+    callback: (value: This) => TReturn,
   ): TReturn {
     return callback(this);
   }

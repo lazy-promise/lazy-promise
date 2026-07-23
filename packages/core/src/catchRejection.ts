@@ -29,7 +29,7 @@ export class CatchRejectionProducer implements Producer<any> {
   ) {}
 
   produce(sink: Sink<any>) {
-    return this.source.subscribe(
+    return this.source.subscribe<any>(
       new CatchRejectionConsumer(sink, this.callback),
     );
   }
