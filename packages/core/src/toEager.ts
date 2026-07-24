@@ -1,6 +1,8 @@
-import type { Consumer, Disposable, LazyPromise } from "./lazyPromise.js";
+import type { Consumer, Disposable } from "./lazyPromise.js";
 
-class ToEagerConsumerListener implements Consumer<any>, EventListenerObject {
+export class ToEagerConsumerListener
+  implements Consumer<any>, EventListenerObject
+{
   subscription?: Disposable;
   settled = false;
 
@@ -28,35 +30,3 @@ class ToEagerConsumerListener implements Consumer<any>, EventListenerObject {
     this.rejectNative(this.signal.reason);
   }
 }
-
-/**
- * Converts a LazyPromise to a Promise. You can pass an AbortSignal in the
- * options object.
- */
-export const toEager = <Value>(
-  lazyPromise: LazyPromise<Value>,
-  options?: { readonly signal?: AbortSignal },
-): Promise<Value> =>
-  new Promise((resolve, reject) => {
-    const signal = options?.signal;
-    if (!signal) {
-      lazyPromise.subscribe<any>({ resolve, reject });
-      return;
-    }
-    signal.throwIfAborted();
-    const consumerListener = new ToEagerConsumerListener(
-      resolve,
-      reject,
-      signal,
-    );
-    const subscription = lazyPromise.subscribe<any>(consumerListener);
-    if (consumerListener.settled) {
-      return;
-    }
-    if (signal.aborted) {
-      subscription.dispose();
-      throw signal.reason;
-    }
-    consumerListener.subscription = subscription;
-    signal.addEventListener("abort", consumerListener);
-  });

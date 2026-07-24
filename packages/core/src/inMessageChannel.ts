@@ -28,7 +28,7 @@ class InMessageChannelProducer implements Producer<void> {
 }
 
 /**
- * Returns a lazy promise that posts a message in MessageChannel and resolves
+ * Returns a LazyPromise that posts a message in MessageChannel and resolves
  * with a value of type `void` when it receives the message back.
  *
  * To defer execution of a callback, use
@@ -37,7 +37,7 @@ class InMessageChannelProducer implements Producer<void> {
  * inMessageChannel().map(() => ...)
  * ```
  *
- * To make an existing lazy promise settle via MessageChannel, pipe it though
+ * To make an existing LazyPromise settle via MessageChannel, pipe it though
  *
  * ```
  * .finalize(inMessageChannel)

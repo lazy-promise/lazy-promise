@@ -22,4 +22,3 @@ export type {
 } from "./lazyPromise.js";
 export { log } from "./log.js";
 export { race } from "./race.js";
-export { toEager } from "./toEager.js";

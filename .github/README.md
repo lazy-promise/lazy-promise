@@ -95,60 +95,49 @@ Aside from superficial differences, LazyPromise API mirrors that of native Promi
 | `Promise.race(...)`               | `race(...)`                       |
 | `Awaited<T>`                      | `Unbox<T>`                        |
 
+As with an Observable, cancelling a LazyPromise automatically cancels any upstream LazyPromise it was derived from via the operators above.
+
+There is a function `fromEager` that converts an async function to a LazyPromise, and a method `toEager` that converts a LazyPromise to a Promise. Both support AbortSignal API.
+
+There is also a method `pipe` that allows you to dot-chain custom operators: `lazyPromise.pipe(foo)` is equivalent to `foo(lazyPromise)`.
+
 ## Typed errors
 
 The way that LazyPromise supports typed errors reflects the JavaScript reality that you cannot typecheck errors that you throw and have to represent typed errors with return values. Instead of having an extra channel in addition to `resolve` and `reject`, we pass typed errors through the `resolve` channel, wrapping them in ErrorBox class to differentiate them from other values. `new ErrorBox(error)` simply stores `error` in its `.error` property. Although `LazyPromise<"value" | ErrorBox<"error">>` is a little bit harder to read than `LazyPromise<"value", "error">`, an extra channel and type parameter would have introduced unnecessary complexity when it comes to using LazyPromise together with native promises and generator syntax.
 
 ErrorBox instances are treated differently from other values by LazyPromise API:
 
-- By default, if you `.subscribe` to a lazy promise that can resolve to boxed errors, you'll get a typechecking error. Sometimes you do want to subscribe nonetheless, and you can do that by whitelisting expected typed errors using the generic type parameter of `.subscribe`. This makes sure that if for example you add a new error to a server endpoint, you'll catch all the places on the client where that error isn't handled.
+- By default, if you call `.subscribe` or `.toEager` on a LazyPromise that can resolve to boxed errors, you'll get a typechecking error. This makes sure that if for example you add a new error to a server endpoint, you'll catch all the places on the client where that error isn't handled. Both methods have an optional generic type parameter WhitelistedError that you can use to silence the check for some or all errors.
 
 - `map`, `all`, and `race` operators pass boxed errors through the same way they pass through rejections.
 
 There is an operator `catchBoxedError` which is a boxed error counterpart of `catchRejection`, and a helper type `UnboxError` that extracts what's inside an ErrorBox.
 
+It's sometimes convenient to use LazyPromise on the client while sticking to async-await on the server. In that case you can still have server endpoints emit typed errors by returning error boxes from async functions.
+
 Typed errors are optional in the sense that you can pretend that the concept does not exist as long as you don't use the `ErrorBox` class. There's one exception to this which is the `any` operator, but this is only because that operator isn't ergonomic without typed errors anyway. When one of the promises passed to the native `Promise.any` rejects because of a bug, the bug passes undetected if some other input promise resolves. The LazyPromise version of `any` works like `Promise.any` with respect to boxed errors, but rejects if just one input rejects.
 
 ## Utilities
 
-- `lazyPromise.pipe(foo)` is equivalent to `foo(lazyPromise)` and allows you to dot-chain custom operators.
-
-- `toEager` converts a LazyPromise to a Promise, `fromEager` converts an async function to a LazyPromise. Both utilities support AbortSignal API.
-
-- Wrappers for browser and Node deferral APIs: `inTimeout`, `inMicrotask`, `inAnimationFrame`, `inIdleCallback`, `inImmediate`, `inNextTick`, `inMessageChannel`, `inScheduled`. Each of these returns a lazy promise that fires, typically with a value of `undefined`, in respectively `setTimeout`, `queueMicrotask` etc. Since these are non-imaginative convenience wrappers for native APIs, they don't add much complexity to the API surface, yet they remove the need for some extra constructs you'd normally find in libraries that deal with async. Take the use-case of delaying a lazy promise. With native promises, you could write
-
-  ```ts
-  try {
-    return originalPromise;
-  } finally {
-    await anotherPromise;
-  }
-  ```
-
-  and this would wait for `anotherPromise` before passing on the result of `originalPromise`. You can delay a lazy promise in the same way:
-
-  ```ts
-  originalLazyPromise.finalize(() => anotherLazyPromise);
-  ```
-
-  If `anotherLazyPromise` is `inTimeout(ms)`, that would delay `originalLazyPromise` by `ms`. If `anotherLazyPromise` is `inMicrotask()`, that would make `originalLazyPromise` fire in a microtask.
-
-- `log` function wraps a lazy promise without changing its behavior, and console.logs everything that happens to it: `lazyPromise.pipe(log("your label"))`.
-
-## Async-await syntax
-
-You cannot `await` a lazy promise, but there is nothing stopping you from returning an `ErrorBox` from an async function, and that makes it easy to produce typed errors when working with Promise-based APIs:
+The library provides wrappers for browser and Node deferral APIs: `inTimeout`, `inMicrotask`, `inAnimationFrame`, `inIdleCallback`, `inImmediate`, `inNextTick`, `inMessageChannel`, `inScheduled`. Each of these returns a LazyPromise that fires, typically with a value of `undefined`, in respectively `setTimeout`, `queueMicrotask` etc. Since these are non-imaginative convenience wrappers for native APIs, they don't add much complexity to the API surface, yet they remove the need for some extra constructs you'd normally find in libraries that deal with async. Take the use-case of delaying a LazyPromise. With native promises, you could write
 
 ```ts
-// Type inferred as LazyPromise<Data | ErrorBox<number>>
-const lazyPromise = fromEager(async ({ signal }) => {
-  const response = await fetch("https://...", { signal });
-  if (!response.ok) {
-    return new ErrorBox(response.status);
-  }
-  return (await response.json()) as Data;
-});
+try {
+  return originalPromise;
+} finally {
+  await anotherPromise;
+}
 ```
+
+and this would wait for `anotherPromise` before passing on the result of `originalPromise`. You can delay a LazyPromise in the same way:
+
+```ts
+originalLazyPromise.finalize(() => anotherLazyPromise);
+```
+
+If `anotherLazyPromise` is `inTimeout(ms)`, that would delay `originalLazyPromise` by `ms`. If `anotherLazyPromise` is `inMicrotask()`, that would make `originalLazyPromise` fire in a microtask.
+
+The library also provides a `log` function that wraps a LazyPromise without changing its behavior, and console.logs everything that happens to it: `lazyPromise.pipe(log("your label"))`.
 
 ## Generator syntax
 
@@ -170,9 +159,9 @@ const lazyPromise = fromGen(function* () {
 });
 ```
 
-Whereas rejections are handled similarly to async-await syntax, boxed errors are in this case treated like any other values that a lazy promise can resolve to.
+Whereas rejections are handled similarly to async-await syntax, boxed errors are in this case treated like any other values that a LazyPromise can resolve to.
 
-Similarly to the `finalize` operator, a `finally` block does not execute if the lazy promise returned by `fromGen` is unsubscribed before reaching it. If you don't `yield*` inside `try`/`catch`, you keep the guarantee that `finally` will run no matter what.
+Similarly to the `finalize` operator, a `finally` block does not execute if the LazyPromise returned by `fromGen` is unsubscribed before reaching it. If you don't `yield*` inside `try`/`catch`, you keep the guarantee that `finally` will run no matter what.
 
 One last thing to keep in mind is that instead of writing `yield* fromGen(foo)`, you can equivalently yield to the generator function `foo` directly: `yield* foo()`. This has an added advantage of being able to pass arguments. When defining `foo`, you can use a helper type `LazyPromiseGenerator<T>` for return value.
 

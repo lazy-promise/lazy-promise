@@ -19,7 +19,7 @@ class FromEagerJob implements Disposable {
   dispose() {
     this.options.abortController?.abort(
       new DOMException(
-        "The lazy promise subscription was disposed.",
+        "The LazyPromise subscription was disposed.",
         "AbortError",
       ),
     );

@@ -2,6 +2,7 @@ import { CatchBoxedErrorProducer } from "./catchBoxedError.js";
 import { CatchRejectionProducer } from "./catchRejection.js";
 import { FinalizeProducer } from "./finalize.js";
 import { MapProducer } from "./map.js";
+import { ToEagerConsumerListener } from "./toEager.js";
 
 declare const ERROR_MESSAGE: unique symbol;
 
@@ -48,7 +49,7 @@ class LazyPromiseIterator<TYield> implements Iterator<TYield> {
 }
 
 /**
- * The object passed to `.subscribe` method of a lazy promise.
+ * The object passed to `.subscribe` method of a LazyPromise.
  */
 export interface Consumer<Value> {
   resolve?: (value: Value) => void;
@@ -56,7 +57,7 @@ export interface Consumer<Value> {
 }
 
 /**
- * The object passed to a lazy promise constructor callback or to the `.produce`
+ * The object passed to a LazyPromise constructor callback or to the `.produce`
  * method of a Producer.
  */
 class Sink<in Value> {
@@ -228,7 +229,7 @@ class Subscription implements Disposable {
 }
 
 /**
- * The class-based equivalent of the lazy promise constructor callback.
+ * The class-based equivalent of the LazyPromise constructor callback.
  */
 export interface Producer<Value> {
   produce: (sink: Sink<Value>) => (() => void) | Disposable | void;
@@ -253,7 +254,7 @@ export class LazyPromise<out Value> {
   }
 
   /**
-   * Subscribes to the lazy promise.
+   * Subscribes to the LazyPromise.
    *
    * The type parameter `WhitelistedError` is used to constrain the type of
    * boxed errors that the promise is allowed to resolve to. If you do not
@@ -330,7 +331,53 @@ export class LazyPromise<out Value> {
   }
 
   /**
-   * Passes the lazy promise to a callback and returns the callback result.
+   * Converts a LazyPromise to a Promise. You can pass an AbortSignal in the
+   * options object.
+   *
+   * The type parameter `WhitelistedError` is used to constrain the type of
+   * boxed errors that the promise is allowed to resolve to. If you do not
+   * expect  _any_ boxed errors, just omit the type parameter so it would
+   * default to `never`. If you do expect errors of a certain type, specify it
+   * explicitly: `.toEager<"error1" | "error2">()`. To bypass the check, use
+   * `unknown` or `any`.
+   */
+  toEager<WhitelistedError = never>(
+    this: UnboxError<Value> extends WhitelistedError
+      ? unknown
+      : {
+          [ERROR_MESSAGE]: `Unhandled boxed errors detected. Either catch them before calling .toEager, or whitelist them using that method's type parameter.`;
+        },
+    options?: { readonly signal?: AbortSignal },
+  ): Promise<Value> {
+    return new Promise((resolve, reject) => {
+      const signal = options?.signal;
+      if (!signal) {
+        (this as LazyPromise<Value>).subscribe<any>({ resolve, reject });
+        return;
+      }
+      signal.throwIfAborted();
+      const consumerListener = new ToEagerConsumerListener(
+        resolve,
+        reject,
+        signal,
+      );
+      const subscription = (this as LazyPromise<Value>).subscribe<any>(
+        consumerListener,
+      );
+      if (consumerListener.settled) {
+        return;
+      }
+      if (signal.aborted) {
+        subscription.dispose();
+        throw signal.reason;
+      }
+      consumerListener.subscription = subscription;
+      signal.addEventListener("abort", consumerListener);
+    });
+  }
+
+  /**
+   * Passes the LazyPromise to a callback and returns the callback result.
    */
   pipe<This, TReturn>(
     // Infers `This` type param which is needed to make things work when you
@@ -357,8 +404,8 @@ class ResolvingProducer<Value> implements Producer<Value> {
 }
 
 /**
- * If the argument is a lazy promise, passes it through, otherwise returns
- * a lazy promise that synchronously resolves with it.
+ * If the argument is a LazyPromise, passes it through, otherwise returns a
+ * LazyPromise that synchronously resolves with it.
  */
 export const box: {
   <const Arg>(

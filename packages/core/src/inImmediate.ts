@@ -20,7 +20,7 @@ class InImmediateProducer implements Producer<void> {
 }
 
 /**
- * Returns a lazy promise that resolves with a value of type `void` in a
+ * Returns a LazyPromise that resolves with a value of type `void` in a
  * setImmediate callback (deprecated outside of Node).
  *
  * To defer execution of a callback, use
@@ -29,7 +29,7 @@ class InImmediateProducer implements Producer<void> {
  * inImmediate().map(() => ...)
  * ```
  *
- * To make an existing lazy promise settle via setImmediate, pipe it though
+ * To make an existing LazyPromise settle via setImmediate, pipe it though
  *
  * ```
  * .finalize(inImmediate)

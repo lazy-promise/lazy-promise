@@ -2,9 +2,9 @@ import type { LazyPromise, UnboxError } from "@lazy-promise/core";
 import { getOwner, onCleanup, runWithOwner } from "solid-js";
 
 /**
- * Subscribes to a lazy promise and unsubscribes when the scope is disposed. The
- * lazy promise must not resolve to an ErrorBox. To error out the scope, reject
- * the lazy promise.
+ * Subscribes to a LazyPromise and unsubscribes when the scope is disposed. The
+ * LazyPromise must not resolve to an ErrorBox. To error out the scope, reject
+ * the LazyPromise.
  */
 export const useLazyPromise: <Value>(
   lazyPromise: UnboxError<Value> extends never ? LazyPromise<Value> : never,

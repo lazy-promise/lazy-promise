@@ -9,7 +9,7 @@ export type TrackProcessing = <Value>(
 /**
  * A utility useful for things like loading indicators. Returns a tuple
  * `[processing, trackProcessing]`. `trackProcessing` is an operator that you
- * can apply to one or more lazy promises:
+ * can apply to one or more LazyPromises:
  *
  * ```
  * const [processing, trackProcessing] = createTrackProcessing();

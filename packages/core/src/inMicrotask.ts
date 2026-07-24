@@ -10,7 +10,7 @@ class InMicrotaskProducer implements Producer<void> {
 }
 
 /**
- * Returns a lazy promise that resolves in a microtask with a value of type
+ * Returns a LazyPromise that resolves in a microtask with a value of type
  * `void`.
  *
  * To defer execution of a callback, use
@@ -19,7 +19,7 @@ class InMicrotaskProducer implements Producer<void> {
  * inMicrotask().map(() => ...)
  * ```
  *
- * To make an existing lazy promise settle in a microtask, pipe it though
+ * To make an existing LazyPromise settle in a microtask, pipe it though
  *
  * ```
  * .finalize(inMicrotask)

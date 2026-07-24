@@ -22,7 +22,7 @@ class InIdleCallbackProducer implements Producer<IdleDeadline> {
 }
 
 /**
- * Takes optional IdleRequestOptions, and returns a lazy promise that resolves
+ * Takes optional IdleRequestOptions, and returns a LazyPromise that resolves
  * with `IdleDeadline` in an idle callback.
  *
  * To defer execution of a callback, use
@@ -31,7 +31,7 @@ class InIdleCallbackProducer implements Producer<IdleDeadline> {
  * inIdleCallback().map(() => ...)
  * ```
  *
- * To make an existing lazy promise settle in an idle callback, pipe it though
+ * To make an existing LazyPromise settle in an idle callback, pipe it though
  *
  * ```
  * .finalize(inIdleCallback)

@@ -20,7 +20,7 @@ class InAnimationFrameProducer implements Producer<DOMHighResTimeStamp> {
 }
 
 /**
- * Returns a lazy promise that resolves with `DOMHighResTimeStamp` in an
+ * Returns a LazyPromise that resolves with `DOMHighResTimeStamp` in an
  * animation frame.
  */
 export const inAnimationFrame = (): LazyPromise<DOMHighResTimeStamp> =>

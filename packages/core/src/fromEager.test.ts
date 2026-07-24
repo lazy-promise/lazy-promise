@@ -279,7 +279,7 @@ test("cancelation with abort signal", () => {
     [
       [
         "handleAbort",
-        "AbortError: The lazy promise subscription was disposed.",
+        "AbortError: The LazyPromise subscription was disposed.",
       ],
     ]
   `);

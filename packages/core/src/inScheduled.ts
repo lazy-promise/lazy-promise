@@ -36,7 +36,7 @@ class InScheduledProducer implements Producer<void> {
 
 /**
  * Takes an optional object with task priority ("user-visible" by default), and
- * returns a lazy promise that resolves with a value of type `void` in a
+ * returns a LazyPromise that resolves with a value of type `void` in a
  * `scheduler.postTask` callback.
  *
  * To defer execution of a callback, use
@@ -45,7 +45,7 @@ class InScheduledProducer implements Producer<void> {
  * inScheduled().map(() => ...)
  * ```
  *
- * To make an existing lazy promise settle via `scheduler`, pipe it though
+ * To make an existing LazyPromise settle via `scheduler`, pipe it though
  *
  * ```
  * .finalize(inScheduled)

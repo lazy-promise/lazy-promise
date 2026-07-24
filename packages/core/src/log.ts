@@ -28,7 +28,7 @@ const bumpStackLevel = <T>(callback: () => T) => {
 };
 
 /**
- * Wraps a lazy promise without changing its behavior, and console.logs
+ * Wraps a LazyPromise without changing its behavior, and console.logs
  * everything that happens to it.
  *
  * ```
