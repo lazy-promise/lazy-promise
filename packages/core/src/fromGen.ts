@@ -143,6 +143,5 @@ export const fromGen = <
   TReturn = void,
 >(
   generatorFunction: () => Generator<TYield, TReturn>,
-): LazyPromise<
-  Unbox<TReturn> | (TYield extends LazyPromise<infer Value> ? Value : never)
-> => new LazyPromise<any>(new FromGeneratorProducer(generatorFunction));
+): LazyPromise<Unbox<TReturn | TYield>> =>
+  new LazyPromise<any>(new FromGeneratorProducer(generatorFunction));
