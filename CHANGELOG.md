@@ -1,5 +1,25 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.21](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.21)
+
+- Rename `unsubscribe` to `dispose` and have subscriptions typed as `Disposable`s.
+
+- Rename `InnerSubscriber` to `Sink`.
+
+- Rename `Subscriber` to `Consumer`.
+
+- Rename `TypedError` to `ErrorBox`.
+
+- Add type `UnboxError`.
+
+- `toEager` becomes a method rather than a function.
+
+- Add `WhitelistedError` type parameter to `.subscribe` and `.toEager`.
+
+- Generator functions now pass typed errors through.
+
+- Remove type `LazyPromiseGenerator`.
+
 ## [@lazy-promise/core@0.0.28](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.28)
 
 - Rename `fromGenerator` to `fromGen`.
