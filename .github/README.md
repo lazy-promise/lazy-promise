@@ -16,7 +16,7 @@ npm install @lazy-promise/core
 
 ### If you start with Observable
 
-Observable is beautifully simple conceptually, and has a great cancellation mechanism. LazyPromise keeps all that, but limits Observable to a single shot--you could say it's a JavaScript cousin of a Single in Rx Java. The reason it does it is that a multi-shot Observable can be used to represent state, and as Signals have shown, what you want for state is a push-pull system, not a push-only primitive like an Observable. Specifically, if you use Observable you end up with the [Diamond Problem](https://stackblitz.com/edit/rxjs-diamond-problem-s8cy9zzb?devToolsHeight=50&file=index.ts) and [undesirable behavior in the case of sync reentry](https://stackblitz.com/edit/rxjs-sync-reentry-vxjr9fhr?devToolsHeight=50&file=index.ts). By limiting itself to a single shot, LazyPromise focuses just on the async, and is intended to be used together with a state library, whether Signals-based or otherwise (here's a proof-of-concept async signals [library](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals) built on top of LazyPromise and alien-signals).
+Observable is beautifully simple conceptually, and has a great cancellation mechanism. LazyPromise keeps all that, but limits Observable to a single shot&mdash;you could say it's a JavaScript cousin of a Single in Rx Java. The reason it does it is that a multi-shot Observable can be used to represent state, and as Signals have shown, what you want for state is a push-pull system, not a push-only primitive like an Observable. Specifically, if you use Observable you end up with the [Diamond Problem](https://stackblitz.com/edit/rxjs-diamond-problem-s8cy9zzb?devToolsHeight=50&file=index.ts) and [undesirable behavior in the case of sync reentry](https://stackblitz.com/edit/rxjs-sync-reentry-vxjr9fhr?devToolsHeight=50&file=index.ts). By limiting itself to a single shot, LazyPromise focuses just on the async, and is intended to be used together with a state library, whether Signals-based or otherwise (here's a proof-of-concept async signals [library](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals) built on top of LazyPromise and alien-signals).
 
 ### If you start with a native promise
 
@@ -146,7 +146,7 @@ originalLazyPromise.finalize(() => anotherLazyPromise);
 
 If `anotherLazyPromise` is `inTimeout(ms)`, that would delay `originalLazyPromise` by `ms`. If `anotherLazyPromise` is `inMicrotask()`, that would make `originalLazyPromise` fire in a microtask.
 
-Notice that whether it's a `finally` block or the `finalize` operator, `anotherLazyPromise` will never get subscribed if the whole flow is cancelled while waiting for originalLazyPromise. In the sync world, we're used to a guarantee that the `finally` block always runs, and you do get that guarantee, but only if you don't `yield*` inside `try`/`catch`--it's simply the way JavaScript generator functions work.
+Notice that whether it's a `finally` block or the `finalize` operator, `anotherLazyPromise` will never get subscribed if the whole flow is cancelled while waiting for originalLazyPromise. In the sync world, we're used to a guarantee that the `finally` block always runs, and you do get that guarantee, but only if you don't `yield*` inside `try`/`catch`&mdash;it's simply the way JavaScript generator functions work.
 
 The library also provides a `log` function that wraps a LazyPromise without changing its behavior, and console.logs everything that happens to it: `lazyPromise.pipe(log("your label"))`.
 
