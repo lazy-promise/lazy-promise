@@ -6,9 +6,7 @@ import type {
   Unbox,
   Yieldable,
 } from "./lazyPromise.js";
-import { LazyPromise } from "./lazyPromise.js";
-
-export type LazyPromiseGenerator<TReturn> = Generator<Yieldable, TReturn>;
+import { ErrorBox, LazyPromise } from "./lazyPromise.js";
 
 const emptySymbol = Symbol("empty");
 
@@ -22,7 +20,7 @@ class FromGeneratorConsumerJob<TReturn> implements Consumer<any>, Disposable {
 
   constructor(
     public sink: Sink<any>,
-    public generator: Generator<Yieldable, TReturn, any>,
+    public generator: Generator<LazyPromise<any> & Yieldable, TReturn, any>,
   ) {}
 
   resolve(value: any) {
@@ -33,7 +31,10 @@ class FromGeneratorConsumerJob<TReturn> implements Consumer<any>, Disposable {
     }
     try {
       // May throw.
-      const generatorResult = this.generator.next(value);
+      const generatorResult =
+        value instanceof ErrorBox
+          ? this.generator.return(value as any)
+          : this.generator.next(value);
       if (this.disposed) {
         return;
       }
@@ -66,7 +67,12 @@ class FromGeneratorConsumerJob<TReturn> implements Consumer<any>, Disposable {
   }
 
   // May throw.
-  next(generatorResult: IteratorResult<Yieldable, TReturn | void>) {
+  next(
+    generatorResult: IteratorResult<
+      LazyPromise<any> & Yieldable,
+      TReturn | void
+    >,
+  ) {
     while (true) {
       if (generatorResult.done) {
         this.sink.resolve(generatorResult.value);
@@ -79,7 +85,10 @@ class FromGeneratorConsumerJob<TReturn> implements Consumer<any>, Disposable {
       }
       if (this.value !== emptySymbol) {
         // May throw.
-        generatorResult = this.generator.next(this.value);
+        generatorResult =
+          this.value instanceof ErrorBox
+            ? this.generator.return(this.value as any)
+            : this.generator.next(this.value);
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (this.disposed) {
           return;
@@ -111,7 +120,7 @@ class FromGeneratorConsumerJob<TReturn> implements Consumer<any>, Disposable {
 }
 
 class FromGeneratorProducer<TReturn> implements Producer<any> {
-  constructor(public generatorFunction: () => LazyPromiseGenerator<TReturn>) {}
+  constructor(public generatorFunction: () => Generator<any, TReturn>) {}
 
   produce(sink: Sink<any>) {
     // This may throw and cause promise rejection.
@@ -129,7 +138,11 @@ class FromGeneratorProducer<TReturn> implements Producer<any> {
 /**
  * Converts a generator function to a LazyPromise.
  */
-export const fromGen = <TReturn>(
-  generatorFunction: () => LazyPromiseGenerator<TReturn>,
-): LazyPromise<Unbox<TReturn>> =>
-  new LazyPromise<any>(new FromGeneratorProducer(generatorFunction));
+export const fromGen = <
+  TYield extends LazyPromise<any> & Yieldable = never,
+  TReturn = void,
+>(
+  generatorFunction: () => Generator<TYield, TReturn>,
+): LazyPromise<
+  Unbox<TReturn> | (TYield extends LazyPromise<infer Value> ? Value : never)
+> => new LazyPromise<any>(new FromGeneratorProducer(generatorFunction));

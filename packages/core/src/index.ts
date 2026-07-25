@@ -2,7 +2,6 @@ export { all } from "./all.js";
 export { any } from "./any.js";
 export { fromEager } from "./fromEager.js";
 export { fromGen } from "./fromGen.js";
-export type { LazyPromiseGenerator } from "./fromGen.js";
 export { inAnimationFrame } from "./inAnimationFrame.js";
 export { inIdleCallback } from "./inIdleCallback.js";
 export { inImmediate } from "./inImmediate.js";

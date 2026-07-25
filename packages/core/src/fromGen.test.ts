@@ -1,4 +1,4 @@
-import type { Consumer, LazyPromiseGenerator } from "@lazy-promise/core";
+import type { Consumer } from "@lazy-promise/core";
 import {
   box,
   ErrorBox,
@@ -60,7 +60,7 @@ test("types", () => {
       const value = yield* new LazyPromise<"a" | "b" | ErrorBox<"error1">>(
         () => {},
       );
-      expectTypeOf(value).toEqualTypeOf<"a" | "b" | ErrorBox<"error1">>();
+      expectTypeOf(value).toEqualTypeOf<"a" | "b">();
       if (value === "a") {
         return yield* new LazyPromise<ErrorBox<"error2">>(() => {});
       }
@@ -72,7 +72,7 @@ test("types", () => {
     const value = yield* new LazyPromise<"a" | "b" | ErrorBox<"error1">>(
       () => {},
     );
-    expectTypeOf(value).toEqualTypeOf<"a" | "b" | ErrorBox<"error1">>();
+    expectTypeOf(value).toEqualTypeOf<"a" | "b">();
     if (value === "a") {
       return yield* new LazyPromise<ErrorBox<"error2">>(() => {});
     }
@@ -110,6 +110,18 @@ test("types", () => {
       yield* rejecting(1);
     }),
   ).toEqualTypeOf<LazyPromise<void>>();
+
+  expectTypeOf(
+    fromGen(function* () {
+      yield* box("a");
+    }),
+  ).toEqualTypeOf<LazyPromise<void>>();
+
+  expectTypeOf(
+    fromGen(function* () {
+      yield* box(new ErrorBox("error a"));
+    }),
+  ).toEqualTypeOf<LazyPromise<void | ErrorBox<"error a">>>();
 
   /** @ts-expect-error */
   fromGen(function* () {
@@ -154,7 +166,9 @@ test("types", () => {
     });
     return promise.map((x) => x);
   };
-  expectTypeOf(f2("a" as const)).toEqualTypeOf<LazyPromise<{ prop: "a" }>>();
+  expectTypeOf(f2("a" as const)).toEqualTypeOf<
+    LazyPromise<{ prop: "a" } | ErrorBox<"a">>
+  >();
 });
 
 test("value of this", () => {
@@ -199,32 +213,6 @@ test("return value", () => {
       [
         "handleValue",
         "a",
-      ],
-    ]
-  `);
-});
-
-test("yield to another generator function", () => {
-  const a = function* (): LazyPromiseGenerator<number> {
-    const value = yield* new LazyPromise<string>((sink) => {
-      setTimeout(() => {
-        sink.resolve("value");
-      }, 1000);
-    });
-    expect(value).toMatchInlineSnapshot(`"value"`);
-    return 1;
-  };
-  const promise = fromGen(function* () {
-    return yield* a();
-  });
-  promise.subscribe(logConsumer);
-  vi.runAllTimers();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      "1000 ms passed",
-      [
-        "handleValue",
-        1,
       ],
     ]
   `);
@@ -500,6 +488,180 @@ test("yield to an async rejected (caught)", () => {
       ],
       [
         "handleValue",
+        "b",
+      ],
+    ]
+  `);
+});
+
+test("yield to a sync boxed error", () => {
+  fromGen(function* () {
+    log("in generator");
+    const value = yield* box(new ErrorBox("a"));
+    log("unreachable", value);
+  }).subscribe<unknown>(logConsumer);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      [
+        "handleValue",
+        ErrorBox {
+          "error": "a",
+        },
+      ],
+    ]
+  `);
+});
+
+test("yield to an async boxed error", () => {
+  fromGen(function* () {
+    log("in generator");
+    const value = yield* new LazyPromise<ErrorBox<"a">>((sink) => {
+      setTimeout(() => {
+        sink.resolve(new ErrorBox("a"));
+      }, 1000);
+    });
+    log("unreachable", value);
+  }).subscribe<unknown>(logConsumer);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+    ]
+  `);
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "handleValue",
+        ErrorBox {
+          "error": "a",
+        },
+      ],
+    ]
+  `);
+});
+
+test("a boxed error is not caught by try/catch", () => {
+  fromGen(function* () {
+    log("in generator");
+    try {
+      yield* box(new ErrorBox("a"));
+      log("unreachable");
+    } catch (e) {
+      log("unreachable in catch", e);
+    }
+  }).subscribe<unknown>(logConsumer);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      [
+        "handleValue",
+        ErrorBox {
+          "error": "a",
+        },
+      ],
+    ]
+  `);
+});
+
+test("a boxed error runs the finally clause", () => {
+  fromGen(function* () {
+    log("in generator");
+    try {
+      yield* box(new ErrorBox("a"));
+      log("unreachable");
+    } finally {
+      log("in finally");
+    }
+  }).subscribe<unknown>(logConsumer);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      [
+        "in finally",
+      ],
+      [
+        "handleValue",
+        ErrorBox {
+          "error": "a",
+        },
+      ],
+    ]
+  `);
+});
+
+test("override a boxed error with return in finally clause", () => {
+  fromGen(function* () {
+    log("in generator");
+    try {
+      yield* box(new ErrorBox("a"));
+    } finally {
+      // eslint-disable-next-line no-unsafe-finally
+      return "b";
+    }
+  }).subscribe<unknown>(logConsumer);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      [
+        "handleValue",
+        "b",
+      ],
+    ]
+  `);
+});
+
+test("override a boxed error with another boxed error in finally clause", () => {
+  fromGen(function* () {
+    log("in generator");
+    try {
+      yield* box(new ErrorBox("a"));
+    } finally {
+      yield* box(new ErrorBox("b"));
+    }
+  }).subscribe<unknown>(logConsumer);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      [
+        "handleValue",
+        ErrorBox {
+          "error": "b",
+        },
+      ],
+    ]
+  `);
+});
+
+test("override a boxed error with rejection in finally clause", () => {
+  fromGen(function* () {
+    log("in generator");
+    try {
+      yield* box(new ErrorBox("a"));
+    } finally {
+      yield* rejecting("b");
+    }
+  }).subscribe<unknown>(logConsumer);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in generator",
+      ],
+      [
+        "handleError",
         "b",
       ],
     ]

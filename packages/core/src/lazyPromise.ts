@@ -4,8 +4,6 @@ import { FinalizeProducer } from "./finalize.js";
 import { MapProducer } from "./map.js";
 import { ToEagerConsumerListener } from "./toEager.js";
 
-declare const ERROR_MESSAGE: unique symbol;
-
 export class ErrorBox<const Error> {
   constructor(public readonly error: Error) {}
   declare private brand: any;
@@ -19,9 +17,8 @@ const throwInMicrotask = (error: unknown) => {
   });
 };
 
-// eslint-disable-next-line no-use-before-define
-export type Yieldable = LazyPromise<any> & {
-  [ERROR_MESSAGE]: `Did you forget a star (*) after yield?`;
+export type Yieldable = {
+  [`❌ Did you forget a star (*) after yield?`]: never;
 };
 
 class LazyPromiseIterator<TYield> implements Iterator<TYield> {
@@ -269,7 +266,7 @@ export class LazyPromise<out Value> {
     this: UnboxError<Value> extends WhitelistedError
       ? unknown
       : {
-          [ERROR_MESSAGE]: `Unhandled boxed errors detected. Either catch them before subscribing, or whitelist them using the type parameter of the .subscribe method.`;
+          [`❌ Unhandled boxed errors detected. Either catch them before subscribing, or whitelist them using the type parameter of the .subscribe method.`]: never;
         },
     consumer?: Consumer<Value>,
   ): Disposable {
@@ -345,7 +342,7 @@ export class LazyPromise<out Value> {
     this: UnboxError<Value> extends WhitelistedError
       ? unknown
       : {
-          [ERROR_MESSAGE]: `Unhandled boxed errors detected. Either catch them before calling .toEager, or whitelist them using that method's type parameter.`;
+          [`❌ Unhandled boxed errors detected. Either catch them before calling .toEager, or whitelist them using that method's type parameter.`]: never;
         },
     options?: { readonly signal?: AbortSignal },
   ): Promise<Value> {
@@ -389,7 +386,12 @@ export class LazyPromise<out Value> {
   }
 
   [Symbol.iterator](): {
-    next(...args: ReadonlyArray<any>): IteratorResult<Yieldable, Value>;
+    next(
+      ...args: ReadonlyArray<any>
+    ): IteratorResult<
+      LazyPromise<Extract<Value, ErrorBox<any>>> & Yieldable,
+      Exclude<Value, ErrorBox<any>>
+    >;
   } {
     return new LazyPromiseIterator(this as any);
   }
