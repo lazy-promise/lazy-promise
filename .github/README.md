@@ -106,11 +106,15 @@ There is also a method `pipe` that allows you to dot-chain custom operators: `la
 This syntax is the LazyPromise equivalent of async-await. It lets you take advantage of JavaScript control flow statements, and as with chained operators, you get automatic cancellation. Just use generator functions instead of async functions, and `yield*` instead of `await`:
 
 ```
-// Type inferred as LazyPromise<number | string>
+// Type inferred as LazyPromise<number>
 const lazyPromise = fromGen(function* () {
-  // Type inferred as number | undefined
-  const value = yield* new LazyPromise<number | undefined>(...);
-  return value ?? new LazyPromise<string>(...);
+  while (true) {
+    // Type inferred as number | undefined
+    const value = yield* new LazyPromise<number | undefined>(...);
+    if (value !== undefined) {
+      return value;
+    }
+  }
 });
 ```
 
