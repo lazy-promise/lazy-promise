@@ -32,7 +32,7 @@ Those concerns aside though, native promise API is actually quite elegant, and L
 
 ### If you start with Effect
 
-Like Effect, LazyPromise supports generator syntax, typed errors, and dependency injection, but the two could not be further apart on the library vs. framework spectrum.
+Like Effect, LazyPromise supports generator syntax, typed errors, and dependency injection, but the two could not be further apart on the library vs. framework scale.
 
 ## Usage
 
