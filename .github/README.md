@@ -82,7 +82,7 @@ subscription.dispose();
 
 Aside from superficial differences, LazyPromise API mirrors that of native promise:
 
-| Promise api                       | LazyPromise equivalent            |
+| Promise API                       | LazyPromise equivalent            |
 | :-------------------------------- | :-------------------------------- |
 | `promise.then(foo)`               | `lazyPromise.map(foo)`            |
 | `promise.catch(foo)`              | `lazyPromise.catchRejection(foo)` |
