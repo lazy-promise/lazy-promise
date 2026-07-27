@@ -95,7 +95,7 @@ Aside from superficial differences, LazyPromise API mirrors that of native promi
 | `Promise.race(...)`               | `race(...)`                       |
 | `Awaited<T>`                      | `Unbox<T>`                        |
 
-As with an Observable, cancelling a LazyPromise automatically cancels any upstream LazyPromise it was derived from via the operators above.
+Cancelling a LazyPromise automatically cancels any upstream LazyPromise it was derived from via the operators above.
 
 There is a function `fromEager` that converts an async function to a LazyPromise, and a method `toEager` that converts a LazyPromise to a Promise. Both support AbortSignal API.
 
