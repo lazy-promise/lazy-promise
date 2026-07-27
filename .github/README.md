@@ -56,9 +56,9 @@ const lazyPromise = new LazyPromise<"value">((sink) => {
 
 Whereas a native promise executes eagerly and retains the result once it settles, a LazyPromise behaves like an Observable. The way to think of it is `new LazyPromise(foo)` is simply `foo` with a wrapper around it that's only there to enforce a few invariants:
 
-- Nothing gets emitted after you unsubscribe.
+- If something gets emitted, that only happens once.
 
-- If something does get emitted, that only happens once.
+- Nothing gets emitted after you unsubscribe.
 
 - The teardown function is run at most once, and only if nothing was emitted.
 
