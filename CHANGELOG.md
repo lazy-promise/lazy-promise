@@ -1,6 +1,6 @@
 # Changelog
 
-## [@lazy-promise/core@0.0.21](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.21)
+## [@lazy-promise/core@0.0.29](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.29)
 
 - Rename `unsubscribe` to `dispose` and have subscriptions typed as `Disposable`s.
 

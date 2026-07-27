@@ -1,6 +1,6 @@
 {
   "name": "@lazy-promise/alien-signals",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Async signals built on top of alien-signals and LazyPromise",
   "repository": "https://github.com/lazy-promise/lazy-promise.git",
   "license": "MIT",
