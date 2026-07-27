@@ -80,6 +80,16 @@ test("types", () => {
       throw "oops";
     }),
   ).toEqualTypeOf<LazyPromise<1>>();
+
+  expectTypeOf(
+    new LazyPromise<void, { outer: null }>(() => {}).finalize(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      (dep: { callback: null }) =>
+        new LazyPromise<void, { inner: null }>(() => {}),
+    ),
+  ).toEqualTypeOf<
+    LazyPromise<void, { outer: null } & { inner: null } & { callback: null }>
+  >();
 });
 
 test("value of this", () => {
@@ -230,6 +240,37 @@ test("unsubscribe and throw in the callback (source rejects)", () => {
     .subscribe(logConsumer);
   sink!.reject(1);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
+});
+
+test("dependency injection", () => {
+  new LazyPromise<void, "dep">((sink, dep) => {
+    log("outer promise dep", dep);
+    sink.resolve();
+  })
+    .finalize((dep: "dep") => {
+      log("callback dep", dep);
+      return new LazyPromise<void, "dep">((sink, dep) => {
+        log("inner promise dep", dep);
+      });
+    })
+    .subscribe(undefined, "dep");
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "outer promise dep",
+        "dep",
+      ],
+      [
+        "callback dep",
+        "dep",
+      ],
+      [
+        "inner promise dep",
+        "dep",
+      ],
+    ]
+  `);
 });
 
 test("inner promise resolves (source resolves)", () => {

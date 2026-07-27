@@ -18,7 +18,9 @@
 
 - Generator functions now pass typed errors through.
 
-- Remove type `LazyPromiseGenerator`.
+- Remove `LazyPromiseGenerator` helper type.
+
+- Add support for dependency injection.
 
 ## [@lazy-promise/core@0.0.28](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.28)
 

@@ -2,6 +2,7 @@ import type {
   Consumer,
   Disposable,
   ErrorBox,
+  InferDep,
   Producer,
   Sink,
 } from "@lazy-promise/core";
@@ -120,6 +121,50 @@ test("types", () => {
 
   /** @ts-expect-error */
   promise3.subscribe<"error b">();
+
+  new LazyPromise<void, "dep">(() => {}).subscribe(undefined, "dep");
+  new LazyPromise<void, undefined>(() => {}).subscribe();
+  new LazyPromise<void, void>(() => {}).subscribe();
+  new LazyPromise<void, number | undefined>(() => {}).subscribe();
+  /** @ts-expect-error */
+  new LazyPromise<void, "dep">(() => {}).subscribe();
+  /** @ts-expect-error */
+  new LazyPromise<void, "dep">(() => {}).subscribe(undefined);
+  /** @ts-expect-error */
+  new LazyPromise<void, never>(() => {}).subscribe();
+  /** @ts-expect-error */
+  new LazyPromise<void, never>(() => {}).subscribe(undefined, "dep");
+
+  expectTypeOf(
+    new LazyPromise<void, "dep">((sink, dep) => {
+      expectTypeOf(dep).toEqualTypeOf<"dep">();
+    }),
+  );
+
+  expectTypeOf<InferDep<LazyPromise<void, "dep">>>().toEqualTypeOf<"dep">();
+
+  expectTypeOf<
+    InferDep<LazyPromise<void, { a: null }> | LazyPromise<void, { b: null }>>
+  >().toEqualTypeOf<{ a: null } & { b: null }>();
+
+  // Non-promise members of the union should not affect the result.
+  expectTypeOf<
+    InferDep<LazyPromise<void, "dep"> | 42>
+  >().toEqualTypeOf<"dep">();
+
+  expectTypeOf<InferDep<LazyPromise<void, never>>>().toEqualTypeOf<never>();
+
+  expectTypeOf<
+    InferDep<LazyPromise<void, "a"> | LazyPromise<void, "b">>
+  >().toEqualTypeOf<never>();
+
+  expectTypeOf<
+    InferDep<LazyPromise<void, "dep a"> | LazyPromise<void, "dep b">>
+  >().toEqualTypeOf<never>();
+
+  expectTypeOf<InferDep<42>>().toEqualTypeOf<unknown>();
+
+  expectTypeOf<InferDep<never>>().toEqualTypeOf<unknown>();
 
   expectTypeOf(box("a")).toEqualTypeOf<LazyPromise<"a">>();
 
@@ -795,6 +840,70 @@ test("unsubscribed", () => {
     [
       [
         "produce",
+      ],
+    ]
+  `);
+});
+
+test("dependency injection", () => {
+  new LazyPromise<void, "dep">((sink, dep) => {
+    log("produce", dep);
+  }).subscribe(logConsumer, "dep");
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+        "dep",
+      ],
+    ]
+  `);
+
+  new LazyPromise<void, "dep">({
+    produce: (sink, dep) => {
+      log("produce", dep);
+    },
+  }).subscribe(logConsumer, "dep");
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+        "dep",
+      ],
+    ]
+  `);
+
+  new LazyPromise<void, "dep">((sink) => {
+    sink.resolve(
+      new LazyPromise<void, "dep">((sink, dep) => {
+        log("produce", dep);
+      }),
+    );
+  }).subscribe(logConsumer, "dep");
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "produce",
+        "dep",
+      ],
+    ]
+  `);
+
+  new LazyPromise<void, "dep">((sink) => {
+    setTimeout(() => {
+      sink.resolve(
+        new LazyPromise<void, "dep">((sink, dep) => {
+          log("produce", dep);
+        }),
+      );
+    }, 1000);
+  }).subscribe(logConsumer, "dep");
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "produce",
+        "dep",
       ],
     ]
   `);

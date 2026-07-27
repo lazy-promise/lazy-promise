@@ -1,4 +1,4 @@
-import type { Sink, Consumer } from "@lazy-promise/core";
+import type { Consumer, Sink } from "@lazy-promise/core";
 import { box, LazyPromise, rejecting } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
@@ -64,6 +64,16 @@ test("types", () => {
       () => "value b" as const,
     ),
   ).toEqualTypeOf<LazyPromise<"value a" | "value b">>();
+
+  expectTypeOf(
+    new LazyPromise<void, { outer: null }>(() => {}).catchRejection(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      (error, dep: { callback: null }) =>
+        new LazyPromise<void, { inner: null }>(() => {}),
+    ),
+  ).toEqualTypeOf<
+    LazyPromise<void, { outer: null } & { inner: null } & { callback: null }>
+  >();
 });
 
 test("value of this", () => {
@@ -238,4 +248,35 @@ test("unsubscribe and throw in the callback", () => {
     })
     .subscribe(logConsumer);
   sink!.reject(1);
+});
+
+test("dependency injection", () => {
+  new LazyPromise<never, "dep">((sink, dep) => {
+    log("outer promise dep", dep);
+    sink.reject("oops");
+  })
+    .catchRejection((error, dep: "dep") => {
+      log("callback dep", dep);
+      return new LazyPromise<void, "dep">((sink, dep) => {
+        log("inner promise dep", dep);
+      });
+    })
+    .subscribe(undefined, "dep");
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "outer promise dep",
+        "dep",
+      ],
+      [
+        "callback dep",
+        "dep",
+      ],
+      [
+        "inner promise dep",
+        "dep",
+      ],
+    ]
+  `);
 });

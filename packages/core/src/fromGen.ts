@@ -1,6 +1,7 @@
 import type {
   Consumer,
   Disposable,
+  InferDep,
   Producer,
   Sink,
   Unbox,
@@ -21,6 +22,7 @@ class FromGeneratorConsumerJob<TReturn> implements Consumer<any>, Disposable {
   constructor(
     public sink: Sink<any>,
     public generator: Generator<LazyPromise<any> & Yieldable, TReturn, any>,
+    public dep: any,
   ) {}
 
   resolve(value: any) {
@@ -78,7 +80,7 @@ class FromGeneratorConsumerJob<TReturn> implements Consumer<any>, Disposable {
         this.sink.resolve(generatorResult.value);
         return;
       }
-      const subscription = generatorResult.value.subscribe<any>(this);
+      const subscription = generatorResult.value.subscribe<any>(this, this.dep);
       if (this.disposed) {
         subscription.dispose();
         return;
@@ -119,13 +121,15 @@ class FromGeneratorConsumerJob<TReturn> implements Consumer<any>, Disposable {
   }
 }
 
-class FromGeneratorProducer<TReturn> implements Producer<any> {
-  constructor(public generatorFunction: () => Generator<any, TReturn>) {}
+class FromGeneratorProducer<TReturn> implements Producer<any, any> {
+  constructor(
+    public generatorFunction: (dep: any) => Generator<any, TReturn>,
+  ) {}
 
-  produce(sink: Sink<any>) {
+  produce(sink: Sink<any>, dep: any) {
     // This may throw and cause promise rejection.
-    const generator = (0, this.generatorFunction)();
-    const job = new FromGeneratorConsumerJob(sink, generator);
+    const generator = (0, this.generatorFunction)(dep);
+    const job = new FromGeneratorConsumerJob(sink, generator, dep);
     // This may throw and cause promise rejection.
     job.next(
       // This may throw and cause promise rejection.
@@ -139,9 +143,12 @@ class FromGeneratorProducer<TReturn> implements Producer<any> {
  * Converts a generator function to a LazyPromise.
  */
 export const fromGen = <
-  TYield extends LazyPromise<any> & Yieldable = never,
+  TYield extends LazyPromise<any, any> & Yieldable = never,
   TReturn = void,
+  ExtraDep = unknown,
 >(
-  generatorFunction: () => Generator<TYield, TReturn>,
-): LazyPromise<Unbox<TReturn | TYield>> =>
-  new LazyPromise<any>(new FromGeneratorProducer(generatorFunction));
+  generatorFunction: (dep: ExtraDep) => Generator<TYield, TReturn>,
+): LazyPromise<
+  Unbox<TYield | TReturn>,
+  ExtraDep & InferDep<TYield | TReturn>
+> => new LazyPromise<any>(new FromGeneratorProducer(generatorFunction));

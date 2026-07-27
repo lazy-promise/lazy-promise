@@ -1,7 +1,7 @@
 {
   "name": "@lazy-promise/core",
   "version": "0.0.28",
-  "description": "A Promise-like primitive which is lazy, cancelable, supports typed errors, and emits synchronously instead of in a microtask",
+  "description": "A Promise-like primitive which is lazy, cancelable, emits synchronously instead of in a microtask, and supports typed errors and dependency injection",
   "repository": "https://github.com/lazy-promise/lazy-promise.git",
   "license": "MIT",
   "sideEffects": false,
@@ -23,6 +23,7 @@
   ],
   "scripts": {
     "build:clean": "rm -rf build",
+    "build:force": "tsc -p tsconfig.build.json --noEmitOnError false || true",
     "build:main": "babel build/module --out-dir build/main",
     "build:module": "tsc --build tsconfig.build.json",
     "test:eslint": "eslint . --max-warnings=0",

@@ -73,6 +73,16 @@ test("types", () => {
   ).toEqualTypeOf<
     LazyPromise<"value b" | ErrorBox<"error a"> | ErrorBox<"error b">>
   >();
+
+  expectTypeOf(
+    new LazyPromise<void, { outer: null }>(() => {}).map(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      (value, dep: { callback: null }) =>
+        new LazyPromise<void, { inner: null }>(() => {}),
+    ),
+  ).toEqualTypeOf<
+    LazyPromise<void, { outer: null } & { inner: null } & { callback: null }>
+  >();
 });
 
 test("value of this", () => {
@@ -236,4 +246,35 @@ test("unsubscribe and throw in the callback", () => {
     })
     .subscribe(logConsumer);
   sink!.resolve(1);
+});
+
+test("dependency injection", () => {
+  new LazyPromise<void, "dep">((sink, dep) => {
+    log("outer promise dep", dep);
+    sink.resolve();
+  })
+    .map((value, dep: "dep") => {
+      log("callback dep", dep);
+      return new LazyPromise<void, "dep">((sink, dep) => {
+        log("inner promise dep", dep);
+      });
+    })
+    .subscribe(undefined, "dep");
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "outer promise dep",
+        "dep",
+      ],
+      [
+        "callback dep",
+        "dep",
+      ],
+      [
+        "inner promise dep",
+        "dep",
+      ],
+    ]
+  `);
 });

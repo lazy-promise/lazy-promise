@@ -1,6 +1,7 @@
 import { CatchBoxedErrorProducer } from "./catchBoxedError.js";
 import { CatchRejectionProducer } from "./catchRejection.js";
 import { FinalizeProducer } from "./finalize.js";
+import { InjectProducer } from "./inject.js";
 import { MapProducer } from "./map.js";
 import { ToEagerConsumerListener } from "./toEager.js";
 
@@ -57,7 +58,7 @@ export interface Consumer<Value> {
  * The object passed to a LazyPromise constructor callback or to the `.produce`
  * method of a Producer.
  */
-class Sink<in Value> {
+class Sink<in Value, out Dep = unknown> {
   /** @internal */
   resolvedWithAPromise: boolean = false;
 
@@ -69,9 +70,9 @@ class Sink<in Value> {
   ) {}
 
   resolve(
-    this: Sink<Value>,
+    this: Sink<Value, Dep>,
     // eslint-disable-next-line no-use-before-define
-    value: Value | LazyPromise<Value>,
+    value: Value | LazyPromise<Value, Dep>,
   ) {
     if (this.resolvedWithAPromise) {
       return;
@@ -95,6 +96,8 @@ class Sink<in Value> {
     }
     subscription.settled = true;
     // For GC purposes.
+    subscription.dep = undefined;
+    // For GC purposes.
     subscription.job = undefined;
     if (subscription.consumer?.resolve) {
       try {
@@ -107,7 +110,7 @@ class Sink<in Value> {
     subscription.consumer = undefined;
   }
 
-  reject(this: Sink<Value>, error: unknown) {
+  reject(this: Sink<Value, Dep>, error: unknown) {
     if (this.resolvedWithAPromise) {
       return;
     }
@@ -118,6 +121,8 @@ class Sink<in Value> {
     subscription.settled = true;
     // For GC purposes.
     subscription.job = undefined;
+    // For GC purposes.
+    subscription.dep = undefined;
     if (subscription.consumer?.reject) {
       try {
         subscription.consumer.reject(error);
@@ -145,13 +150,14 @@ class Subscription implements Disposable {
 
   constructor(
     public producer?:
-      | ((sink: Sink<any>) => (() => void) | Disposable | void)
+      | ((sink: Sink<any, any>, dep: any) => (() => void) | Disposable | void)
       // eslint-disable-next-line no-use-before-define
-      | Producer<any>,
+      | Producer<any, any>,
     public consumer?: {
       resolve?: (value: any) => void;
       reject?: (error: unknown) => void;
     },
+    public dep?: any,
   ) {}
 
   next() {
@@ -160,8 +166,8 @@ class Subscription implements Disposable {
       try {
         const job =
           typeof this.producer === "function"
-            ? (0, this.producer)(sink)
-            : this.producer!.produce(sink);
+            ? (0, this.producer)(sink, this.dep)
+            : this.producer!.produce(sink, this.dep);
         if (sink.resolvedWithAPromise) {
           continue;
         }
@@ -201,6 +207,8 @@ class Subscription implements Disposable {
         }
         // For GC purposes.
         this.consumer = undefined;
+        // For GC purposes.
+        this.dep = undefined;
       }
       return;
     }
@@ -213,6 +221,8 @@ class Subscription implements Disposable {
     this.disposed = true;
     // For GC purposes.
     this.consumer = undefined;
+    // For GC purposes.
+    this.dep = undefined;
     if (this.job) {
       try {
         typeof this.job === "function" ? (0, this.job)() : this.job.dispose();
@@ -228,24 +238,35 @@ class Subscription implements Disposable {
 /**
  * The class-based equivalent of the LazyPromise constructor callback.
  */
-export interface Producer<Value> {
-  produce: (sink: Sink<Value>) => (() => void) | Disposable | void;
+export interface Producer<Value, Dep = unknown> {
+  produce: (
+    sink: Sink<Value, Dep>,
+    dep: Dep,
+  ) => (() => void) | Disposable | void;
 }
 
 /**
- * A Promise-like primitive which is lazy, cancelable, supports typed
- * errors, and emits synchronously instead of in a microtask.
+ * A Promise-like primitive which is lazy, cancelable, emits synchronously
+ * instead of in a microtask, and supports typed errors and dependency
+ * injection.
+ *
+ * The first type parameter `Value` represents the values that the LazyPromise
+ * can resolve to.
+ *
+ * The second type parameter `Dep` represents the dependency that the
+ * LazyPromise needs to be provided when it's subscribed. By default `Dep` is
+ * `unknown`, indicating that no dependency is required.
  */
-export class LazyPromise<out Value> {
+export class LazyPromise<out Value, in Dep = unknown> {
   /** @internal */
   public producer:
-    | ((sink: Sink<Value>) => (() => void) | Disposable | void)
-    | Producer<Value>;
+    | ((sink: Sink<Value, Dep>, dep: Dep) => (() => void) | Disposable | void)
+    | Producer<Value, Dep>;
 
   constructor(
     producer:
-      | ((sink: Sink<Value>) => (() => void) | Disposable | void)
-      | Producer<Value>,
+      | ((sink: Sink<Value, Dep>, dep: Dep) => (() => void) | Disposable | void)
+      | Producer<Value, Dep>,
   ) {
     this.producer = producer;
   }
@@ -269,11 +290,10 @@ export class LazyPromise<out Value> {
           [`❌ Unhandled boxed errors detected. Either catch them before subscribing, or whitelist them using the type parameter of the .subscribe method.`]: never;
         },
     consumer?: Consumer<Value>,
-  ): Disposable {
-    const subscription = new Subscription(
-      (this as LazyPromise<Value>).producer,
-      consumer,
-    );
+    ...args: [Dep] extends [{} | null] ? [dep: Dep] : [dep?: Dep]
+  ): Disposable;
+  subscribe(consumer?: Consumer<Value>, dep?: Dep): Disposable {
+    const subscription = new Subscription(this.producer, consumer, dep);
     subscription.next();
     return subscription;
   }
@@ -281,38 +301,50 @@ export class LazyPromise<out Value> {
   /**
    * The LazyPromise equivalent of `promise.then(...)`.
    */
-  map<NewValue>(
-    callback: (value: Value extends ErrorBox<any> ? never : Value) => NewValue,
+  map<NewValue, ExtraDep = unknown>(
+    callback: (
+      value: Value extends ErrorBox<any> ? never : Value,
+      dep: ExtraDep,
+    ) => NewValue,
   ): LazyPromise<
     // eslint-disable-next-line no-use-before-define
     | Unbox<NewValue>
-    | (Value extends ErrorBox<infer Error> ? ErrorBox<Error> : never)
+    | (Value extends ErrorBox<infer Error> ? ErrorBox<Error> : never),
+    // eslint-disable-next-line no-use-before-define
+    Dep & ExtraDep & InferDep<NewValue>
   > {
     return new LazyPromise<any>(new MapProducer(this, callback));
   }
 
   /**
-   * The LazyPromise equivalent of `promise.catch(...)`.
-   */
-  catchRejection<NewValue>(
-    callback: (error: unknown) => NewValue,
-    // eslint-disable-next-line no-use-before-define
-  ): LazyPromise<Value | Unbox<NewValue>> {
-    return new LazyPromise(new CatchRejectionProducer(this, callback));
-  }
-
-  /**
    * The LazyPromise equivalent of `promise.catch(...)` for typed errors.
    */
-  catchBoxedError<NewValue>(
+  catchBoxedError<NewValue, ExtraDep = unknown>(
     callback: (
       error: Value extends ErrorBox<infer Error> ? Error : never,
+      dep: ExtraDep,
     ) => NewValue,
   ): LazyPromise<
     // eslint-disable-next-line no-use-before-define
-    (Value extends ErrorBox<any> ? never : Value) | Unbox<NewValue>
+    (Value extends ErrorBox<any> ? never : Value) | Unbox<NewValue>,
+    // eslint-disable-next-line no-use-before-define
+    Dep & ExtraDep & InferDep<NewValue>
   > {
     return new LazyPromise<any>(new CatchBoxedErrorProducer(this, callback));
+  }
+
+  /**
+   * The LazyPromise equivalent of `promise.catch(...)`.
+   */
+  catchRejection<NewValue, ExtraDep = unknown>(
+    callback: (error: unknown, dep: ExtraDep) => NewValue,
+  ): LazyPromise<
+    // eslint-disable-next-line no-use-before-define
+    Value | Unbox<NewValue>,
+    // eslint-disable-next-line no-use-before-define
+    Dep & ExtraDep & InferDep<NewValue>
+  > {
+    return new LazyPromise<any>(new CatchRejectionProducer(this, callback));
   }
 
   /**
@@ -320,11 +352,29 @@ export class LazyPromise<out Value> {
    * is called if the source promise resolves or rejects, but not if it's
    * unsubscribed before settling.
    */
-  finalize<NewValue>(
-    callback: () => NewValue,
+  finalize<NewValue, ExtraDep = unknown>(
+    callback: (dep: ExtraDep) => NewValue,
+  ): LazyPromise<
     // eslint-disable-next-line no-use-before-define
-  ): LazyPromise<Value | Extract<Unbox<NewValue>, ErrorBox<any>>> {
+    Value | Extract<Unbox<NewValue>, ErrorBox<any>>,
+    // eslint-disable-next-line no-use-before-define
+    Dep & ExtraDep & InferDep<NewValue>
+  > {
     return new LazyPromise<any>(new FinalizeProducer(this, callback));
+  }
+
+  /**
+   * Satisfies the dependency of the LazyPromise with the value returned by
+   * the callback.
+   */
+  inject<This, ExtraDep = unknown>(
+    // We avoid occurrence of `Dep` in a method signature since this would
+    // affect its measured variance and break `InferDep`.
+    this: This,
+    // eslint-disable-next-line no-use-before-define
+    callback: (dep: ExtraDep) => InferDep<This>,
+  ): LazyPromise<Value, ExtraDep> {
+    return new LazyPromise<any>(new InjectProducer(this as any, callback));
   }
 
   /**
@@ -389,12 +439,15 @@ export class LazyPromise<out Value> {
     next(
       ...args: ReadonlyArray<any>
     ): IteratorResult<
-      LazyPromise<Extract<Value, ErrorBox<any>>> & Yieldable,
+      LazyPromise<Extract<Value, ErrorBox<any>>, Dep> & Yieldable,
       Exclude<Value, ErrorBox<any>>
     >;
   } {
     return new LazyPromiseIterator(this as any);
   }
+
+  // Gives `Dep` a contravariant occurrence.
+  declare protected inferenceHelper: (dep: Dep) => void;
 }
 
 class ResolvingProducer<Value> implements Producer<Value> {
@@ -446,4 +499,16 @@ class NeverProducer implements Producer<never> {
  */
 export const never: LazyPromise<never> = new LazyPromise(new NeverProducer());
 
-export type Unbox<T> = T extends LazyPromise<infer Value> ? Value : T;
+/**
+ * The LazyPromise equivalent of Awaited.
+ */
+export type Unbox<T> = T extends LazyPromise<infer Value, any> ? Value : T;
+
+/**
+ * The dependency required to satisfy every LazyPromise in `T`.
+ */
+export type InferDep<T> = [
+  Extract<T, LazyPromise<any, never>> | LazyPromise<never, unknown>,
+] extends [LazyPromise<any, infer Dep>]
+  ? Dep
+  : unknown;

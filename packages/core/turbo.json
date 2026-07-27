@@ -16,6 +16,10 @@
       "dependsOn": ["build:module"],
       "outputs": ["build/main/**"]
     },
+    "build:force": {
+      "dependsOn": ["^build:force", "build:clean"],
+      "outputs": ["build/module/**", "build/types/**"]
+    },
     "test": {
       "dependsOn": ["test:eslint", "test:typescript", "test:vitest", "build"]
     },

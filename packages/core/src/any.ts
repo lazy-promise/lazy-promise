@@ -1,6 +1,7 @@
 import type {
   Consumer,
   Disposable,
+  InferDep,
   Producer,
   Sink,
   Unbox,
@@ -53,13 +54,16 @@ class AnyJob implements Disposable {
   pendingCount = 0;
   initialized = false;
 
-  constructor(public sink: Sink<any>) {}
+  constructor(
+    public sink: Sink<any>,
+    public dep: any,
+  ) {}
 
   next(key: any, source: any) {
     if (source instanceof LazyPromise) {
       this.pendingCount++;
       this.subscriptions.push(
-        source.subscribe<any>(new AnyConsumer(key, this)),
+        source.subscribe<any>(new AnyConsumer(key, this), this.dep),
       );
       return;
     }
@@ -79,11 +83,11 @@ class AnyJob implements Disposable {
   }
 }
 
-class AnyProducer implements Producer<any> {
+class AnyProducer implements Producer<any, any> {
   constructor(public sources: Iterable<any> | Record<any, any>) {}
 
-  produce(sink: Sink<any>) {
-    const job = new AnyJob(sink);
+  produce(sink: Sink<any>, dep: any) {
+    const job = new AnyJob(sink, dep);
     if (Symbol.iterator in this.sources) {
       job.errors = [];
       let index = 0;
@@ -139,13 +143,15 @@ export const any: {
         NeverIfArrayContainsNever<{
           [Key in keyof Sources]: UnboxError<Unbox<Sources[Key]>>;
         }>
-      >
+      >,
+    InferDep<Sources[number]>
   >;
   <const Source = never>(
     sources: Iterable<Source>,
   ): LazyPromise<
     | Exclude<Unbox<Source>, ErrorBox<any>>
-    | ErrorBox<UnboxError<Unbox<Source>>[]>
+    | ErrorBox<UnboxError<Unbox<Source>>[]>,
+    InferDep<Source>
   >;
   <const Sources extends Record<any, any>>(
     sources: Sources,
@@ -155,7 +161,8 @@ export const any: {
         NeverIfRecordContainsNever<{
           [Key in keyof Sources]: UnboxError<Unbox<Sources[Key]>>;
         }>
-      >
+      >,
+    InferDep<Sources[keyof Sources]>
   >;
 } = (sources: Iterable<LazyPromise<any>>): LazyPromise<any> =>
   new LazyPromise(new AnyProducer(sources));

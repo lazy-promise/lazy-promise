@@ -4,6 +4,9 @@
     "build": {
       "dependsOn": ["^build"]
     },
+    "build:force": {
+      "dependsOn": ["^build:force"]
+    },
     "//#test": { "dependsOn": ["test:prettier"] },
     "//#test:prettier": {}
   },

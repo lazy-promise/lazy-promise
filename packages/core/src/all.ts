@@ -1,6 +1,7 @@
 import type {
   Consumer,
   Disposable,
+  InferDep,
   Producer,
   Sink,
   Unbox,
@@ -51,13 +52,16 @@ class AllJob implements Disposable {
   pendingCount = 0;
   initialized = false;
 
-  constructor(public sink: Sink<any>) {}
+  constructor(
+    public sink: Sink<any>,
+    public dep: any,
+  ) {}
 
   next(key: any, source: any) {
     if (source instanceof LazyPromise) {
       this.pendingCount++;
       this.subscriptions.push(
-        source.subscribe<any>(new AllConsumer(key, this)),
+        source.subscribe<any>(new AllConsumer(key, this), this.dep),
       );
       return;
     }
@@ -77,11 +81,11 @@ class AllJob implements Disposable {
   }
 }
 
-class AllProducer implements Producer<any> {
+class AllProducer implements Producer<any, any> {
   constructor(public sources: Iterable<any> | Record<any, any>) {}
 
-  produce(sink: Sink<any>) {
-    const job = new AllJob(sink);
+  produce(sink: Sink<any>, dep: any) {
+    const job = new AllJob(sink, dep);
     if (Symbol.iterator in this.sources) {
       job.values = [];
       let index = 0;
@@ -124,13 +128,15 @@ export const all: {
     | NeverIfArrayContainsNever<{
         [Key in keyof Sources]: Exclude<Unbox<Sources[Key]>, ErrorBox<any>>;
       }>
-    | Extract<Unbox<Sources[number]>, ErrorBox<any>>
+    | Extract<Unbox<Sources[number]>, ErrorBox<any>>,
+    InferDep<Sources[number]>
   >;
   <const Source = never>(
     sources: Iterable<Source>,
   ): LazyPromise<
     | Exclude<Unbox<Source>, ErrorBox<any>>[]
-    | Extract<Unbox<Source>, ErrorBox<any>>
+    | Extract<Unbox<Source>, ErrorBox<any>>,
+    InferDep<Source>
   >;
   <const Sources extends Record<any, any>>(
     sources: Sources,
@@ -138,7 +144,8 @@ export const all: {
     | NeverIfRecordContainsNever<{
         [Key in keyof Sources]: Exclude<Unbox<Sources[Key]>, ErrorBox<any>>;
       }>
-    | Extract<Unbox<Sources[keyof Sources]>, ErrorBox<any>>
+    | Extract<Unbox<Sources[keyof Sources]>, ErrorBox<any>>,
+    InferDep<Sources[keyof Sources]>
   >;
 } = (sources: Iterable<any> | Record<any, any>): LazyPromise<any> =>
   new LazyPromise(new AllProducer(sources));

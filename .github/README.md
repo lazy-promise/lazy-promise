@@ -1,10 +1,12 @@
 # LazyPromise
 
-A LazyPromise is like a Promise, except
+A LazyPromise is like a native promise, except
 
-- Like an Observable, it's lazy, cancelable, and emits synchronously instead of in a microtask.
+- It's lazy and cancelable
 
-- It supports typed errors.
+- It emits synchronously instead of in a microtask
+
+- It supports typed errors and dependency injection.
 
 ## Installation
 
@@ -16,27 +18,25 @@ npm install @lazy-promise/core
 
 ### If you start with Observable
 
-Observable is beautifully simple conceptually, and has a great cancellation mechanism. LazyPromise keeps all that, but limits Observable to a single shot&mdash;you could say it's a JavaScript cousin of a Single in Rx Java. The reason it does it is that a multi-shot Observable can be used to represent state, and as Signals have shown, what you want for state is a push-pull system, not a push-only primitive like an Observable. Specifically, if you use Observable you end up with the [Diamond Problem](https://stackblitz.com/edit/rxjs-diamond-problem-s8cy9zzb?devToolsHeight=50&file=index.ts) and [undesirable behavior in the case of sync reentry](https://stackblitz.com/edit/rxjs-sync-reentry-vxjr9fhr?devToolsHeight=50&file=index.ts). By limiting itself to a single shot, LazyPromise focuses just on the async, and is intended to be used together with a state library, whether Signals-based or otherwise (here's a proof-of-concept async signals [library](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals) built on top of LazyPromise and alien-signals).
+Observable is beautifully simple conceptually, and has a great cancellation mechanism. LazyPromise takes care to keep that, but limits Observable to a single shot—you could say it's a JavaScript cousin of a Single in Rx Java. The reason it does it is that a multi-shot Observable can be used to represent state, and as Signals have shown, what you want for state is a push-pull system, not a push-only primitive like an Observable (specifically, if you use Observable you end up with the [Diamond Problem](https://stackblitz.com/edit/rxjs-diamond-problem-s8cy9zzb?devToolsHeight=50&file=index.ts) and [undesirable behavior in the case of sync reentry](https://stackblitz.com/edit/rxjs-sync-reentry-vxjr9fhr?devToolsHeight=50&file=index.ts); see also this [proof-of-concept async signals library](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals) built on top of LazyPromise and alien-signals).
 
-### If you start with a native promise
+### If you start with the native promise
 
-What's been said above sounds like all the more reason to use the native promise, but there's a catch, three of them actually, one major and two minor.
+What's been said above sounds like all the more reason to use the native promise, but there's a catch, two of them actually, one major and one minor.
 
 First of all, good luck using AbortSignal API for cancellation. It's not the specifics of that API though that lie at the heart of the problem here, but just the fact that Promise is eager.
 
-Second, like Observable treads on state management territory by being multi-shot, Promise does the same by storing and multi-casting its result, and you again have the Diamond Problem.
+Second, like Observable, LazyPromise takes the view that microtasks should not be mandatory. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this "Zalgo" guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it.
 
-Third, LazyPromise takes the view that microtasks should not be mandatory. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this "Zalgo" guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it. Additionally, by not using microtasks LazyPromise [outperforms](https://stackblitz.com/edit/long-running-tasks?devToolsHeight=50&file=index.ts) native promise in a scenario where you run a computation-intensive task and periodically yield from it to unblock the main thread.
+Those concerns aside though, native promise API is actually quite elegant, and LazyPromise API does not just resemble it, but follows all its subtleties unless stated otherwise in the docs. This has a side benefit of making the library easy to learn.
 
-Those concerns aside though, native Promise API is actually quite elegant, and LazyPromise API does not just resemble it, but follows all its subtleties unless stated otherwise in the docs. This has a side benefit of making the library easy to learn.
+### If you start with Effect
 
-### One more thing
-
-Unlike both Observable and Promise, LazyPromise supports typed errors. This feature may seem like an afterthought, but curiously, it is in fact required to make the `any` operator ergonomic, as explained below.
+Like Effect, LazyPromise supports generator syntax, typed errors, and dependency injection, but the two could not be further apart on the library vs. framework spectrum.
 
 ## Usage
 
-You create a LazyPromise like you create a native Promise, except you have a `sink` object instead of `resolve, reject` pair, and you can optionally return a teardown function:
+You create a LazyPromise like you create a native promise, except you have a `sink` object instead of `resolve, reject` pair, and you can optionally return a teardown function:
 
 ```
 const lazyPromise = new LazyPromise<"value">((sink) => {
@@ -54,7 +54,7 @@ const lazyPromise = new LazyPromise<"value">((sink) => {
 });
 ```
 
-Whereas a native Promise executes eagerly and retains the result once it settles, a LazyPromise behaves like an Observable. The way to think of it is `new LazyPromise(foo)` is simply `foo` with a wrapper around it that's only there to enforce a few invariants:
+Whereas a native promise executes eagerly and retains the result once it settles, a LazyPromise behaves like an Observable. The way to think of it is `new LazyPromise(foo)` is simply `foo` with a wrapper around it that's only there to enforce a few invariants:
 
 - Nothing gets emitted after you unsubscribe.
 
@@ -80,7 +80,7 @@ To cancel the subscription, you call
 subscription.dispose();
 ```
 
-Aside from superficial differences, LazyPromise API mirrors that of native Promise:
+Aside from superficial differences, LazyPromise API mirrors that of native promise:
 
 | Promise api                       | LazyPromise equivalent            |
 | :-------------------------------- | :-------------------------------- |
@@ -118,7 +118,7 @@ const lazyPromise = fromGen(function* () {
 });
 ```
 
-In the case of native promises, if you `await promise`, and `promise` rejects with `error`, that error gets thrown, so it's as if in place of `await promise` you had `throw error`. It works in exactly the same way when you have `yield* lazyPromise` and `lazyPromise` rejects.
+In the case of native promises, if you `await promise`, and `promise` rejects with `error`, it's as if in place of `await promise` you had `throw error`. It works in exactly the same way when you have `yield* lazyPromise` and `lazyPromise` rejects.
 
 ## Utilities
 
@@ -150,7 +150,7 @@ originalLazyPromise.finalize(() => anotherLazyPromise);
 
 If `anotherLazyPromise` is `inTimeout(ms)`, that would delay `originalLazyPromise` by `ms`. If `anotherLazyPromise` is `inMicrotask()`, that would make `originalLazyPromise` fire in a microtask.
 
-Notice that whether it's a `finally` block or the `finalize` operator, `anotherLazyPromise` will never get subscribed if the whole flow is cancelled while waiting for originalLazyPromise. In the sync world, we're used to a guarantee that the `finally` block always runs, and you do get that guarantee, but only if you don't `yield*` inside `try`/`catch`&mdash;it's simply the way JavaScript generator functions work.
+Notice that whether it's a `finally` block or the `finalize` operator, `anotherLazyPromise` will never get subscribed if the whole flow is cancelled while waiting for originalLazyPromise. In the sync world, we're used to a guarantee that the `finally` block always runs, and you do get that guarantee, but only if you don't `yield*` inside `try`/`catch`—it's simply the way JavaScript generator functions work.
 
 The library also provides a `log` function that wraps a LazyPromise without changing its behavior, and console.logs everything that happens to it: `lazyPromise.pipe(log("your label"))`.
 
@@ -168,9 +168,55 @@ ErrorBox instances are treated differently from other values by some of the prev
 
 - We talked about how when `lazyPromise` rejects with `error`, `yield* lazyPromise` acts exactly like `throw error`. If `lazyPromise` resolves with an ErrorBox instance `boxedError`, `yield* lazyPromise` acts exactly like `return boxedError`. In both cases the execution of the generator function is interrupted, the only difference being that you can't `catch` a boxed error: you have to use `catchBoxedError` operator instead.
 
-It's sometimes convenient to use LazyPromise on the client while sticking to async-await on the server. In that case you can still have server endpoints emit typed errors by returning error boxes from async functions.
+It's sometimes convenient to use LazyPromise on the client while sticking to async-await on the server. In that case you can still have typed errors by having async functions on the server return error boxes.
 
-Typed errors are optional in the sense that you can pretend that the concept does not exist as long as you don't use the `ErrorBox` class. There's one exception to this which is the `any` operator, but this is only because that operator isn't ergonomic without typed errors anyway. When one of the promises passed to the native `Promise.any` rejects because of a bug, the bug passes undetected if some other input promise resolves. The LazyPromise version of `any` works like `Promise.any` with respect to boxed errors, but rejects if just one input rejects.
+Typed errors are optional in the sense that you can pretend that the concept does not exist as long as you don't use the `ErrorBox` class. There's one exception to this which is the `any` operator, but this is only because that operator isn't very ergonomic without typed errors anyway. When one of the promises passed to the native `Promise.any` rejects because of a bug, the bug passes undetected if some other input promise resolves. The LazyPromise version of `any` works like `Promise.any` with respect to boxed errors, but rejects if just one input rejects.
+
+## Dependency injection
+
+We've talked about how `new LazyPromise(foo)` is really just a wrapper around `foo`. Dependency injection is about being less restrictive about what kind of functions LazyPromise can wrap: namely, in addition to the first parameter of the shape `{ resolve, reject }`, we also allow a second parameter called "dependency" that can be of any type:
+
+```
+const lazyPromise = new LazyPromise<MyValue, MyDep>(
+  (
+    sink,
+    dep, // Type is `MyDep`.
+  ) => ...,
+);
+
+lazyPromise.subscribe(
+  consumer,
+  dep, // Must satisfy `MyDep`.
+);
+```
+
+Dependencies bubble up through the type system when you use the operators or the generator syntax, so for example if `promiseA` has dependency `A` and `promiseB` has dependency `B`, `all([promiseA, promiseB])` will have dependency `A & B`, in other words `all` needs a dependency that it'll be able to pass to both `promiseA` and `promiseB`. This is useful for testing since you can gather up a bunch of dependencies needed by your async logic, and then satisfy them with either production implementations or mocks.
+
+The `dep` parameter is made available not only to the LazyPromise constructor callback, but also to all other lazily executed callbacks, namely those you pass to `map`, `catchRejection`, `catchBoxedError`, `finalize` and `fromGen`, e.g. `lazyPromise.map((value, dep: MyDep) => ...)`. You must specify the type of `dep` explicitly.
+
+You can satisfy the dependency when subscribing, but you can also do it sooner using `inject` method of a LazyPromise. That method's callback should return a dependency, but like other lazy callbacks, it can optionally take a dependency as a parameter, allowing dependencies to depend on one another:
+
+```
+declare const upstreamLazyPromise: LazyPromise<MyValue, UpstreamDep>;
+
+// Type inferred as LazyPromise<MyValue, DownstreamDep>.
+const downstreamLazyPromise = upstreamLazyPromise.inject(
+  (dep: DownstreamDep) => <a value that satisfies UpstreamDep>,
+);
+```
+
+It's often convenient, especially when using a dependency across multiple modules, to define it as an object with symbol keys, since you can satisfy multiple such dependencies with a single object without worrying about name clashes:
+
+```
+export const randomSymbol = Symbol("random");
+export interface RandomDep {
+  [randomSymbol]: () => number;
+}
+```
+
+There is also a helper type `InferDep` that lets you infer the dependency type of a LazyPromise.
+
+Like typed errors, dependency injection is an optional feature. By default, the second type parameter `Dep` of a LazyPromise is `unknown`, indicating it does not have dependencies.
 
 ## Class-based API
 

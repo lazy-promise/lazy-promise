@@ -119,6 +119,48 @@ test("types", () => {
       ErrorBox<"error a"> | ErrorBox<"error b"> | ("value a" | "value b")[]
     >
   >();
+
+  expectTypeOf(
+    all([
+      new LazyPromise<"value a", { a: null }>(() => {}),
+      new LazyPromise<"value b", { b: null }>(() => {}),
+      "value c",
+    ]),
+  ).toEqualTypeOf<
+    LazyPromise<["value a", "value b", "value c"], { a: null } & { b: null }>
+  >();
+
+  expectTypeOf(
+    all({
+      a: new LazyPromise<"value a", { a: null }>(() => {}),
+      b: new LazyPromise<"value b", { b: null }>(() => {}),
+      c: "value c",
+    }),
+  ).toEqualTypeOf<
+    LazyPromise<
+      {
+        readonly a: "value a";
+        readonly b: "value b";
+        readonly c: "value c";
+      },
+      { a: null } & { b: null }
+    >
+  >();
+
+  expectTypeOf(
+    all(
+      new Set([
+        new LazyPromise<"value a", { a: null }>(() => {}),
+        new LazyPromise<"value b", { b: null }>(() => {}),
+        "value c" as const,
+      ]),
+    ),
+  ).toEqualTypeOf<
+    LazyPromise<
+      ("value a" | "value b" | "value c")[],
+      { a: null } & { b: null }
+    >
+  >();
 });
 
 test("empty iterable", () => {
@@ -492,6 +534,32 @@ test("internally disposed when unsubscribed, a source reject is ignored when int
       ],
       [
         "dispose a",
+      ],
+    ]
+  `);
+});
+
+test("dependency injection", () => {
+  all([
+    new LazyPromise<void, "dep">((sink, dep) => {
+      log("promise a dep", dep);
+      sink.resolve();
+    }),
+    new LazyPromise<void, "dep">((sink, dep) => {
+      log("promise b dep", dep);
+      sink.resolve();
+    }),
+  ]).subscribe(undefined, "dep");
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "promise a dep",
+        "dep",
+      ],
+      [
+        "promise b dep",
+        "dep",
       ],
     ]
   `);

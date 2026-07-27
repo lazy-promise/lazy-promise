@@ -4,7 +4,8 @@ import { ErrorBox } from "./lazyPromise.js";
 class MapConsumer implements Consumer<any> {
   constructor(
     public sink: Sink<any>,
-    public callback: (value: any) => any,
+    public callback: (value: any, dep: any) => any,
+    public dep: any,
   ) {}
 
   resolve(value: any) {
@@ -14,7 +15,7 @@ class MapConsumer implements Consumer<any> {
     }
     let newValue;
     try {
-      newValue = (0, this.callback)(value);
+      newValue = (0, this.callback)(value, this.dep);
     } catch (callbackError) {
       this.sink.reject(callbackError);
       return;
@@ -27,13 +28,16 @@ class MapConsumer implements Consumer<any> {
   }
 }
 
-export class MapProducer implements Producer<any> {
+export class MapProducer implements Producer<any, any> {
   constructor(
-    public source: LazyPromise<any>,
-    public callback: (value: any) => any,
+    public source: LazyPromise<any, any>,
+    public callback: (value: any, dep: any) => any,
   ) {}
 
-  produce(sink: Sink<any>) {
-    return this.source.subscribe<any>(new MapConsumer(sink, this.callback));
+  produce(sink: Sink<any>, dep: any) {
+    return this.source.subscribe<any>(
+      new MapConsumer(sink, this.callback, dep),
+      dep,
+    );
   }
 }

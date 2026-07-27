@@ -169,6 +169,29 @@ test("types", () => {
   expectTypeOf(f2("a" as const)).toEqualTypeOf<
     LazyPromise<{ prop: "a" } | ErrorBox<"a">>
   >();
+
+  expectTypeOf(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    fromGen(function* (dep: { callback: null }) {
+      yield* new LazyPromise<void, { yielded1: null }>(() => {});
+      yield* new LazyPromise<void, { yielded2: null }>(() => {});
+      return new LazyPromise<void, { returned: null }>(() => {});
+    }),
+  ).toEqualTypeOf<
+    LazyPromise<
+      void,
+      { callback: null } & { yielded1: null } & { yielded2: null } & {
+        returned: null;
+      }
+    >
+  >();
+
+  expectTypeOf(
+    fromGen(function* () {
+      yield* new LazyPromise<void, { yielded: null }>(() => {});
+      return 42;
+    }),
+  ).toEqualTypeOf<LazyPromise<number, { yielded: null }>>();
 });
 
 test("value of this", () => {
@@ -1107,6 +1130,36 @@ test("unsubscribe in generator after async reject", () => {
   const subscription = promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
+});
+
+test("dependency injection", () => {
+  fromGen(function* (dep: "dep") {
+    log("callback dep", dep);
+    yield* new LazyPromise<void, "dep">((sink, dep) => {
+      log("yielded promise dep", dep);
+      sink.resolve();
+    });
+    return new LazyPromise<void, "dep">((sink, dep) => {
+      log("returned promise dep", dep);
+    });
+  }).subscribe(undefined, "dep");
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "callback dep",
+        "dep",
+      ],
+      [
+        "yielded promise dep",
+        "dep",
+      ],
+      [
+        "returned promise dep",
+        "dep",
+      ],
+    ]
+  `);
 });
 
 test("stack overflow with resolved lazy promises", () => {

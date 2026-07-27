@@ -24,6 +24,7 @@
   ],
   "scripts": {
     "build:clean": "rm -rf build",
+    "build:force": "tsc -p tsconfig.json --noEmitOnError false || true",
     "build:main": "babel build/module --out-dir build/main",
     "build:module": "tsc --build",
     "test:eslint": "eslint . --max-warnings=0",

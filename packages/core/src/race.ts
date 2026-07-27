@@ -1,6 +1,7 @@
 import type {
   Consumer,
   Disposable,
+  InferDep,
   Producer,
   Sink,
   Unbox,
@@ -32,14 +33,14 @@ class RaceConsumerJob implements Consumer<any>, Disposable {
   }
 }
 
-class RaceProducer implements Producer<any> {
+class RaceProducer implements Producer<any, any> {
   constructor(public sources: Iterable<any>) {}
 
-  produce(sink: Sink<any>) {
+  produce(sink: Sink<any>, dep: any) {
     const job = new RaceConsumerJob(sink);
     for (const source of this.sources) {
       if (source instanceof LazyPromise) {
-        job.subscriptions.push(source.subscribe<any>(job));
+        job.subscriptions.push(source.subscribe<any>(job, dep));
         if (job.settled) {
           return;
         }
@@ -58,4 +59,5 @@ class RaceProducer implements Producer<any> {
  */
 export const race = <Source>(
   sources: Iterable<Source>,
-): LazyPromise<Unbox<Source>> => new LazyPromise(new RaceProducer(sources));
+): LazyPromise<Unbox<Source>, InferDep<Source>> =>
+  new LazyPromise(new RaceProducer(sources));

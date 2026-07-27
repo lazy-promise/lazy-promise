@@ -1,6 +1,6 @@
-import type { Sink, Consumer } from "@lazy-promise/core";
+import type { Consumer, Sink } from "@lazy-promise/core";
 import { box, LazyPromise, never, race, rejecting } from "@lazy-promise/core";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
 const originalQueueMicrotask = queueMicrotask;
@@ -56,6 +56,21 @@ afterEach(() => {
   } finally {
     logContents.length = 0;
   }
+});
+
+test("types", () => {
+  expectTypeOf(
+    race([
+      new LazyPromise<"value a", { a: null }>(() => {}),
+      new LazyPromise<"value b", { b: null }>(() => {}),
+    ]),
+  ).toEqualTypeOf<
+    LazyPromise<"value a" | "value b", { a: null } & { b: null }>
+  >();
+
+  expectTypeOf(
+    race([new LazyPromise<"value a", { a: null }>(() => {}), 42]),
+  ).toEqualTypeOf<LazyPromise<"value a" | number, { a: null }>>();
 });
 
 test("empty iterable", () => {
@@ -436,6 +451,31 @@ test("internally disposed by the teardown function, a source resolve is ignored 
       ],
       [
         "dispose a",
+      ],
+    ]
+  `);
+});
+
+test("dependency injection", () => {
+  race([
+    new LazyPromise<never, "dep">((sink, dep) => {
+      log("promise a dep", dep);
+    }),
+    new LazyPromise<void, "dep">((sink, dep) => {
+      log("promise b dep", dep);
+      sink.resolve();
+    }),
+  ]).subscribe(undefined, "dep");
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "promise a dep",
+        "dep",
+      ],
+      [
+        "promise b dep",
+        "dep",
       ],
     ]
   `);

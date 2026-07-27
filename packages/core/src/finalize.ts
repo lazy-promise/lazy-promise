@@ -3,7 +3,7 @@ import { ErrorBox, LazyPromise } from "./lazyPromise.js";
 
 const emptySymbol = Symbol("empty");
 
-class FinalizeConsumerProducer implements Consumer<any>, Producer<any> {
+class FinalizeConsumerProducer implements Consumer<any>, Producer<any, any> {
   // The value that the source promise resolved to.
   value: any = emptySymbol;
   // The error that the source promise rejected with.
@@ -11,7 +11,7 @@ class FinalizeConsumerProducer implements Consumer<any>, Producer<any> {
 
   constructor(
     public sink: Sink<any>,
-    public callback: () => any,
+    public callback: (dep: any) => any,
   ) {}
 
   resolve(value: any) {
@@ -40,25 +40,26 @@ class FinalizeConsumerProducer implements Consumer<any>, Producer<any> {
     this.sink.resolve(new LazyPromise(this));
   }
 
-  produce(sink: Sink<any>) {
+  produce(sink: Sink<any>, dep: any) {
     this.sink = sink;
-    const callbackResult = (0, this.callback)();
+    const callbackResult = (0, this.callback)(dep);
     if (callbackResult instanceof LazyPromise) {
-      return callbackResult.subscribe<any>(this);
+      return callbackResult.subscribe<any>(this, dep);
     }
     this.resolve(callbackResult);
   }
 }
 
-export class FinalizeProducer implements Producer<any> {
+export class FinalizeProducer implements Producer<any, any> {
   constructor(
-    public source: LazyPromise<any>,
-    public callback: () => any,
+    public source: LazyPromise<any, any>,
+    public callback: (dep: any) => any,
   ) {}
 
-  produce(sink: Sink<any>) {
+  produce(sink: Sink<any>, dep: any) {
     return this.source.subscribe<any>(
       new FinalizeConsumerProducer(sink, this.callback),
+      dep,
     );
   }
 }

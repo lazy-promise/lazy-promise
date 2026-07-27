@@ -14,6 +14,7 @@ export { box, ErrorBox, LazyPromise, never, rejecting } from "./lazyPromise.js";
 export type {
   Consumer,
   Disposable,
+  InferDep,
   Producer,
   Sink,
   Unbox,
