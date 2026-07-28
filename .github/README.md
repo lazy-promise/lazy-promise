@@ -28,7 +28,7 @@ First of all, good luck using AbortSignal API for cancellation. It's not the spe
 
 Second, like Observable, LazyPromise takes the view that microtasks should not be mandatory. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this "Zalgo" guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it.
 
-Those concerns aside though, native promise API is actually quite elegant, and LazyPromise API does not just resemble it, but follows all its subtleties unless stated otherwise in the docs. This has a side benefit of making the library easy to learn.
+Those concerns aside though, native promise API is actually quite elegant, and LazyPromise API does not just resemble it, but follows all its subtleties unless stated otherwise in the docs. This has a side benefit of making the library easy to document and learn.
 
 ### If you start with Effect
 
@@ -214,7 +214,7 @@ export interface RandomDep {
 }
 ```
 
-There is also a helper type `InferDep` that lets you infer the dependency type of a LazyPromise.
+There is also a helper type `InferDep` which is like `Unbox`, but for the second type parameter `Dep` of a LazyPromise.
 
 Like typed errors, dependency injection is an optional feature. By default, the second type parameter `Dep` of a LazyPromise is `unknown`, indicating it does not have dependencies.
 
