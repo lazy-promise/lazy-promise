@@ -39,12 +39,12 @@ Like Effect, LazyPromise supports generator syntax, typed errors, and dependency
 You create a LazyPromise like you create a native promise, except you have a `sink` object instead of `resolve, reject` pair, and you can optionally return a teardown function:
 
 ```
-const lazyPromise = new LazyPromise<"value">((sink) => {
+const lazyPromise = new LazyPromise<number>((sink) => {
   const timeoutId = setTimeout(() => {
     if (...) {
-      sink.resolve("value");
+      sink.resolve(42);
     } else {
-      sink.reject("error");
+      sink.reject(new Error("oops"));
     }
   }, 1000);
 
