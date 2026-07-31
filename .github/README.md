@@ -20,7 +20,7 @@ npm install @lazy-promise/core
 
 Observable is beautifully simple conceptually, and has a great cancellation mechanism. LazyPromise takes care to keep that, but limits Observable to a single shot—you could say it's a JavaScript cousin of a Single in Rx Java.
 
-The formal argument for the single-shot restriction is that there is nothing stopping a developer from using a multi-shot Observable to represent derived state, and running into the [Diamond Problem](https://stackblitz.com/edit/rxjs-diamond-problem-s8cy9zzb?devToolsHeight=50&file=index.ts) and [undesirable behavior in the case of sync reentry](https://stackblitz.com/edit/rxjs-sync-reentry-vxjr9fhr?devToolsHeight=50&file=index.ts).
+The formal argument for the single-shot restriction is that there is nothing stopping a developer from using a multi-shot Observable to represent derived state, and running into the [Diamond Problem](https://stackblitz.com/edit/rxjs-diamond-problem-s8cy9zzb?devToolsHeight=50&file=index.ts) and [undesirable behavior in the case of synchronous reentry](https://stackblitz.com/edit/rxjs-sync-reentry-vxjr9fhr?devToolsHeight=50&file=index.ts).
 
 The informal argument is that Signals have filled in one piece of the puzzle—a push-pull primitive that solves derived state—and now we need another piece that complements the first one and focuses just on waiting for a state to resolve, not on changes in an already resolved state. [This proof-of-concept Async Signals library](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals) shows how these two pieces can be put together.
 
