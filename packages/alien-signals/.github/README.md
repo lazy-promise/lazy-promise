@@ -1,6 +1,6 @@
 # @lazy-promise/alien-signals
 
-A proof-of-concept async signals library built on top of [alien-signals](https://github.com/stackblitz/alien-signals) and [LazyPromise](https://github.com/lazy-promise/lazy-promise).
+A proof-of-concept Async Signals library built on top of regular Signals and a single-shot Observable.
 
 ## Installation
 
@@ -10,7 +10,7 @@ npm install @lazy-promise/alien-signals @lazy-promise/core
 
 ## Introduction
 
-This library shows what async signals could look like if instead of the native promise you use LazyPromise. We'll take alien-signals as the starting point, and then change the API in three steps, surfacing along the way a couple of reasons why the same cannot be implemented using the native Promise.
+With [LazyPromise](https://github.com/lazy-promise/lazy-promise) as an implementation of a single-shot Observable, we'll take [alien-signals](https://github.com/stackblitz/alien-signals) as the starting point, and then change the API in three steps, surfacing along the way a couple of reasons why the same cannot be implemented using the native Promise.
 
 ## Step 1: effects
 
