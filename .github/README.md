@@ -166,9 +166,9 @@ ErrorBox instances are treated differently from other values by some of the prev
 
 - `map`, `all`, and `race` operators pass boxed errors through the same way they pass through rejections.
 
-- We talked about how when `lazyPromise` rejects with `error`, `yield* lazyPromise` acts exactly like `throw error`. If `lazyPromise` resolves with an ErrorBox instance `boxedError`, `yield* lazyPromise` acts exactly like `return boxedError`. In both cases the execution of the generator function is interrupted, the only difference being that you can't `catch` a boxed error: you have to use `catchBoxedError` operator instead.
+- We talked about how when `lazyPromise` rejects with `error`, `yield* lazyPromise` acts exactly like `throw error`. If `lazyPromise` resolves with an ErrorBox instance `boxedError`, `yield* lazyPromise` acts exactly like `return boxedError`. In both cases the execution of the generator function is interrupted, the only difference is that you can't `catch` a boxed error: you have to use `catchBoxedError` operator instead.
 
-It's sometimes convenient to use LazyPromise on the client while sticking to async-await on the server. In that case you can still have typed errors by having async functions on the server return error boxes.
+It's sometimes convenient to use LazyPromise on the client and async-await on the server. In that case you can still have the server endpoints produce typed errors by returning error boxes from async functions.
 
 Typed errors are optional in the sense that you can pretend that the concept does not exist as long as you don't use the `ErrorBox` class. There's one exception to this which is the `any` operator, but this is only because that operator isn't very ergonomic without typed errors anyway. When one of the promises passed to the native `Promise.any` rejects because of a bug, the bug passes undetected if some other input promise resolves. The LazyPromise version of `any` works like `Promise.any` with respect to boxed errors, but rejects if just one input rejects.
 
