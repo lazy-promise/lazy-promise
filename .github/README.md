@@ -22,7 +22,7 @@ Observable is beautifully simple conceptually, and has a great cancellation mech
 
 ### If you start with the native promise
 
-At first glance the native promise seems to obviate the need for a single-shot Observable, but there's a catch-two of them actually, one major and one minor.
+At first glance the native promise seems to obviate the need for a single-shot Observable, but there's a catch—two of them actually, one major and one minor.
 
 First of all, good luck using AbortController API for cancellation. It's not the specifics of that API though that lie at the heart of the problem here, but just the fact that Promise is eager.
 
