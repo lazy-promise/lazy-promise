@@ -28,7 +28,7 @@ First of all, good luck using AbortController API for cancellation. It's not the
 
 Second, like Observable, LazyPromise takes the view that microtasks should not be mandatory. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this "Zalgo" guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it.
 
-Those concerns aside though, the native promise API is actually quite elegant, and LazyPromise API does not just resemble it, but follows all its subtleties unless stated otherwise in the docs. This has a side benefit of making the library way easier to document and learn.
+These concerns aside though, the native promise API is actually quite elegant, and LazyPromise API does not just resemble it, but follows all its subtleties unless stated otherwise in the docs. This has a side benefit of making the library way easier to document and learn.
 
 ### If you start with Effect
 
