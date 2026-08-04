@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.30](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.30)
+
+- Fix .subscribe requiring two arguments when strictNullChecks are off.
+
 ## [@lazy-promise/core@0.0.29](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.29)
 
 - Rename `unsubscribe` to `dispose` and have subscriptions typed as `Disposable`s.

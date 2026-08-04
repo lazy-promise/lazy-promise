@@ -290,7 +290,10 @@ export class LazyPromise<out Value, in Dep = unknown> {
           [`❌ Unhandled boxed errors detected. Either catch them before subscribing, or whitelist them using the type parameter of the .subscribe method.`]: never;
         },
     consumer?: Consumer<Value>,
-    ...args: [Dep] extends [{} | null] ? [dep: Dep] : [dep?: Dep]
+    // An alternative would be `[Dep] extends [{} | null]` but that is both more
+    // complicated and causes `dep` to be required when strictNullChecks are
+    // turned off.
+    ...args: undefined extends Dep ? [dep?: Dep] : [dep: Dep]
   ): Disposable;
   subscribe(consumer?: Consumer<Value>, dep?: Dep): Disposable {
     const subscription = new Subscription(this.producer, consumer, dep);
@@ -507,8 +510,7 @@ export type Unbox<T> = T extends LazyPromise<infer Value, any> ? Value : T;
 /**
  * The dependency required to satisfy every LazyPromise in `T`.
  */
-export type InferDep<T> = [
-  Extract<T, LazyPromise<any, never>> | LazyPromise<never, unknown>,
-] extends [LazyPromise<any, infer Dep>]
-  ? Dep
-  : unknown;
+export type InferDep<T> =
+  Extract<T, LazyPromise<any, never>> extends LazyPromise<any, infer Dep>
+    ? Dep
+    : unknown;

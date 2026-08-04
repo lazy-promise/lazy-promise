@@ -154,6 +154,12 @@ test("types", () => {
 
   expectTypeOf<InferDep<LazyPromise<void, never>>>().toEqualTypeOf<never>();
 
+  expectTypeOf<InferDep<LazyPromise<void>>>().toEqualTypeOf<unknown>();
+
+  expectTypeOf<
+    InferDep<LazyPromise<void, "dep"> | LazyPromise<void>>
+  >().toEqualTypeOf<"dep">();
+
   expectTypeOf<
     InferDep<LazyPromise<void, "a"> | LazyPromise<void, "b">>
   >().toEqualTypeOf<never>();
@@ -165,6 +171,8 @@ test("types", () => {
   expectTypeOf<InferDep<42>>().toEqualTypeOf<unknown>();
 
   expectTypeOf<InferDep<never>>().toEqualTypeOf<unknown>();
+
+  expectTypeOf<InferDep<unknown>>().toEqualTypeOf<unknown>();
 
   expectTypeOf(box("a")).toEqualTypeOf<LazyPromise<"a">>();
 
