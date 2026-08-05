@@ -170,6 +170,7 @@ ErrorBox instances are treated differently from other values by some of the prev
 
   ```
   declare const promiseA: LazyPromise<number | ErrorBox<"oops">>;
+
   // Type inferred as LazyPromise<string | ErrorBox<"oops">>
   const promiseB = fromGen(function* () {
     // Type inferred as number
