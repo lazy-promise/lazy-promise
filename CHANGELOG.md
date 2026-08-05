@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.31](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.31)
+
+- Minor type change to make sure TS language service shows a resolved type for `fromGen` return value.
+
 ## [@lazy-promise/core@0.0.30](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.30)
 
 - Fix .subscribe requiring two arguments when strictNullChecks are off.

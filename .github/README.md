@@ -166,7 +166,17 @@ ErrorBox instances are treated differently from other values by some of the prev
 
 - `map`, `all`, and `race` operators pass boxed errors through the same way they pass through rejections.
 
-- We talked about how when `lazyPromise` rejects with `error`, `yield* lazyPromise` acts exactly like `throw error`. If `lazyPromise` resolves with an ErrorBox instance `boxedError`, `yield* lazyPromise` acts exactly like `return boxedError`. In both cases the execution of the generator function is interrupted, the only difference is that you can't `catch` a boxed error: you have to use `catchBoxedError` operator instead.
+- We talked about how when `lazyPromise` rejects with `error`, `yield* lazyPromise` acts exactly like `throw error`. If `lazyPromise` resolves with an ErrorBox instance `boxedError`, `yield* lazyPromise` acts exactly like `return boxedError`. In both cases the execution of the generator function is interrupted, the only difference is that you can't `catch` a boxed error: you have to use `catchBoxedError` operator instead. If the execution continues, we know that `lazyPromise` has resolved with something other than a boxed error:
+
+  ```
+  declare const promiseA: LazyPromise<number | ErrorBox<"oops">>;
+  // Type inferred as LazyPromise<string | ErrorBox<"oops">>
+  const promiseB = fromGen(function* () {
+    // Type inferred as number
+    const value = yield* promiseA;
+    return String(value);
+  });
+  ```
 
 It's sometimes convenient to use LazyPromise on the client and async-await on the server. In that case you can still have the server endpoints produce typed errors by returning error boxes from async functions.
 

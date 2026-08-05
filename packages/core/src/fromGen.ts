@@ -149,6 +149,8 @@ export const fromGen = <
 >(
   generatorFunction: (dep: ExtraDep) => Generator<TYield, TReturn>,
 ): LazyPromise<
-  Unbox<TYield | TReturn>,
+  // Not `Unbox<TYield | TReturn>` to make sure TS language service shows the
+  // resolved type.
+  Unbox<TYield> | Unbox<TReturn>,
   ExtraDep & InferDep<TYield | TReturn>
 > => new LazyPromise<any>(new FromGeneratorProducer(generatorFunction));

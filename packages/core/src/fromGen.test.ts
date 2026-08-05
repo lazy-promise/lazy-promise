@@ -55,18 +55,20 @@ afterEach(() => {
 });
 
 test("types", () => {
-  expectTypeOf(
-    fromGen(function* () {
-      const value = yield* new LazyPromise<"a" | "b" | ErrorBox<"error1">>(
-        () => {},
-      );
-      expectTypeOf(value).toEqualTypeOf<"a" | "b">();
-      if (value === "a") {
-        return yield* new LazyPromise<ErrorBox<"error2">>(() => {});
-      }
-      return value;
-    }),
-  ).toEqualTypeOf<LazyPromise<ErrorBox<"error2"> | ErrorBox<"error1"> | "b">>();
+  const lazyPromise = fromGen(function* () {
+    const value = yield* new LazyPromise<"a" | "b" | ErrorBox<"error1">>(
+      () => {},
+    );
+    expectTypeOf(value).toEqualTypeOf<"a" | "b">();
+    if (value === "a") {
+      return yield* new LazyPromise<ErrorBox<"error2">>(() => {});
+    }
+    return value;
+  });
+
+  expectTypeOf(lazyPromise).toEqualTypeOf<
+    LazyPromise<ErrorBox<"error2"> | ErrorBox<"error1"> | "b">
+  >();
 
   const generatorFunction = function* () {
     const value = yield* new LazyPromise<"a" | "b" | ErrorBox<"error1">>(
