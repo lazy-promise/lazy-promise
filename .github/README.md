@@ -237,9 +237,9 @@ export interface RandomDep {
 }
 ```
 
-There is also a helper type `InferDep` which is like `Unbox`, but for the second type parameter `Dep` of a LazyPromise.
+There is also a helper type `InferDep` which is like `Unbox`, but for the dependency type parameter.
 
-Like typed errors, dependency injection is an optional feature. By default, the second type parameter `Dep` of a LazyPromise is `unknown`, indicating it does not have dependencies.
+Like typed errors, dependency injection is an optional feature. You can omit the second type parameter of a LazyPromise, in which case it will default to `unknown`, indicating that there are no dependencies.
 
 ## Class-based API
 
