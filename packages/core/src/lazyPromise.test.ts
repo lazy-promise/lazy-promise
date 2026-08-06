@@ -126,6 +126,7 @@ test("types", () => {
   new LazyPromise<void, undefined>(() => {}).subscribe();
   new LazyPromise<void, void>(() => {}).subscribe();
   new LazyPromise<void, number | undefined>(() => {}).subscribe();
+  new LazyPromise<void, any>(() => {}).subscribe();
   /** @ts-expect-error */
   new LazyPromise<void, "dep">(() => {}).subscribe();
   /** @ts-expect-error */

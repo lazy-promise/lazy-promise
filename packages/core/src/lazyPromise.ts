@@ -290,10 +290,23 @@ export class LazyPromise<out Value, in Dep = unknown> {
           [`❌ Unhandled boxed errors detected. Either catch them before subscribing, or whitelist them using the type parameter of the .subscribe method.`]: never;
         },
     consumer?: Consumer<Value>,
-    // An alternative would be `[Dep] extends [{} | null]` but that is both more
-    // complicated and causes `dep` to be required when strictNullChecks are
-    // turned off.
-    ...args: undefined extends Dep ? [dep?: Dep] : [dep: Dep]
+    // Equivalent to `undefined extends Dep ? [dep?: Dep] : [dep: Dep]`, but
+    // with `Dep` only in check positions, so that TS can verify the `in Dep`
+    // variance annotation (otherwise a false-positive TS2636 error may pop up
+    // depending on check order, e.g. in the editor but not on the command
+    // line). `undefined extends null` detects strictNullChecks turned off, in
+    // which case `dep` is optional for any `Dep` except `never`. `[Dep] extends
+    // [undefined]` is checked before `[Dep] extends [{} | null]` to make sure
+    // `dep` is optional when `Dep` is `any`.
+    ...args: [Dep] extends [never]
+      ? [dep: Dep]
+      : undefined extends null
+        ? [dep?: Dep]
+        : [Dep] extends [undefined]
+          ? [dep?: Dep]
+          : [Dep] extends [{} | null]
+            ? [dep: Dep]
+            : [dep?: Dep]
   ): Disposable;
   subscribe(consumer?: Consumer<Value>, dep?: Dep): Disposable {
     const subscription = new Subscription(this.producer, consumer, dep);
