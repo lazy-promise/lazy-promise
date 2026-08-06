@@ -54,17 +54,7 @@ const lazyPromise = new LazyPromise<number>((sink) => {
 });
 ```
 
-Whereas a native promise executes eagerly and retains the result once it settles, a LazyPromise behaves like an Observable. The way to think of it is `new LazyPromise(foo)` is simply `foo` with a wrapper around it that's only there to enforce a few invariants:
-
-- If something gets emitted, that only happens once.
-
-- Nothing gets emitted after you unsubscribe.
-
-- The teardown function is run at most once, and only if nothing was emitted.
-
-- There can be no higher-order LazyPromise (a LazyPromise that resolves to a LazyPromise). If you call the `resolve` handle of a native `Promise` with a `Promise<string>` as an argument, you'll end up with `Promise<string>`, not `Promise<Promise<string>>`. LazyPromise is similarly flattened.
-
-Just like a function doesn't do anything until you call it, a LazyPromise doesn't do anything until you subscribe to it:
+A LazyPromise doesn't do anything until you subscribe to it:
 
 ```
 const subscription = lazyPromise.subscribe({
@@ -79,6 +69,16 @@ To cancel the subscription, you call
 // This method is idempotent.
 subscription.dispose();
 ```
+
+Whereas a native promise executes eagerly and once, a LazyPromise behaves like an Observable, that is it runs the constructor callback each time someone subscribes. The way to think of it is `new LazyPromise(foo)` is simply `foo` with a wrapper around it that's only there to enforce a few invariants:
+
+- If something gets emitted, that only happens once.
+
+- Nothing gets emitted after you unsubscribe.
+
+- The teardown function is run at most once, and only if nothing was emitted.
+
+- There can be no higher-order LazyPromise (a LazyPromise that resolves to a LazyPromise). If you call the `resolve` handle of a native `Promise` with a `Promise<string>` as an argument, you'll end up with `Promise<string>`, not `Promise<Promise<string>>`. LazyPromise is similarly flattened.
 
 Aside from superficial differences, LazyPromise API mirrors that of native promise:
 
@@ -97,7 +97,7 @@ Aside from superficial differences, LazyPromise API mirrors that of native promi
 
 Cancelling a LazyPromise automatically cancels any upstream LazyPromise it was derived from via the operators above.
 
-There is a function `fromEager` that converts an async function to a LazyPromise, and a method `toEager` that converts a LazyPromise to a Promise. Both support AbortSignal API.
+There is a function `fromEager` that converts an async function to a LazyPromise, and a method `toEager` that converts a LazyPromise to a Promise. Both support AbortController API.
 
 There is also a method `pipe` that allows you to dot-chain custom operators: `lazyPromise.pipe(foo)` is equivalent to `foo(lazyPromise)`.
 
