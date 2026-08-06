@@ -164,7 +164,19 @@ ErrorBox instances are treated differently from other values by some of the prev
 
 - By default, if you call `.subscribe` or `.toEager` on a LazyPromise that can resolve to boxed errors, you'll get a typechecking error. This makes sure that if for example you add a new error to a server endpoint, you'll catch all the places on the client where that error isn't handled. Both methods have an optional generic type parameter WhitelistedError that you can use to silence the check for some or all errors.
 
-- `map`, `all`, and `race` operators pass boxed errors through the same way they pass through rejections.
+- `map`, `all`, and `race` operators pass boxed errors through the same way they pass through rejections, e.g.
+
+  ```
+  declare const promiseA: LazyPromise<number | ErrorBox<"oops">>;
+
+  // Type inferred as LazyPromise<string | ErrorBox<"oops">>
+  const promiseB = promiseA.map(
+    (
+      // Type inferred as number
+      value,
+    ) => String(value),
+  );
+  ```
 
 - We talked about how when `lazyPromise` rejects with `error`, `yield* lazyPromise` acts exactly like `throw error`. If `lazyPromise` resolves with an ErrorBox instance `boxedError`, `yield* lazyPromise` acts exactly like `return boxedError`. In both cases the execution of the generator function is interrupted, the only difference is that you can't `catch` a boxed error: you have to use `catchBoxedError` operator instead. If the execution continues, we know that `lazyPromise` has resolved with something other than a boxed error:
 
