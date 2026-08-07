@@ -137,8 +137,13 @@ test("types", () => {
   new LazyPromise<void, never>(() => {}).subscribe(undefined, "dep");
 
   expectTypeOf(
-    new LazyPromise<void, "dep">((sink, dep) => {
-      expectTypeOf(dep).toEqualTypeOf<"dep">();
+    new LazyPromise<void, "a" | "b">((sink, dep) => {
+      expectTypeOf(dep).toEqualTypeOf<"a" | "b">();
+      sink.resolve();
+      sink.resolve(new LazyPromise<void, "a" | "b" | "c">(() => {}));
+      sink.resolve(new LazyPromise<void>(() => {}));
+      /** @ts-expect-error */
+      sink.resolve(new LazyPromise<void, "a">(() => {}));
     }),
   );
 
