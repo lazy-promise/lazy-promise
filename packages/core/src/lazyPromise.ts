@@ -196,6 +196,8 @@ class Subscription implements Disposable {
           return;
         }
         this.settled = true;
+        // For GC purposes.
+        this.dep = undefined;
         if (this.consumer?.reject) {
           try {
             this.consumer.reject(error);
@@ -207,8 +209,6 @@ class Subscription implements Disposable {
         }
         // For GC purposes.
         this.consumer = undefined;
-        // For GC purposes.
-        this.dep = undefined;
       }
       return;
     }
@@ -333,7 +333,7 @@ export class LazyPromise<out Value, in Dep = unknown> {
   }
 
   /**
-   * The LazyPromise equivalent of `promise.catch(...)` for typed errors.
+   * The LazyPromise equivalent of `promise.catch(...)` for boxed errors.
    */
   catchBoxedError<NewValue, ExtraDep = unknown>(
     callback: (
