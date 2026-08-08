@@ -1,9 +1,9 @@
-import type { Consumer, Disposable } from "./lazyPromise.js";
+import type { Consumer, Subscription } from "./lazyPromise.js";
 
 export class ToEagerConsumerListener
   implements Consumer<any>, EventListenerObject
 {
-  subscription?: Disposable;
+  subscription?: Subscription;
   settled = false;
 
   constructor(

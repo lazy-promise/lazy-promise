@@ -1,4 +1,4 @@
-import type { Disposable, Producer, Sink, Unbox } from "./lazyPromise.js";
+import type { Job, Producer, Sink, Unbox } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
 class FromEagerOptions {
@@ -13,7 +13,7 @@ class FromEagerOptions {
   }
 }
 
-class FromEagerJob implements Disposable {
+class FromEagerJob implements Job {
   options = new FromEagerOptions();
 
   dispose() {

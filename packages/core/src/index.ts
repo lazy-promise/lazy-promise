@@ -13,10 +13,11 @@ export { inTimeout } from "./inTimeout.js";
 export { box, ErrorBox, LazyPromise, never, rejecting } from "./lazyPromise.js";
 export type {
   Consumer,
-  Disposable,
   InferDep,
+  Job,
   Producer,
   Sink,
+  Subscription,
   Unbox,
   UnboxError,
 } from "./lazyPromise.js";

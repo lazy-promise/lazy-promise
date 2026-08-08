@@ -139,27 +139,35 @@ class Sink<in Value, out Dep = unknown> {
 
 export type { Sink };
 
-export interface Disposable {
+export interface Job {
   dispose(): void;
 }
 
-class Subscription implements Disposable {
-  job: (() => void) | Disposable | void | undefined;
+class Subscription {
+  /** @internal */
+  job: (() => void) | Job | void | undefined;
+  /** @internal */
   settled: boolean = false;
+  /** @internal */
   disposed: boolean = false;
 
+  /** @internal */
   constructor(
+    /** @internal */
     public producer?:
-      | ((sink: Sink<any, any>, dep: any) => (() => void) | Disposable | void)
+      | ((sink: Sink<any, any>, dep: any) => (() => void) | Job | void)
       // eslint-disable-next-line no-use-before-define
       | Producer<any, any>,
+    /** @internal */
     public consumer?: {
       resolve?: (value: any) => void;
       reject?: (error: unknown) => void;
     },
+    /** @internal */
     public dep?: any,
   ) {}
 
+  /** @internal */
   next() {
     while (true) {
       const sink = new Sink(this);
@@ -235,14 +243,13 @@ class Subscription implements Disposable {
   }
 }
 
+export type { Subscription };
+
 /**
  * The class-based equivalent of the LazyPromise constructor callback.
  */
 export interface Producer<Value, Dep = unknown> {
-  produce: (
-    sink: Sink<Value, Dep>,
-    dep: Dep,
-  ) => (() => void) | Disposable | void;
+  produce: (sink: Sink<Value, Dep>, dep: Dep) => (() => void) | Job | void;
 }
 
 /**
@@ -260,12 +267,12 @@ export interface Producer<Value, Dep = unknown> {
 export class LazyPromise<out Value, in Dep = unknown> {
   /** @internal */
   public producer:
-    | ((sink: Sink<Value, Dep>, dep: Dep) => (() => void) | Disposable | void)
+    | ((sink: Sink<Value, Dep>, dep: Dep) => (() => void) | Job | void)
     | Producer<Value, Dep>;
 
   constructor(
     producer:
-      | ((sink: Sink<Value, Dep>, dep: Dep) => (() => void) | Disposable | void)
+      | ((sink: Sink<Value, Dep>, dep: Dep) => (() => void) | Job | void)
       | Producer<Value, Dep>,
   ) {
     this.producer = producer;
@@ -307,8 +314,8 @@ export class LazyPromise<out Value, in Dep = unknown> {
           : [Dep] extends [{} | null]
             ? [dep: Dep]
             : [dep?: Dep]
-  ): Disposable;
-  subscribe(consumer?: Consumer<Value>, dep?: Dep): Disposable {
+  ): Subscription;
+  subscribe(consumer?: Consumer<Value>, dep?: Dep): Subscription {
     const subscription = new Subscription(this.producer, consumer, dep);
     subscription.next();
     return subscription;

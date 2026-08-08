@@ -1,7 +1,7 @@
-import type { Disposable, Producer, Sink } from "./lazyPromise.js";
+import type { Job, Producer, Sink } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
-class InTimeoutJob implements Disposable {
+class InTimeoutJob implements Job {
   constructor(public id: ReturnType<typeof setTimeout>) {}
 
   dispose() {

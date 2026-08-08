@@ -1,8 +1,8 @@
 import type {
   Consumer,
-  Disposable,
   ErrorBox,
   InferDep,
+  Job,
   Producer,
   Sink,
 } from "@lazy-promise/core";
@@ -437,7 +437,7 @@ test("cancellation", () => {
 });
 
 test("cancellation (class-based)", () => {
-  const job: Disposable = {
+  const job: Job = {
     dispose() {
       log("dispose");
       expect(this).toBe(job);
@@ -500,7 +500,7 @@ test("unsubscribe from produce", () => {
 });
 
 test("unsubscribe from produce (class-based)", () => {
-  const job: Disposable = {
+  const job: Job = {
     dispose() {
       log("dispose inner");
       expect(this).toBe(job);

@@ -1,7 +1,7 @@
-import type { Disposable, Producer, Sink } from "./lazyPromise.js";
+import type { Job, Producer, Sink } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
-class InScheduledJob extends AbortController implements Disposable {
+class InScheduledJob extends AbortController implements Job {
   dispose() {
     this.abort();
   }

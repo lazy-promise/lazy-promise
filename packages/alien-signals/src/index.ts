@@ -1,4 +1,4 @@
-import type { Disposable, ErrorBox, Sink } from "@lazy-promise/core";
+import type { ErrorBox, Job, Sink, Subscription } from "@lazy-promise/core";
 import { LazyPromise } from "@lazy-promise/core";
 import type { ReactiveNode } from "alien-signals/system";
 import { createReactiveSystem, ReactiveFlags } from "alien-signals/system";
@@ -17,7 +17,7 @@ interface LPState {
   original: LazyPromise<any>;
   // eslint-disable-next-line no-use-before-define
   pendingHead: PendingNode | undefined;
-  originalSub: Disposable | undefined;
+  originalSub: Subscription | undefined;
   status: typeof resolvedSymbol | typeof rejectedSymbol | undefined;
   result: any;
 }
@@ -222,7 +222,7 @@ class ProxyProducer {
     private c: ComputedNode,
   ) {}
 
-  produce(sink: Sink<any>): Disposable | void {
+  produce(sink: Sink<any>): Job | void {
     const { state, c } = this;
     if (state.status === resolvedSymbol) {
       sink.resolve(state.result);

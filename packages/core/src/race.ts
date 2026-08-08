@@ -1,15 +1,16 @@
 import type {
   Consumer,
-  Disposable,
   InferDep,
+  Job,
   Producer,
   Sink,
+  Subscription,
   Unbox,
 } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
-class RaceConsumerJob implements Consumer<any>, Disposable {
-  subscriptions: Disposable[] = [];
+class RaceConsumerJob implements Consumer<any>, Job {
+  subscriptions: Subscription[] = [];
   settled = false;
 
   constructor(public sink: Sink<any>) {}

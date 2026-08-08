@@ -1,9 +1,10 @@
 import type {
   Consumer,
-  Disposable,
   InferDep,
+  Job,
   Producer,
   Sink,
+  Subscription,
   Unbox,
 } from "./lazyPromise.js";
 import { ErrorBox, LazyPromise } from "./lazyPromise.js";
@@ -45,10 +46,10 @@ class AllConsumer implements Consumer<any> {
   }
 }
 
-class AllJob implements Disposable {
+class AllJob implements Job {
   // A sparse array or an object.
   values: any;
-  subscriptions: Disposable[] = [];
+  subscriptions: Subscription[] = [];
   pendingCount = 0;
   initialized = false;
 

@@ -1,9 +1,10 @@
 import type {
   Consumer,
-  Disposable,
   InferDep,
+  Job,
   Producer,
   Sink,
+  Subscription,
   Unbox,
   Yieldable,
 } from "./lazyPromise.js";
@@ -11,12 +12,12 @@ import { ErrorBox, LazyPromise } from "./lazyPromise.js";
 
 const emptySymbol = Symbol("empty");
 
-class FromGeneratorConsumerJob<TReturn> implements Consumer<any>, Disposable {
+class FromGeneratorConsumerJob<TReturn> implements Consumer<any>, Job {
   // The value that a yielded promise resolved to.
   value: any = emptySymbol;
   // The error that a yielded promise rejected with.
   error: unknown = emptySymbol;
-  subscription: Disposable | undefined;
+  subscription: Subscription | undefined;
   disposed = false;
 
   constructor(
