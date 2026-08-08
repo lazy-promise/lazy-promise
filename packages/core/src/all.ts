@@ -8,14 +8,11 @@ import type {
   Unbox,
 } from "./lazyPromise.js";
 import { ErrorBox, LazyPromise } from "./lazyPromise.js";
-import type {
-  NeverIfArrayContainsNever,
-  NeverIfRecordContainsNever,
-} from "./utils.js";
+import type { NeverIfArrayContainsNever } from "./utils.js";
 
 class AllConsumer implements Consumer<any> {
   constructor(
-    public key: any,
+    public index: number,
     // eslint-disable-next-line no-use-before-define
     public job: AllJob,
   ) {}
@@ -28,7 +25,7 @@ class AllConsumer implements Consumer<any> {
       job.dispose();
       return;
     }
-    job.values[this.key] = value;
+    job.values[this.index] = value;
     if (job.initialized && job.pendingCount === 1) {
       job.sink.resolve(job.values);
       // No need to unsubscribe since all sources that are promises have
@@ -47,8 +44,8 @@ class AllConsumer implements Consumer<any> {
 }
 
 class AllJob implements Job {
-  // A sparse array or an object.
-  values: any;
+  // A sparse array.
+  values: any[] = [];
   subscriptions: Subscription[] = [];
   pendingCount = 0;
   initialized = false;
@@ -58,11 +55,11 @@ class AllJob implements Job {
     public dep: any,
   ) {}
 
-  next(key: any, source: any) {
+  next(index: number, source: any) {
     if (source instanceof LazyPromise) {
       this.pendingCount++;
       this.subscriptions.push(
-        source.subscribe<any>(new AllConsumer(key, this), this.dep),
+        source.subscribe<any>(new AllConsumer(index, this), this.dep),
       );
       return;
     }
@@ -72,7 +69,7 @@ class AllJob implements Job {
       this.dispose();
       return;
     }
-    this.values[key] = source;
+    this.values[index] = source;
   }
 
   dispose() {
@@ -83,28 +80,17 @@ class AllJob implements Job {
 }
 
 class AllProducer implements Producer<any, any> {
-  constructor(public sources: Iterable<any> | Record<any, any>) {}
+  constructor(public sources: Iterable<any>) {}
 
   produce(sink: Sink<any>, dep: any) {
     const job = new AllJob(sink, dep);
-    if (Symbol.iterator in this.sources) {
-      job.values = [];
-      let index = 0;
-      for (const source of this.sources) {
-        job.next(index, source);
-        if (job.initialized) {
-          return;
-        }
-        index++;
+    let index = 0;
+    for (const source of this.sources) {
+      job.next(index, source);
+      if (job.initialized) {
+        return;
       }
-    } else {
-      job.values = {};
-      for (const key in this.sources) {
-        job.next(key, this.sources[key]);
-        if (job.initialized) {
-          return;
-        }
-      }
+      index++;
     }
     if (job.pendingCount === 0) {
       sink.resolve(job.values);
@@ -118,9 +104,7 @@ class AllProducer implements Producer<any, any> {
 }
 
 /**
- * The LazyPromise equivalent of `Promise.all`. In addition to an iterable,
- * accepts inputs in the form of a plain object (in that case a successful
- * result is an object with the same keys).
+ * The LazyPromise equivalent of `Promise.all`.
  */
 export const all: {
   <const Sources extends any[]>(
@@ -139,14 +123,5 @@ export const all: {
     | Extract<Unbox<Source>, ErrorBox<any>>,
     InferDep<Source>
   >;
-  <const Sources extends Record<any, any>>(
-    sources: Sources,
-  ): LazyPromise<
-    | NeverIfRecordContainsNever<{
-        [Key in keyof Sources]: Exclude<Unbox<Sources[Key]>, ErrorBox<any>>;
-      }>
-    | Extract<Unbox<Sources[keyof Sources]>, ErrorBox<any>>,
-    InferDep<Sources[keyof Sources]>
-  >;
-} = (sources: Iterable<any> | Record<any, any>): LazyPromise<any> =>
+} = (sources: Iterable<any>): LazyPromise<any> =>
   new LazyPromise(new AllProducer(sources));

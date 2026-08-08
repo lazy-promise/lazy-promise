@@ -77,31 +77,6 @@ test("types", () => {
     ]),
   ).toEqualTypeOf<LazyPromise<"value a">>();
 
-  expectTypeOf(any({})).toEqualTypeOf<LazyPromise<ErrorBox<{}>>>();
-
-  expectTypeOf(
-    any({
-      a: new LazyPromise<"value a" | ErrorBox<"error a">>(() => {}),
-      b: (true as boolean) ? "value b" : new ErrorBox("error b"),
-    }),
-  ).toEqualTypeOf<
-    LazyPromise<
-      | "value a"
-      | "value b"
-      | ErrorBox<{
-          readonly a: "error a";
-          readonly b: "error b";
-        }>
-    >
-  >();
-
-  expectTypeOf(
-    any({
-      a: new LazyPromise<"value a" | ErrorBox<"error a">>(() => {}),
-      b: new LazyPromise<never>(() => {}),
-    }),
-  ).toEqualTypeOf<LazyPromise<"value a">>();
-
   expectTypeOf(any(new Set([]))).toEqualTypeOf<
     LazyPromise<ErrorBox<never[]>>
   >();
@@ -124,16 +99,6 @@ test("types", () => {
       new LazyPromise<"value b", { b: null }>(() => {}),
       "value c",
     ]),
-  ).toEqualTypeOf<
-    LazyPromise<"value a" | "value b" | "value c", { a: null } & { b: null }>
-  >();
-
-  expectTypeOf(
-    any({
-      a: new LazyPromise<"value a", { a: null }>(() => {}),
-      b: new LazyPromise<"value b", { b: null }>(() => {}),
-      c: "value c",
-    }),
   ).toEqualTypeOf<
     LazyPromise<"value a" | "value b" | "value c", { a: null } & { b: null }>
   >();
@@ -169,22 +134,7 @@ test("empty iterable", () => {
   `);
 });
 
-test("empty object", () => {
-  const promise = any({});
-  promise.subscribe<unknown>(logConsumer);
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "handleValue",
-        ErrorBox {
-          "error": {},
-        },
-      ],
-    ]
-  `);
-});
-
-test("sync resolve (iterable)", () => {
+test("sync resolve", () => {
   const promise = any([
     box(new ErrorBox("a" as const)),
     new ErrorBox("b" as const),
@@ -199,27 +149,6 @@ test("sync resolve (iterable)", () => {
             "a",
             "b",
           ],
-        },
-      ],
-    ]
-  `);
-});
-
-test("sync resolve (object)", () => {
-  const promise = any({
-    a: box(new ErrorBox("a" as const)),
-    b: new ErrorBox("b" as const),
-  });
-  promise.subscribe<unknown>(logConsumer);
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "handleValue",
-        ErrorBox {
-          "error": {
-            "a": "a",
-            "b": "b",
-          },
         },
       ],
     ]
@@ -343,7 +272,7 @@ test("rejection of one of the sources should reject result", () => {
     `);
 });
 
-test("internally disposed when a source in an iterable resolves, internal disposal should prevent further subscriptions to sources", () => {
+test("internally disposed when a source resolves, internal disposal should prevent further subscriptions to sources", () => {
   const promise = any([
     new LazyPromise<ErrorBox<string>>(() => {
       log("produce a");
@@ -356,36 +285,6 @@ test("internally disposed when a source in an iterable resolves, internal dispos
       log("produce c");
     }),
   ]);
-  promise.subscribe(logConsumer);
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "produce a",
-      ],
-      [
-        "handleValue",
-        "b",
-      ],
-      [
-        "dispose a",
-      ],
-    ]
-  `);
-});
-
-test("internally disposed when a source in an object resolves, internal disposal should prevent further subscriptions to sources", () => {
-  const promise = any({
-    a: new LazyPromise<ErrorBox<string>>(() => {
-      log("produce a");
-      return () => {
-        log("dispose a");
-      };
-    }),
-    b: box("b"),
-    c: new LazyPromise<ErrorBox<string>>(() => {
-      log("produce c");
-    }),
-  });
   promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [

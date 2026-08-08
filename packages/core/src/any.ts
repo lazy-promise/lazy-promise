@@ -9,14 +9,11 @@ import type {
   UnboxError,
 } from "./lazyPromise.js";
 import { ErrorBox, LazyPromise } from "./lazyPromise.js";
-import type {
-  NeverIfArrayContainsNever,
-  NeverIfRecordContainsNever,
-} from "./utils.js";
+import type { NeverIfArrayContainsNever } from "./utils.js";
 
 class AnyConsumer implements Consumer<any> {
   constructor(
-    public key: any,
+    public index: number,
     // eslint-disable-next-line no-use-before-define
     public job: AnyJob,
   ) {}
@@ -24,7 +21,7 @@ class AnyConsumer implements Consumer<any> {
   resolve(value: any) {
     const job = this.job;
     if (value instanceof ErrorBox) {
-      job.errors[this.key] = value.error;
+      job.errors[this.index] = value.error;
       if (job.initialized && job.pendingCount === 1) {
         job.sink.resolve(new ErrorBox(job.errors));
         // No need to unsubscribe since all sources that are promises have
@@ -49,8 +46,8 @@ class AnyConsumer implements Consumer<any> {
 }
 
 class AnyJob implements Job {
-  // A sparse array or an object.
-  errors: any;
+  // A sparse array.
+  errors: any[] = [];
   subscriptions: Subscription[] = [];
   pendingCount = 0;
   initialized = false;
@@ -60,16 +57,16 @@ class AnyJob implements Job {
     public dep: any,
   ) {}
 
-  next(key: any, source: any) {
+  next(index: number, source: any) {
     if (source instanceof LazyPromise) {
       this.pendingCount++;
       this.subscriptions.push(
-        source.subscribe<any>(new AnyConsumer(key, this), this.dep),
+        source.subscribe<any>(new AnyConsumer(index, this), this.dep),
       );
       return;
     }
     if (source instanceof ErrorBox) {
-      this.errors[key] = source.error;
+      this.errors[index] = source.error;
       return;
     }
     this.sink.resolve(source);
@@ -85,28 +82,17 @@ class AnyJob implements Job {
 }
 
 class AnyProducer implements Producer<any, any> {
-  constructor(public sources: Iterable<any> | Record<any, any>) {}
+  constructor(public sources: Iterable<any>) {}
 
   produce(sink: Sink<any>, dep: any) {
     const job = new AnyJob(sink, dep);
-    if (Symbol.iterator in this.sources) {
-      job.errors = [];
-      let index = 0;
-      for (const source of this.sources) {
-        job.next(index, source);
-        if (job.initialized) {
-          return;
-        }
-        index++;
+    let index = 0;
+    for (const source of this.sources) {
+      job.next(index, source);
+      if (job.initialized) {
+        return;
       }
-    } else {
-      job.errors = {};
-      for (const key in this.sources) {
-        job.next(key, this.sources[key]);
-        if (job.initialized) {
-          return;
-        }
-      }
+      index++;
     }
     if (job.pendingCount === 0) {
       sink.resolve(new ErrorBox(job.errors));
@@ -122,15 +108,13 @@ class AnyProducer implements Producer<any, any> {
 type ErrorBoxOrNever<Error> = Error extends never ? never : ErrorBox<Error>;
 
 /**
- * Acts as `Promise.any` with respect to typed errors. In addition to an
- * iterable, accepts inputs in the form of a plain object.
+ * Acts as `Promise.any` with respect to boxed errors.
  *
  * If one of the inputs resolves with a value other than a boxed error, the
  * resulting promise will immediately resolve with that value.
  *
  * If all inputs resolve with boxed errors, the resulting promise will resolve
- * with a boxed array (if the inputs we provided as an iterable) or an object
- * (if the inputs were provided as an object) with the errors.
+ * with a boxed array of errors.
  *
  * If one of the inputs rejects, the resulting promise will immediately pass on
  * the untyped error.
@@ -153,17 +137,6 @@ export const any: {
     | Exclude<Unbox<Source>, ErrorBox<any>>
     | ErrorBox<UnboxError<Unbox<Source>>[]>,
     InferDep<Source>
-  >;
-  <const Sources extends Record<any, any>>(
-    sources: Sources,
-  ): LazyPromise<
-    | Exclude<Unbox<Sources[keyof Sources]>, ErrorBox<any>>
-    | ErrorBoxOrNever<
-        NeverIfRecordContainsNever<{
-          [Key in keyof Sources]: UnboxError<Unbox<Sources[Key]>>;
-        }>
-      >,
-    InferDep<Sources[keyof Sources]>
   >;
 } = (sources: Iterable<LazyPromise<any>>): LazyPromise<any> =>
   new LazyPromise(new AnyProducer(sources));
