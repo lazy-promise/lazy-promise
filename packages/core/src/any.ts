@@ -7,6 +7,7 @@ import type {
   Subscription,
   Unbox,
   UnboxError,
+  Yieldable,
 } from "./lazyPromise.js";
 import { ErrorBox, LazyPromise } from "./lazyPromise.js";
 import type { NeverIfArrayContainsNever } from "./utils.js";
@@ -131,12 +132,20 @@ export const any: {
       >,
     InferDep<Sources[number]>
   >;
-  <const Source = never>(
+  <const Source>(
     sources: Iterable<Source>,
-  ): LazyPromise<
-    | Exclude<Unbox<Source>, ErrorBox<any>>
-    | ErrorBox<UnboxError<Unbox<Source>>[]>,
-    InferDep<Source>
-  >;
-} = (sources: Iterable<LazyPromise<any>>): LazyPromise<any> =>
-  new LazyPromise(new AnyProducer(sources));
+  ): [Source] extends [never]
+    ? LazyPromise<ErrorBox<never[]>>
+    : [Source] extends [Yieldable]
+      ? undefined
+      : LazyPromise<
+          | Exclude<Unbox<Source>, ErrorBox<any>>
+          | ErrorBox<UnboxError<Unbox<Source>>[]>,
+          InferDep<Source>
+        >;
+} = (sources: Iterable<any>): any => {
+  if (sources instanceof LazyPromise) {
+    return;
+  }
+  return new LazyPromise(new AnyProducer(sources));
+};

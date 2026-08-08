@@ -6,6 +6,7 @@ import type {
   Sink,
   Subscription,
   Unbox,
+  Yieldable,
 } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
@@ -58,7 +59,17 @@ class RaceProducer implements Producer<any, any> {
 /**
  * The LazyPromise equivalent of `Promise.race`.
  */
-export const race = <Source>(
-  sources: Iterable<Source>,
-): LazyPromise<Unbox<Source>, InferDep<Source>> =>
-  new LazyPromise(new RaceProducer(sources));
+export const race: {
+  <Source>(
+    sources: Iterable<Source>,
+  ): [Source] extends [never]
+    ? LazyPromise<never>
+    : [Source] extends [Yieldable]
+      ? undefined
+      : LazyPromise<Unbox<Source>, InferDep<Source>>;
+} = (sources: Iterable<any>): any => {
+  if (sources instanceof LazyPromise) {
+    return;
+  }
+  return new LazyPromise(new RaceProducer(sources));
+};

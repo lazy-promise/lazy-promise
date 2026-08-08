@@ -117,6 +117,11 @@ test("types", () => {
       { a: null } & { b: null }
     >
   >();
+
+  expectTypeOf(
+    // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
+    any(new LazyPromise<number>(() => {})),
+  ).toEqualTypeOf<undefined>();
 });
 
 test("empty iterable", () => {
@@ -132,6 +137,11 @@ test("empty iterable", () => {
       ],
     ]
   `);
+});
+
+test("the iterable is a LazyPromise", () => {
+  // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
+  expect(any(new LazyPromise(() => {}))).toBeUndefined();
 });
 
 test("sync resolve", () => {

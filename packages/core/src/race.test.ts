@@ -71,12 +71,22 @@ test("types", () => {
   expectTypeOf(
     race([new LazyPromise<"value a", { a: null }>(() => {}), 42]),
   ).toEqualTypeOf<LazyPromise<"value a" | number, { a: null }>>();
+
+  expectTypeOf(
+    // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
+    race(new LazyPromise<number>(() => {})),
+  ).toEqualTypeOf<undefined>();
 });
 
 test("empty iterable", () => {
   const promise = race([]);
   promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
+});
+
+test("the iterable is a LazyPromise", () => {
+  // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
+  expect(race(new LazyPromise(() => {}))).toBeUndefined();
 });
 
 test("sync resolve", () => {
