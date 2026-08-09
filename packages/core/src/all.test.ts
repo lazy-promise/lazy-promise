@@ -120,10 +120,9 @@ test("types", () => {
     >
   >();
 
-  expectTypeOf(
-    // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
-    all(new LazyPromise<number>(() => {})),
-  ).toEqualTypeOf<undefined>();
+  () => {
+    expectTypeOf(all(new LazyPromise<number>(() => {}))).toEqualTypeOf<never>();
+  };
 });
 
 test("empty iterable", () => {
@@ -140,8 +139,11 @@ test("empty iterable", () => {
 });
 
 test("the iterable is a LazyPromise", () => {
-  // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
-  expect(all(new LazyPromise(() => {}))).toBeUndefined();
+  expect(() => {
+    all(new LazyPromise(() => {}));
+  }).toThrowErrorMatchingInlineSnapshot(
+    `[Error: A LazyPromise passed to all(...) must be wrapped in an Iterable such as an array.]`,
+  );
 });
 
 test("sync resolve", () => {

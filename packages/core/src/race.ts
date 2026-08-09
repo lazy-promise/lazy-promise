@@ -65,11 +65,13 @@ export const race: {
   ): [Source] extends [never]
     ? LazyPromise<never>
     : [Source] extends [Yieldable]
-      ? undefined
+      ? never
       : LazyPromise<Unbox<Source>, InferDep<Source>>;
-} = (sources: Iterable<any>): any => {
+} = ((sources: Iterable<any>): any => {
   if (sources instanceof LazyPromise) {
-    return;
+    throw new Error(
+      `A LazyPromise passed to race(...) must be wrapped in an Iterable such as an array.`,
+    );
   }
   return new LazyPromise(new RaceProducer(sources));
-};
+}) as any;

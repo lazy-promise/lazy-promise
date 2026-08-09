@@ -72,10 +72,11 @@ test("types", () => {
     race([new LazyPromise<"value a", { a: null }>(() => {}), 42]),
   ).toEqualTypeOf<LazyPromise<"value a" | number, { a: null }>>();
 
-  expectTypeOf(
-    // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
-    race(new LazyPromise<number>(() => {})),
-  ).toEqualTypeOf<undefined>();
+  () => {
+    expectTypeOf(
+      race(new LazyPromise<number>(() => {})),
+    ).toEqualTypeOf<never>();
+  };
 });
 
 test("empty iterable", () => {
@@ -85,8 +86,11 @@ test("empty iterable", () => {
 });
 
 test("the iterable is a LazyPromise", () => {
-  // eslint-disable-next-line @typescript-eslint/no-confusing-void-expression
-  expect(race(new LazyPromise(() => {}))).toBeUndefined();
+  expect(() => {
+    race(new LazyPromise(() => {}));
+  }).toThrowErrorMatchingInlineSnapshot(
+    `[Error: A LazyPromise passed to race(...) must be wrapped in an Iterable such as an array.]`,
+  );
 });
 
 test("sync resolve", () => {

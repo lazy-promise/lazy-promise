@@ -122,15 +122,17 @@ export const all: {
   ): [Source] extends [never]
     ? LazyPromise<never[]>
     : [Source] extends [Yieldable]
-      ? undefined
+      ? never
       : LazyPromise<
           | Exclude<Unbox<Source>, ErrorBox<any>>[]
           | Extract<Unbox<Source>, ErrorBox<any>>,
           InferDep<Source>
         >;
-} = (sources: Iterable<any>): any => {
+} = ((sources: Iterable<any>): any => {
   if (sources instanceof LazyPromise) {
-    return;
+    throw new Error(
+      `A LazyPromise passed to all(...) must be wrapped in an Iterable such as an array.`,
+    );
   }
   return new LazyPromise(new AllProducer(sources));
-};
+}) as any;
