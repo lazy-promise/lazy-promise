@@ -150,7 +150,7 @@ originalLazyPromise.finally(() => anotherLazyPromise);
 
 If `anotherLazyPromise` is `inTimeout(ms)`, that would delay `originalLazyPromise` by `ms`. If `anotherLazyPromise` is `inMicrotask()`, that would make `originalLazyPromise` fire in a microtask.
 
-Notice that whether it's a `finally` block or the `finally` operator, `anotherLazyPromise` will never get subscribed if the whole flow is cancelled while waiting for originalLazyPromise. In the sync world, we're used to a guarantee that the `finally` block always runs, and you do get that guarantee, but only if you don't `yield*` inside `try`/`catch`—it's simply the way JavaScript generator functions work.
+Notice that whether it's a `finally` block or the `finally` method, `anotherLazyPromise` will never get subscribed if the whole flow is cancelled while waiting for originalLazyPromise. In the sync world, we're used to a guarantee that the `finally` block always runs, and you do get that guarantee, but only if you don't `yield*` inside `try`/`catch`—it's simply the way JavaScript generator functions work.
 
 The library also provides a `log` function that wraps a LazyPromise without changing its behavior, and console.logs everything that happens to it: `lazyPromise.pipe(log("your label"))`.
 
