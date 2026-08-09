@@ -46,18 +46,11 @@ class LazyPromiseIterator<TYield> implements Iterator<TYield> {
   }
 }
 
-/**
- * The object passed to `.subscribe` method of a LazyPromise.
- */
 export interface Consumer<Value> {
   resolve?: (value: Value) => void;
   reject?: (error: unknown) => void;
 }
 
-/**
- * The object passed to a LazyPromise constructor callback or to the `.produce`
- * method of a Producer.
- */
 class Sink<in Value, out Dep = unknown> {
   /** @internal */
   resolvedWithAPromise: boolean = false;
@@ -245,9 +238,6 @@ class Subscription {
 
 export type { Subscription };
 
-/**
- * The class-based equivalent of the LazyPromise constructor callback.
- */
 export interface Producer<Value, Dep = unknown> {
   produce: (sink: Sink<Value, Dep>, dep: Dep) => (() => void) | Job | void;
 }
