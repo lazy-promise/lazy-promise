@@ -82,18 +82,18 @@ Whereas a native promise executes eagerly and once, a LazyPromise behaves like a
 
 Aside from superficial differences, LazyPromise API mirrors that of native promise:
 
-| Promise API                       | LazyPromise equivalent            |
-| :-------------------------------- | :-------------------------------- |
-| `promise.then(foo)`               | `lazyPromise.map(foo)`            |
-| `promise.catch(foo)`              | `lazyPromise.catchRejection(foo)` |
-| `promise.finally(foo)`            | `lazyPromise.finally(foo)`        |
-| `Promise.resolve(valueOrPromise)` | `box(valueOrLazyPromise)`         |
-| `Promise.reject(error)`           | `rejecting(error)`                |
-| `new Promise<never>(() => {})`    | `never`                           |
-| `Promise.all(...)`                | `all(...)`                        |
-| `Promise.any(...)`                | `any(...)`                        |
-| `Promise.race(...)`               | `race(...)`                       |
-| `Awaited<T>`                      | `Unbox<T>`                        |
+| Promise API                       | LazyPromise equivalent     |
+| :-------------------------------- | :------------------------- |
+| `promise.then(foo)`               | `lazyPromise.map(foo)`     |
+| `promise.catch(foo)`              | `lazyPromise.catch(foo)`   |
+| `promise.finally(foo)`            | `lazyPromise.finally(foo)` |
+| `Promise.resolve(valueOrPromise)` | `box(valueOrLazyPromise)`  |
+| `Promise.reject(error)`           | `rejecting(error)`         |
+| `new Promise<never>(() => {})`    | `never`                    |
+| `Promise.all(...)`                | `all(...)`                 |
+| `Promise.any(...)`                | `any(...)`                 |
+| `Promise.race(...)`               | `race(...)`                |
+| `Awaited<T>`                      | `Unbox<T>`                 |
 
 Cancelling a LazyPromise automatically cancels any upstream LazyPromise it was derived from via the operators above.
 
@@ -158,7 +158,7 @@ The library also provides a `log` function that wraps a LazyPromise without chan
 
 The way that LazyPromise supports typed errors reflects the JavaScript reality that you cannot typecheck errors that you throw and have to represent typed errors with return values. Instead of having an extra channel in addition to `resolve` and `reject`, we pass typed errors through the `resolve` channel, wrapping them in ErrorBox class to differentiate them from other values. `new ErrorBox(error)` simply stores `error` in its `.error` property. Although `LazyPromise<"value" | ErrorBox<"error">>` is a little bit harder to read than `LazyPromise<"value", "error">`, an extra channel and type parameter would have introduced unnecessary complexity when it comes to using LazyPromise together with native promises and generator syntax.
 
-There is an operator `catchBoxedError` which is a boxed error counterpart of `catchRejection`, and a helper type `UnboxError` that extracts what's inside an ErrorBox.
+There is an operator `catchBoxedError` which is a boxed error counterpart of `catch`, and a helper type `UnboxError` that extracts what's inside an ErrorBox.
 
 ErrorBox instances are treated differently from other values by some of the previously mentioned APIs:
 
@@ -215,7 +215,7 @@ lazyPromise.subscribe(
 
 Dependencies bubble up through the type system when you use the operators or the generator syntax, so for example if `promiseA` has dependency `A` and `promiseB` has dependency `B`, `all([promiseA, promiseB])` will have dependency `A & B`, in other words `all` needs a dependency that it'll be able to pass to both `promiseA` and `promiseB`. This is useful for testing since you can gather up a bunch of dependencies needed by your async logic, and then satisfy them with either production implementations or mocks.
 
-The `dep` parameter is made available not only to the LazyPromise constructor callback, but also to all other lazily executed callbacks, namely those you pass to `map`, `catchRejection`, `catchBoxedError`, `finally` and `fromGen`, e.g. `lazyPromise.map((value, dep: MyDep) => ...)`. You must specify the type of `dep` explicitly.
+The `dep` parameter is made available not only to the LazyPromise constructor callback, but also to all other lazily executed callbacks, namely those you pass to `map`, `catch`, `catchBoxedError`, `finally` and `fromGen`, e.g. `lazyPromise.map((value, dep: MyDep) => ...)`. You must specify the type of `dep` explicitly.
 
 You can satisfy the dependency when subscribing, but you can also do it sooner using `inject` method of a LazyPromise. That method's callback should return a dependency, but like other lazy callbacks, it can optionally take a dependency as a parameter, allowing dependencies to depend on one another:
 

@@ -60,13 +60,11 @@ afterEach(() => {
 
 test("types", () => {
   expectTypeOf(
-    new LazyPromise<"value a">(() => {}).catchRejection(
-      () => "value b" as const,
-    ),
+    new LazyPromise<"value a">(() => {}).catch(() => "value b" as const),
   ).toEqualTypeOf<LazyPromise<"value a" | "value b">>();
 
   expectTypeOf(
-    new LazyPromise<void, { outer: null }>(() => {}).catchRejection(
+    new LazyPromise<void, { outer: null }>(() => {}).catch(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (error, dep: { callback: null }) =>
         new LazyPromise<void, { inner: null }>(() => {}),
@@ -77,7 +75,7 @@ test("types", () => {
 });
 
 test("value of this", () => {
-  const promise = rejecting("error").catchRejection(function () {
+  const promise = rejecting("error").catch(function () {
     /** @ts-expect-error */
     log("in callback", this);
   });
@@ -95,7 +93,7 @@ test("value of this", () => {
 test("falling back to a value", () => {
   const promise = new LazyPromise((sink) => {
     sink.reject("oops");
-  }).catchRejection((error) => error);
+  }).catch((error) => error);
   promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -108,7 +106,7 @@ test("falling back to a value", () => {
 });
 
 test("outer promise resolves", () => {
-  const promise = box(1).catchRejection(() => undefined);
+  const promise = box(1).catch(() => undefined);
   promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -123,7 +121,7 @@ test("outer promise resolves", () => {
 test("inner promise resolves", () => {
   const promise = new LazyPromise((sink) => {
     sink.reject("oops");
-  }).catchRejection((error) => {
+  }).catch((error) => {
     log("caught", error);
     return box("b");
   });
@@ -145,7 +143,7 @@ test("inner promise resolves", () => {
 test("inner promise rejects", () => {
   const promise = new LazyPromise((sink) => {
     sink.reject("oops 1");
-  }).catchRejection((error) => {
+  }).catch((error) => {
     log("caught", error);
     return new LazyPromise((sink) => {
       sink.reject("oops 2");
@@ -169,7 +167,7 @@ test("inner promise rejects", () => {
 test("callback throws", () => {
   const promise = new LazyPromise((sink) => {
     sink.reject("oops 1");
-  }).catchRejection(() => {
+  }).catch(() => {
     throw "oops 2";
   });
   promise.subscribe(logConsumer);
@@ -186,7 +184,7 @@ test("callback throws", () => {
 test("cancel outer promise", () => {
   const promise = new LazyPromise<never>(() => () => {
     log("dispose");
-  }).catchRejection(() => undefined);
+  }).catch(() => undefined);
   const subscription = promise.subscribe();
   vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
@@ -204,7 +202,7 @@ test("cancel outer promise", () => {
 test("cancel inner promise", () => {
   const promise = new LazyPromise<never>((sink) => {
     sink.reject("oops");
-  }).catchRejection(
+  }).catch(
     () =>
       new LazyPromise<never>(() => () => {
         log("dispose");
@@ -229,7 +227,7 @@ test("unsubscribe in the callback", () => {
   const subscription = new LazyPromise<never>((sinkLocal) => {
     sink = sinkLocal;
   })
-    .catchRejection(() => {
+    .catch(() => {
       subscription.dispose();
     })
     .subscribe(logConsumer);
@@ -242,7 +240,7 @@ test("unsubscribe and throw in the callback", () => {
   const subscription = new LazyPromise<never>((sinkLocal) => {
     sink = sinkLocal;
   })
-    .catchRejection(() => {
+    .catch(() => {
       subscription.dispose();
       throw "oops";
     })
@@ -255,7 +253,7 @@ test("dependency injection", () => {
     log("outer promise dep", dep);
     sink.reject("oops");
   })
-    .catchRejection((error, dep: "dep") => {
+    .catch((error, dep: "dep") => {
       log("callback dep", dep);
       return new LazyPromise<void, "dep">((sink, dep) => {
         log("inner promise dep", dep);

@@ -226,7 +226,7 @@ test("computed: proxy propagates rejection from original", () => {
   );
 
   effect(() =>
-    memo().catchRejection((error) => {
+    memo().catch((error) => {
       log("error", error);
     }),
   );
@@ -950,7 +950,7 @@ test("computed: does not hold cached rejection after leaving dependency graph", 
   );
 
   const dispose = effect(() => {
-    memo().catchRejection(() => {});
+    memo().catch(() => {});
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -1051,7 +1051,7 @@ test("computed: in dependency graph - cached rejection delivered immediately to 
 
   // Put the computed into the graph and await rejection
   effect(() => {
-    memo().catchRejection(() => {});
+    memo().catch(() => {});
   });
   expect(readLog()).toMatchInlineSnapshot(`
     [
