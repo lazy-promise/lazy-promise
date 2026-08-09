@@ -24,24 +24,6 @@ class InIdleCallbackProducer implements Producer<IdleDeadline> {
 /**
  * Takes optional IdleRequestOptions, and returns a LazyPromise that resolves
  * with `IdleDeadline` in an idle callback.
- *
- * To defer execution of a callback, use
- *
- * ```
- * inIdleCallback().map(() => ...)
- * ```
- *
- * To make an existing LazyPromise settle in an idle callback, pipe it though
- *
- * ```
- * .finalize(inIdleCallback)
- * ```
- *
- * To limit this to only when the promise resolves, use
- *
- * ```
- * map((value) => inIdleCallback().map(() => value))
- * ```
  */
 export const inIdleCallback = (
   options?: IdleRequestOptions,

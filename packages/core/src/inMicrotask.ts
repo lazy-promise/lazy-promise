@@ -12,24 +12,6 @@ class InMicrotaskProducer implements Producer<void> {
 /**
  * Returns a LazyPromise that resolves in a microtask with a value of type
  * `void`.
- *
- * To defer execution of a callback, use
- *
- * ```
- * inMicrotask().map(() => ...)
- * ```
- *
- * To make an existing LazyPromise settle in a microtask, pipe it though
- *
- * ```
- * .finalize(inMicrotask)
- * ```
- *
- * To limit this to only when the promise resolves, use
- *
- * ```
- * map((value) => inMicrotask().map(() => value))
- * ```
  */
 export const inMicrotask = (): LazyPromise<void> =>
   new LazyPromise(new InMicrotaskProducer());

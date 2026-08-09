@@ -30,24 +30,6 @@ class InMessageChannelProducer implements Producer<void> {
 /**
  * Returns a LazyPromise that posts a message in MessageChannel and resolves
  * with a value of type `void` when it receives the message back.
- *
- * To defer execution of a callback, use
- *
- * ```
- * inMessageChannel().map(() => ...)
- * ```
- *
- * To make an existing LazyPromise settle via MessageChannel, pipe it though
- *
- * ```
- * .finalize(inMessageChannel)
- * ```
- *
- * To limit this to only when the promise resolves, use
- *
- * ```
- * map((value) => inMessageChannel().map(() => value))
- * ```
  */
 export const inMessageChannel = (): LazyPromise<void> =>
   new LazyPromise(new InMessageChannelProducer());

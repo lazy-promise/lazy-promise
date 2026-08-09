@@ -35,27 +35,9 @@ class InScheduledProducer implements Producer<void> {
 }
 
 /**
- * Takes an optional object with task priority ("user-visible" by default), and
- * returns a LazyPromise that resolves with a value of type `void` in a
- * `scheduler.postTask` callback.
- *
- * To defer execution of a callback, use
- *
- * ```
- * inScheduled().map(() => ...)
- * ```
- *
- * To make an existing LazyPromise settle via `scheduler`, pipe it though
- *
- * ```
- * .finalize(inScheduled)
- * ```
- *
- * To limit this to only when the promise resolves, use
- *
- * ```
- * map((value) => inScheduled().map(() => value))
- * ```
+ * Takes an optional options object with task priority ("user-visible" by
+ * default), and returns a LazyPromise that resolves with a value of type `void`
+ * in a `scheduler.postTask` callback.
  */
 export const inScheduled = (options?: {
   priority?: TaskPriority;
