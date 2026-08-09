@@ -64,14 +64,14 @@ test("resolve", async () => {
 
 test("resolve multiple", async () => {
   box(1)
-    .finalize(inMessageChannel)
+    .finally(inMessageChannel)
     .subscribe({
       resolve: (value) => {
         log("resolve first", value);
       },
     });
   box(2)
-    .finalize(inMessageChannel)
+    .finally(inMessageChannel)
     .subscribe({
       resolve: (value) => {
         log("resolve second", value);

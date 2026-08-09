@@ -3,7 +3,7 @@ import { ErrorBox, LazyPromise } from "./lazyPromise.js";
 
 const emptySymbol = Symbol("empty");
 
-class FinalizeConsumerProducer implements Consumer<any>, Producer<any, any> {
+class FinallyConsumerProducer implements Consumer<any>, Producer<any, any> {
   // The value that the source promise resolved to.
   value: any = emptySymbol;
   // The error that the source promise rejected with.
@@ -50,7 +50,7 @@ class FinalizeConsumerProducer implements Consumer<any>, Producer<any, any> {
   }
 }
 
-export class FinalizeProducer implements Producer<any, any> {
+export class FinallyProducer implements Producer<any, any> {
   constructor(
     public source: LazyPromise<any, any>,
     public callback: (dep: any) => any,
@@ -58,7 +58,7 @@ export class FinalizeProducer implements Producer<any, any> {
 
   produce(sink: Sink<any>, dep: any) {
     return this.source.subscribe<any>(
-      new FinalizeConsumerProducer(sink, this.callback),
+      new FinallyConsumerProducer(sink, this.callback),
       dep,
     );
   }

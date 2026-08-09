@@ -59,30 +59,30 @@ afterEach(() => {
 });
 
 test("types", () => {
-  expectTypeOf(box(1).finalize(() => {})).toEqualTypeOf<LazyPromise<1>>();
+  expectTypeOf(box(1).finally(() => {})).toEqualTypeOf<LazyPromise<1>>();
 
-  expectTypeOf(box(1).finalize(() => box(2))).toEqualTypeOf<LazyPromise<1>>();
+  expectTypeOf(box(1).finally(() => box(2))).toEqualTypeOf<LazyPromise<1>>();
 
-  expectTypeOf(box(new ErrorBox(1)).finalize(() => {})).toEqualTypeOf<
+  expectTypeOf(box(new ErrorBox(1)).finally(() => {})).toEqualTypeOf<
     LazyPromise<ErrorBox<1>>
   >();
 
   expectTypeOf(
-    box(new ErrorBox(1)).finalize(() => new ErrorBox(2)),
+    box(new ErrorBox(1)).finally(() => new ErrorBox(2)),
   ).toEqualTypeOf<LazyPromise<ErrorBox<1> | ErrorBox<2>>>();
 
   expectTypeOf(
-    box(new ErrorBox(1)).finalize(() => box(new ErrorBox(2))),
+    box(new ErrorBox(1)).finally(() => box(new ErrorBox(2))),
   ).toEqualTypeOf<LazyPromise<ErrorBox<1> | ErrorBox<2>>>();
 
   expectTypeOf(
-    box(1).finalize(() => {
+    box(1).finally(() => {
       throw "oops";
     }),
   ).toEqualTypeOf<LazyPromise<1>>();
 
   expectTypeOf(
-    new LazyPromise<void, { outer: null }>(() => {}).finalize(
+    new LazyPromise<void, { outer: null }>(() => {}).finally(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       (dep: { callback: null }) =>
         new LazyPromise<void, { inner: null }>(() => {}),
@@ -93,7 +93,7 @@ test("types", () => {
 });
 
 test("value of this", () => {
-  const promise = box(1).finalize(function () {
+  const promise = box(1).finally(function () {
     /** @ts-expect-error */
     log("in callback", this);
   });
@@ -109,14 +109,14 @@ test("value of this", () => {
 });
 
 test("source resolves", () => {
-  const promise = box(1).finalize(() => {
-    log("finalize");
+  const promise = box(1).finally(() => {
+    log("finally");
   });
   promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "finalize",
+        "finally",
       ],
       [
         "handleValue",
@@ -127,14 +127,14 @@ test("source resolves", () => {
 });
 
 test("source rejects", () => {
-  const promise = rejecting(1).finalize(() => {
-    log("finalize");
+  const promise = rejecting(1).finally(() => {
+    log("finally");
   });
   promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "finalize",
+        "finally",
       ],
       [
         "handleError",
@@ -145,7 +145,7 @@ test("source rejects", () => {
 });
 
 test("callback returns a boxed error", () => {
-  const promise = box(1).finalize(() => new ErrorBox(1));
+  const promise = box(1).finally(() => new ErrorBox(1));
   promise.subscribe<unknown>(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -161,7 +161,7 @@ test("callback returns a boxed error", () => {
 
 test("callback throws", () => {
   box(1)
-    .finalize(() => {
+    .finally(() => {
       throw "oops 1";
     })
     .subscribe(logConsumer);
@@ -175,7 +175,7 @@ test("callback throws", () => {
   `);
 
   rejecting(1)
-    .finalize(() => {
+    .finally(() => {
       throw "oops 2";
     })
     .subscribe(logConsumer);
@@ -194,7 +194,7 @@ test("unsubscribe in the callback (source resolves)", () => {
   const subscription = new LazyPromise<number>((sinkLocal) => {
     sink = sinkLocal;
   })
-    .finalize(() => {
+    .finally(() => {
       subscription.dispose();
     })
     .subscribe(logConsumer);
@@ -207,7 +207,7 @@ test("unsubscribe in the callback (source rejects)", () => {
   const subscription = new LazyPromise<never>((sinkLocal) => {
     sink = sinkLocal;
   })
-    .finalize(() => {
+    .finally(() => {
       subscription.dispose();
     })
     .subscribe(logConsumer);
@@ -220,7 +220,7 @@ test("unsubscribe and throw in the callback (source resolves)", () => {
   const subscription = new LazyPromise<number>((sinkLocal) => {
     sink = sinkLocal;
   })
-    .finalize(() => {
+    .finally(() => {
       subscription.dispose();
       throw "oops";
     })
@@ -233,7 +233,7 @@ test("unsubscribe and throw in the callback (source rejects)", () => {
   const subscription = new LazyPromise<never>((sinkLocal) => {
     sink = sinkLocal;
   })
-    .finalize(() => {
+    .finally(() => {
       subscription.dispose();
       throw "oops";
     })
@@ -247,7 +247,7 @@ test("dependency injection", () => {
     log("outer promise dep", dep);
     sink.resolve();
   })
-    .finalize((dep: "dep") => {
+    .finally((dep: "dep") => {
       log("callback dep", dep);
       return new LazyPromise<void, "dep">((sink, dep) => {
         log("inner promise dep", dep);
@@ -274,7 +274,7 @@ test("dependency injection", () => {
 });
 
 test("inner promise resolves (source resolves)", () => {
-  const promise = box(1).finalize(
+  const promise = box(1).finally(
     () =>
       new LazyPromise<2>((sink) => {
         setTimeout(() => {
@@ -297,7 +297,7 @@ test("inner promise resolves (source resolves)", () => {
 });
 
 test("inner promise resolves (source rejects)", () => {
-  const promise = rejecting(1).finalize(
+  const promise = rejecting(1).finally(
     () =>
       new LazyPromise<2>((sink) => {
         setTimeout(() => {
@@ -320,7 +320,7 @@ test("inner promise resolves (source rejects)", () => {
 });
 
 test("inner promise resolves with a boxed error (source resolves)", () => {
-  const promise = box(new ErrorBox(1)).finalize(() => box(new ErrorBox(2)));
+  const promise = box(new ErrorBox(1)).finally(() => box(new ErrorBox(2)));
   promise.subscribe<unknown>(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -335,7 +335,7 @@ test("inner promise resolves with a boxed error (source resolves)", () => {
 });
 
 test("inner promise resolves with a boxed error (source rejects)", () => {
-  const promise = rejecting(1).finalize(() => box(new ErrorBox(2)));
+  const promise = rejecting(1).finally(() => box(new ErrorBox(2)));
   promise.subscribe<unknown>(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -350,7 +350,7 @@ test("inner promise resolves with a boxed error (source rejects)", () => {
 });
 
 test("inner promise rejects", () => {
-  const promise = rejecting(1).finalize(() => rejecting(2));
+  const promise = rejecting(1).finally(() => rejecting(2));
   promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -365,7 +365,7 @@ test("inner promise rejects", () => {
 test("cancel outer promise", () => {
   const promise = new LazyPromise<never>(() => () => {
     log("dispose");
-  }).finalize(() => undefined);
+  }).finally(() => undefined);
   const subscription = promise.subscribe();
   vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
@@ -381,7 +381,7 @@ test("cancel outer promise", () => {
 });
 
 test("cancel inner promise", () => {
-  const promise = box(1).finalize(
+  const promise = box(1).finally(
     () =>
       new LazyPromise(() => () => {
         log("dispose");

@@ -32,7 +32,7 @@ export const createTrackProcessing = (): [
       new LazyPromise<Value>((sink) => {
         setCount((count) => count + 1);
         const subscription = lazyPromise
-          .finalize(() => {
+          .finally(() => {
             setCount((count) => count - 1);
           })
           .subscribe<any>(sink);

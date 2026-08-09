@@ -86,7 +86,7 @@ Aside from superficial differences, LazyPromise API mirrors that of native promi
 | :-------------------------------- | :-------------------------------- |
 | `promise.then(foo)`               | `lazyPromise.map(foo)`            |
 | `promise.catch(foo)`              | `lazyPromise.catchRejection(foo)` |
-| `promise.finally(foo)`            | `lazyPromise.finalize(foo)`       |
+| `promise.finally(foo)`            | `lazyPromise.finally(foo)`        |
 | `Promise.resolve(valueOrPromise)` | `box(valueOrLazyPromise)`         |
 | `Promise.reject(error)`           | `rejecting(error)`                |
 | `new Promise<never>(() => {})`    | `never`                           |
@@ -145,12 +145,12 @@ try {
 or
 
 ```
-originalLazyPromise.finalize(() => anotherLazyPromise);
+originalLazyPromise.finally(() => anotherLazyPromise);
 ```
 
 If `anotherLazyPromise` is `inTimeout(ms)`, that would delay `originalLazyPromise` by `ms`. If `anotherLazyPromise` is `inMicrotask()`, that would make `originalLazyPromise` fire in a microtask.
 
-Notice that whether it's a `finally` block or the `finalize` operator, `anotherLazyPromise` will never get subscribed if the whole flow is cancelled while waiting for originalLazyPromise. In the sync world, we're used to a guarantee that the `finally` block always runs, and you do get that guarantee, but only if you don't `yield*` inside `try`/`catch`—it's simply the way JavaScript generator functions work.
+Notice that whether it's a `finally` block or the `finally` operator, `anotherLazyPromise` will never get subscribed if the whole flow is cancelled while waiting for originalLazyPromise. In the sync world, we're used to a guarantee that the `finally` block always runs, and you do get that guarantee, but only if you don't `yield*` inside `try`/`catch`—it's simply the way JavaScript generator functions work.
 
 The library also provides a `log` function that wraps a LazyPromise without changing its behavior, and console.logs everything that happens to it: `lazyPromise.pipe(log("your label"))`.
 
@@ -215,7 +215,7 @@ lazyPromise.subscribe(
 
 Dependencies bubble up through the type system when you use the operators or the generator syntax, so for example if `promiseA` has dependency `A` and `promiseB` has dependency `B`, `all([promiseA, promiseB])` will have dependency `A & B`, in other words `all` needs a dependency that it'll be able to pass to both `promiseA` and `promiseB`. This is useful for testing since you can gather up a bunch of dependencies needed by your async logic, and then satisfy them with either production implementations or mocks.
 
-The `dep` parameter is made available not only to the LazyPromise constructor callback, but also to all other lazily executed callbacks, namely those you pass to `map`, `catchRejection`, `catchBoxedError`, `finalize` and `fromGen`, e.g. `lazyPromise.map((value, dep: MyDep) => ...)`. You must specify the type of `dep` explicitly.
+The `dep` parameter is made available not only to the LazyPromise constructor callback, but also to all other lazily executed callbacks, namely those you pass to `map`, `catchRejection`, `catchBoxedError`, `finally` and `fromGen`, e.g. `lazyPromise.map((value, dep: MyDep) => ...)`. You must specify the type of `dep` explicitly.
 
 You can satisfy the dependency when subscribing, but you can also do it sooner using `inject` method of a LazyPromise. That method's callback should return a dependency, but like other lazy callbacks, it can optionally take a dependency as a parameter, allowing dependencies to depend on one another:
 

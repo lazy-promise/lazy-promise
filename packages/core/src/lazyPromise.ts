@@ -1,6 +1,6 @@
 import { CatchBoxedErrorProducer } from "./catchBoxedError.js";
 import { CatchRejectionProducer } from "./catchRejection.js";
-import { FinalizeProducer } from "./finalize.js";
+import { FinallyProducer } from "./finally.js";
 import { InjectProducer } from "./inject.js";
 import { MapProducer } from "./map.js";
 import { ToEagerConsumerListener } from "./toEager.js";
@@ -365,7 +365,7 @@ export class LazyPromise<out Value, in Dep = unknown> {
    * is called if the source promise resolves or rejects, but not if it's
    * unsubscribed before settling.
    */
-  finalize<NewValue, ExtraDep = unknown>(
+  finally<NewValue, ExtraDep = unknown>(
     callback: (dep: ExtraDep) => NewValue,
   ): LazyPromise<
     // eslint-disable-next-line no-use-before-define
@@ -373,7 +373,7 @@ export class LazyPromise<out Value, in Dep = unknown> {
     // eslint-disable-next-line no-use-before-define
     Dep & ExtraDep & InferDep<NewValue>
   > {
-    return new LazyPromise<any>(new FinalizeProducer(this, callback));
+    return new LazyPromise<any>(new FinallyProducer(this, callback));
   }
 
   /**

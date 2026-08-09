@@ -48,7 +48,7 @@ effect(() =>
 );
 ```
 
-A footnote: to keep things simple, the above snippets don't involve any actual async, but if for example you add `.finalize(() => inTimeout(1000))` after `all(...)`, this will delay the effect by a second but otherwise won't change the logic.
+A footnote: to keep things simple, the above snippets don't involve any actual async, but if for example you add `.finally(() => inTimeout(1000))` after `all(...)`, this will delay the effect by a second but otherwise won't change the logic.
 
 Another example is LazyPromise constructor:
 
@@ -151,7 +151,7 @@ const debounced = unbox(
   () =>
     box(str())
       // Delays a lazy promise by 0.5s.
-      .finalize(() => inTimeout(500)),
+      .finally(() => inTimeout(500)),
 );
 ```
 
