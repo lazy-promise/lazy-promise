@@ -1,5 +1,13 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.33](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.33)
+
+- Switch from `Disposable` to `Subscription` and `Job` to not clash with native type.
+
+- For better type safety, limit parameter of `all`/`any`/`race` to a non-LazyPromise Iterable.
+
+- Rename `catchError`, `catchBoxedError` and `finalize` to respectively `catch`, `catchBoxed` and `finally`.
+
 ## [@lazy-promise/core@0.0.32](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.32)
 
 - Minor type change to get around an instability in internal type checks.
