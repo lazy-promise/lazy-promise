@@ -330,6 +330,20 @@ export class LazyPromise<out Value, in Dep = unknown> {
   }
 
   /**
+   * The LazyPromise equivalent of `promise.catch(...)`.
+   */
+  catchRejection<NewValue, ExtraDep = unknown>(
+    callback: (error: unknown, dep: ExtraDep) => NewValue,
+  ): LazyPromise<
+    // eslint-disable-next-line no-use-before-define
+    Value | Unbox<NewValue>,
+    // eslint-disable-next-line no-use-before-define
+    Dep & ExtraDep & InferDep<NewValue>
+  > {
+    return new LazyPromise<any>(new CatchRejectionProducer(this, callback));
+  }
+
+  /**
    * The LazyPromise equivalent of `promise.catch(...)` for boxed errors.
    */
   catchBoxedError<NewValue, ExtraDep = unknown>(
@@ -344,20 +358,6 @@ export class LazyPromise<out Value, in Dep = unknown> {
     Dep & ExtraDep & InferDep<NewValue>
   > {
     return new LazyPromise<any>(new CatchBoxedErrorProducer(this, callback));
-  }
-
-  /**
-   * The LazyPromise equivalent of `promise.catch(...)`.
-   */
-  catchRejection<NewValue, ExtraDep = unknown>(
-    callback: (error: unknown, dep: ExtraDep) => NewValue,
-  ): LazyPromise<
-    // eslint-disable-next-line no-use-before-define
-    Value | Unbox<NewValue>,
-    // eslint-disable-next-line no-use-before-define
-    Dep & ExtraDep & InferDep<NewValue>
-  > {
-    return new LazyPromise<any>(new CatchRejectionProducer(this, callback));
   }
 
   /**
