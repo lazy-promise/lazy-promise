@@ -1,5 +1,5 @@
 import { CatchProducer } from "./catch.js";
-import { CatchBoxedErrorProducer } from "./catchBoxedError.js";
+import { CatchBoxedProducer } from "./catchBoxed.js";
 import { FinallyProducer } from "./finally.js";
 import { InjectProducer } from "./inject.js";
 import { MapProducer } from "./map.js";
@@ -346,7 +346,7 @@ export class LazyPromise<out Value, in Dep = unknown> {
   /**
    * The LazyPromise equivalent of `promise.catch(...)` for boxed errors.
    */
-  catchBoxedError<NewValue, ExtraDep = unknown>(
+  catchBoxed<NewValue, ExtraDep = unknown>(
     callback: (
       error: Value extends ErrorBox<infer Error> ? Error : never,
       dep: ExtraDep,
@@ -357,7 +357,7 @@ export class LazyPromise<out Value, in Dep = unknown> {
     // eslint-disable-next-line no-use-before-define
     Dep & ExtraDep & InferDep<NewValue>
   > {
-    return new LazyPromise<any>(new CatchBoxedErrorProducer(this, callback));
+    return new LazyPromise<any>(new CatchBoxedProducer(this, callback));
   }
 
   /**

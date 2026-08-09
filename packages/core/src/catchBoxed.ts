@@ -1,7 +1,7 @@
 import type { Consumer, LazyPromise, Producer, Sink } from "./lazyPromise.js";
 import { ErrorBox } from "./lazyPromise.js";
 
-class CatchBoxedErrorConsumer implements Consumer<any> {
+class CatchBoxedConsumer implements Consumer<any> {
   constructor(
     public sink: Sink<any>,
     public callback: (value: any, dep: any) => any,
@@ -28,7 +28,7 @@ class CatchBoxedErrorConsumer implements Consumer<any> {
   }
 }
 
-export class CatchBoxedErrorProducer implements Producer<any, any> {
+export class CatchBoxedProducer implements Producer<any, any> {
   constructor(
     public source: LazyPromise<any, any>,
     public callback: (value: any, dep: any) => any,
@@ -36,7 +36,7 @@ export class CatchBoxedErrorProducer implements Producer<any, any> {
 
   produce(sink: Sink<any>, dep: any) {
     return this.source.subscribe<any>(
-      new CatchBoxedErrorConsumer(sink, this.callback, dep),
+      new CatchBoxedConsumer(sink, this.callback, dep),
       dep,
     );
   }

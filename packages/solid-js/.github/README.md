@@ -35,7 +35,7 @@ To error out the scope, reject the lazy promise:
 
 ```ts
 useLazyPromise(
-  yourLazyPromise.catchBoxedError((error) => {
+  yourLazyPromise.catchBoxed((error) => {
     // Trigger the error boundary.
     throw new Error("oops");
   }),
