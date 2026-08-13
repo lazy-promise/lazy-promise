@@ -124,7 +124,7 @@ If you have `yield* lazyPromise` inside a `try` or `catch` block, and the whole 
 
 ## Utilities
 
-The library provides wrappers for browser and Node deferral APIs: `inTimeout`, `inMicrotask`, `inAnimationFrame`, `inIdleCallback`, `inImmediate`, `inNextTick`, `inMessageChannel`, `inScheduled`. Each of these returns a LazyPromise that fires, typically with a value of `undefined`, in respectively `setTimeout`, `queueMicrotask` etc. Since these are non-imaginative convenience wrappers for native APIs, they don't add much complexity to the API surface, yet they remove the need for some extra constructs you'd normally find in libraries that deal with async. For example, to sleep for 1 second in the middle of a generator function, you would do `yield* inTimeout(1000)`.
+The library provides wrappers for browser and Node deferral APIs: `inTimeout`, `inMicrotask`, `inAnimationFrame`, `inIdleCallback`, `inImmediate`, `inNextTick`, `inMessageChannel`, `inScheduled`. Each of these returns a LazyPromise that fires, typically with a value of `undefined`, in respectively `setTimeout`, `queueMicrotask` etc. Since these are non-imaginative convenience wrappers for native APIs, they don't add much complexity to the API surface, yet they remove the need for some extra constructs you'd normally find in libraries that deal with async. For example, to sleep for 1 second in the middle of a generator function, you would do `yield* inTimeout(1000)`. To make a lazy promise fire in a microtask like a native promise, you would do `.finally(inMicrotask)`.
 
 The library also provides a `log` function that wraps a LazyPromise without changing its behavior, and `console.log`s everything that happens to it: `lazyPromise.pipe(log("your label"))`.
 
