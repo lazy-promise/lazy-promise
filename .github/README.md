@@ -120,39 +120,13 @@ const lazyPromise = fromGen(function* () {
 
 In the case of native promises, if you `await promise`, and `promise` rejects with `error`, it's as if in place of `await promise` you had `throw error`. It works in exactly the same way when you have `yield* lazyPromise` and `lazyPromise` rejects.
 
+If you have `yield* lazyPromise` inside a `try` or `catch` block, and the whole flow is cancelled while waiting for `lazyPromise`, the `finally` block will not get executed. In the sync world, we're used to a guarantee that `finally` always runs, and you do get that guarantee, but only if you don't `yield*` inside `try`/`catch`—it's simply the way JavaScript generator functions work.
+
 ## Utilities
 
-The library provides wrappers for browser and Node deferral APIs: `inTimeout`, `inMicrotask`, `inAnimationFrame`, `inIdleCallback`, `inImmediate`, `inNextTick`, `inMessageChannel`, `inScheduled`. Each of these returns a LazyPromise that fires, typically with a value of `undefined`, in respectively `setTimeout`, `queueMicrotask` etc. Since these are non-imaginative convenience wrappers for native APIs, they don't add much complexity to the API surface, yet they remove the need for some extra constructs you'd normally find in libraries that deal with async. Take the use-case of delaying a LazyPromise result. With native promises, you could write
+The library provides wrappers for browser and Node deferral APIs: `inTimeout`, `inMicrotask`, `inAnimationFrame`, `inIdleCallback`, `inImmediate`, `inNextTick`, `inMessageChannel`, `inScheduled`. Each of these returns a LazyPromise that fires, typically with a value of `undefined`, in respectively `setTimeout`, `queueMicrotask` etc. Since these are non-imaginative convenience wrappers for native APIs, they don't add much complexity to the API surface, yet they remove the need for some extra constructs you'd normally find in libraries that deal with async. For example, to sleep for 1 second in the middle of a generator function, you would do `yield* inTimeout(1000)`.
 
-```
-try {
-  return await originalPromise;
-} finally {
-  await anotherPromise;
-}
-```
-
-and this would wait for `anotherPromise` before passing on the result of `originalPromise`. You can delay a LazyPromise in the same way:
-
-```
-try {
-  return yield* originalLazyPromise;
-} finally {
-  yield* anotherLazyPromise;
-}
-```
-
-or
-
-```
-originalLazyPromise.finally(() => anotherLazyPromise);
-```
-
-If `anotherLazyPromise` is `inTimeout(ms)`, that would delay `originalLazyPromise` by `ms`. If `anotherLazyPromise` is `inMicrotask()`, that would make `originalLazyPromise` fire in a microtask.
-
-Notice that whether it's a `finally` block or the `finally` method, `anotherLazyPromise` will never get subscribed if the whole flow is cancelled while waiting for originalLazyPromise. In the sync world, we're used to a guarantee that the `finally` block always runs, and you do get that guarantee, but only if you don't `yield*` inside `try`/`catch`—it's simply the way JavaScript generator functions work.
-
-The library also provides a `log` function that wraps a LazyPromise without changing its behavior, and console.logs everything that happens to it: `lazyPromise.pipe(log("your label"))`.
+The library also provides a `log` function that wraps a LazyPromise without changing its behavior, and `console.log`s everything that happens to it: `lazyPromise.pipe(log("your label"))`.
 
 ## Typed errors
 
