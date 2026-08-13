@@ -120,7 +120,7 @@ const lazyPromise = fromGen(function* () {
 
 In the case of native promises, if you `await promise`, and `promise` rejects with `error`, it's as if in place of `await promise` you had `throw error`. It works in exactly the same way when you have `yield* lazyPromise` and `lazyPromise` rejects.
 
-If you have `yield* lazyPromise` inside a `try` or `catch` block, and the whole flow is cancelled while waiting for `lazyPromise`, the `finally` block will not get executed. In the sync world, we're used to a guarantee that `finally` always runs, and you do get that guarantee, but only if you don't `yield*` inside `try`/`catch`—it's simply the way JavaScript generator functions work.
+If you have `yield* lazyPromise` inside a `try` or `catch` block, and the whole flow is cancelled while waiting for `lazyPromise`, the `finally` block will not get executed. In the sync world, we're used to a guarantee that `finally` always runs, and you do get that guarantee, but only if you don't `yield*` inside `try`/`catch`—it's simply the way JavaScript generator functions work and is also typically what you want.
 
 ## Utilities
 
