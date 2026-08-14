@@ -122,12 +122,6 @@ In the case of native promises, if you `await promise`, and `promise` rejects wi
 
 If you have `yield* lazyPromise` inside a `try` or `catch` block, and the whole flow is cancelled while waiting for `lazyPromise`, the `finally` block will not get executed. In the sync world, we're used to a guarantee that `finally` always runs, and you do get that guarantee, but only if you don't `yield*` inside `try`/`catch`—it's simply the way JavaScript generator functions work and is also typically what you want.
 
-## Utilities
-
-The library provides wrappers for browser and Node deferral APIs: `inTimeout`, `inMicrotask`, `inAnimationFrame`, `inIdleCallback`, `inImmediate`, `inNextTick`, `inMessageChannel`, `inScheduled`. Each of these returns a LazyPromise that fires, typically with a value of `undefined`, in respectively `setTimeout`, `queueMicrotask` etc. Since these are non-imaginative convenience wrappers for native APIs, they don't add much complexity to the API surface, yet they remove the need for some extra constructs you'd normally find in libraries that deal with async. For example, to sleep for 1 second in the middle of a generator function, you would do `yield* inTimeout(1000)`. To make a lazy promise fire in a microtask like a native promise, you would do `.finally(inMicrotask)`.
-
-The library also provides a `log` function that wraps a LazyPromise without changing its behavior, and `console.log`s everything that happens to it: `lazyPromise.pipe(log("your label"))`.
-
 ## Typed errors
 
 The way that LazyPromise supports typed errors reflects the JavaScript reality that you cannot typecheck errors that you throw and have to represent typed errors with return values. Instead of having an extra channel in addition to `resolve` and `reject`, we pass typed errors through the `resolve` channel, wrapping them in ErrorBox class to differentiate them from other values. `new ErrorBox(error)` simply stores `error` in its `.error` property. Although `LazyPromise<"value" | ErrorBox<"error">>` is a little bit harder to read than `LazyPromise<"value", "error">`, an extra channel and type parameter would have introduced unnecessary complexity when it comes to using LazyPromise together with native promises and generator syntax.
@@ -214,6 +208,12 @@ export interface RandomDep {
 There is also a helper type `InferDep` which is like `Unbox`, but for the dependency type parameter.
 
 Like typed errors, dependency injection is an optional feature. You can omit the second type parameter of a LazyPromise, in which case it will default to `unknown`, indicating that there are no dependencies.
+
+## Utilities
+
+The library provides wrappers for browser and Node deferral APIs: `inTimeout`, `inMicrotask`, `inAnimationFrame`, `inIdleCallback`, `inImmediate`, `inNextTick`, `inMessageChannel`, `inScheduled`. Each of these returns a LazyPromise that fires, typically with a value of `undefined`, in respectively `setTimeout`, `queueMicrotask` etc. Since these are non-imaginative convenience wrappers for native APIs, they don't add much complexity to the API surface, yet they remove the need for some extra constructs you'd normally find in libraries that deal with async. For example, to sleep for 1 second in the middle of a generator function, you would do `yield* inTimeout(1000)`. To make a lazy promise fire in a microtask like a native promise, you would do `.finally(inMicrotask)`.
+
+The library also provides a `log` function that wraps a LazyPromise without changing its behavior, and `console.log`s everything that happens to it: `lazyPromise.pipe(log("your label"))`.
 
 ## Class-based API
 
