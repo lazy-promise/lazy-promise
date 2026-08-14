@@ -120,7 +120,7 @@ const lazyPromise = fromGen(function* () {
 
 In the case of native promises, if you `await promise`, and `promise` rejects with `error`, it's as if in place of `await promise` you had `throw error`. It works in exactly the same way when you have `yield* lazyPromise` and `lazyPromise` rejects.
 
-If you have `yield* lazyPromise` inside a `try` or `catch` block, and the whole flow is cancelled while waiting for `lazyPromise`, the `finally` block will not get executed. In the sync world, we're used to a guarantee that `finally` always runs, and you do get that guarantee, but only if you don't `yield*` inside `try`/`catch`—it's simply the way JavaScript generator functions work and is also typically what you want.
+If you have `yield* lazyPromise` inside a `try` or `catch` block, and the whole flow is cancelled while waiting for `lazyPromise`, the `finally` block will not get executed. In the sync world, we're used to a guarantee that `finally` always runs, and you do get that guarantee, but only if you don't `yield*` inside `try`/`catch`. The `.finally` operator mirrors this behavior: it runs its callback if the lazy promise resolves or rejects, but not if it's unsubscribed before settling.
 
 ## Typed errors
 
@@ -211,7 +211,7 @@ Like typed errors, dependency injection is an optional feature. You can omit the
 
 ## Utilities
 
-The library provides wrappers for browser and Node deferral APIs: `inTimeout`, `inMicrotask`, `inAnimationFrame`, `inIdleCallback`, `inImmediate`, `inNextTick`, `inMessageChannel`, `inScheduled`. Each of these returns a LazyPromise that fires, typically with a value of `undefined`, in respectively `setTimeout`, `queueMicrotask` etc. Since these are non-imaginative convenience wrappers for native APIs, they don't add much complexity to the API surface, yet they remove the need for some extra constructs you'd normally find in libraries that deal with async. For example, to sleep for 1 second in the middle of a generator function, you would do `yield* inTimeout(1000)`. To make a lazy promise fire in a microtask like a native promise, you would do `.finally(inMicrotask)`.
+The library provides wrappers for browser and Node deferral APIs: `inTimeout`, `inMicrotask`, `inAnimationFrame`, `inIdleCallback`, `inImmediate`, `inNextTick`, `inMessageChannel`, `inScheduled`. Each of these returns a LazyPromise that fires, typically with a value of `undefined`, in respectively `setTimeout`, `queueMicrotask` etc. Since these are non-imaginative convenience wrappers for native APIs, they don't add much complexity to the API surface, yet they remove the need for some extra constructs you'd normally find in libraries that deal with async. For example, to sleep for 1 second in the middle of a generator function, you would `yield* inTimeout(1000)`, or to make a lazy promise fire in a microtask like a native promise, you would do `.finally(inMicrotask)`.
 
 The library also provides a `log` function that wraps a LazyPromise without changing its behavior, and `console.log`s everything that happens to it: `lazyPromise.pipe(log("your label"))`.
 
