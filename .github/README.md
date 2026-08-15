@@ -222,28 +222,28 @@ To get the best performance, for instance when working on a library, you can avo
 ## QnA
 
 <details>
-<summary>Why is the method `map` called `map`?</summary>
+<summary><strong>Why is the method <code>map</code> called <code>map</code>?</strong></summary>
 
 It cannot be `then` since JavaScript has some built-in behaviors around that particular name, and as to `map` vs. `flatMap`, we're taking advantage here of the fact that there can be no higher-order lazy promises. If `map` gets a LazyPromise from its callback, it cannot return a `LazyPromise<LazyPromise<...>>` and has no choice but to flatten the result, so we don't need to disambiguate between `map` and `flatMap`. Similarly, we can just say `box` since we don't have to disambiguate between `box` and `normalize`.
 
 </details>
 
 <details>
-<summary>Why no symmetry as in `Promise.resolve` and `Promise.reject`?</summary>
+<summary><strong>Why no symmetry as in <code>Promise.resolve</code> and <code>Promise.reject</code>?</strong></summary>
 
 Because actually there is no symmetry in the case of native promises either. If you give `Promise.resolve` a Promise, it will flatten it. If you give `Promise.reject` a Promise, it will just immediately throw it.
 
 </details>
 
 <details>
-<summary>Why dot notation and not pipes-only like RxJS?</summary>
+<summary><strong>Why dot notation and not pipes-only like RxJS?</strong></summary>
 
 Because unlike RxJS, there exists a small and well-defined set of operators that can be mentally put into the same category as language features.
 
 </details>
 
 <details>
-<summary>Why does `finally` not run when the lazy promise is cancelled?</summary>
+<summary><strong>Why does <code>finally</code> not run when the lazy promise is cancelled?</strong></summary>
 
 This question applies to both the `finally` block in generator functions and the `.finally` method. There are three reasons:
 
@@ -267,14 +267,14 @@ This question applies to both the `finally` block in generator functions and the
 </details>
 
 <details>
-<summary>Why doesn't LazyPromise provide an affordance for sharing/caching the result?</summary>
+<summary><strong>Why doesn't LazyPromise provide an affordance for sharing/caching the result?</strong></summary>
 
 While this is achievable with userland operators like those in RxJS, it's not something you want to bake into the primitive, because how you do it depends on what you use for state. If it's Signals, there is an existing `computed`/`createMemo` that just needs to be [extended so it knows what to do with lazy promises](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals#step-2-memos).
 
 </details>
 
 <details>
-<summary>Why not a separate channel for typed errors?</summary>
+<summary><strong>Why not a separate channel for typed errors?</strong></summary>
 
 Although `LazyPromise<"value" | ErrorBox<"error">>` is a little bit harder to read than `LazyPromise<"value", "error">`, an extra channel and type parameter would have introduced unnecessary complexity when it comes to using LazyPromise together with native promises and generator syntax. You wouldn't be able to produce typed errors in native async functions by returning ErrorBoxes, and try/catch/finally syntax in generator functions would have non-obvious behavior.
 
