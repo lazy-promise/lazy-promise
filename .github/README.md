@@ -238,7 +238,7 @@ Because actually there is no symmetry in the case of native promises either. If 
 <details>
 <summary><strong>Why dot notation and not pipes-only like RxJS?</strong></summary>
 
-Because unlike RxJS, there exists a small and well-defined set of operators that can be mentally put into the same category as language features.
+Because unlike RxJS, there exists a small and well-defined set of operators that can be mentally put into the same category as language features, and that are more equal than others.
 
 </details>
 
