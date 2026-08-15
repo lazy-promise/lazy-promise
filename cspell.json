@@ -12,6 +12,7 @@
     "Stackblitz",
     "subpackages",
     "unstub",
+    "userland",
     "vitest",
     "yieldable",
     "Zalgo"

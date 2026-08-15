@@ -120,11 +120,11 @@ const lazyPromise = fromGen(function* () {
 
 In the case of native promises, if you `await promise`, and `promise` rejects with `error`, it's as if in place of `await promise` you had `throw error`. It works in exactly the same way when you have `yield* lazyPromise` and `lazyPromise` rejects.
 
-If you have `yield* lazyPromise` inside a `try` or `catch` block, and the whole flow is cancelled while waiting for `lazyPromise`, the `finally` block will not get executed. In the sync world, we're used to a guarantee that `finally` always runs, and you do get that guarantee, but only if you don't `yield*` inside `try`/`catch`. The `.finally` operator mirrors this behavior: it runs its callback if the lazy promise resolves or rejects, but not if it's unsubscribed before settling.
+If you `yield*` to a lazy promise inside a `try` or `catch` block, and the whole flow is cancelled while waiting for that lazy promise, the `finally` block will not get executed. Similarly, the `.finally` method will run its callback if the lazy promise resolves or rejects, but not if it's unsubscribed before settling.
 
 ## Typed errors
 
-The way that LazyPromise supports typed errors reflects the JavaScript reality that you cannot typecheck errors that you throw and have to represent typed errors with return values. Instead of having an extra channel in addition to `resolve` and `reject`, we pass typed errors through the `resolve` channel, wrapping them in ErrorBox class to differentiate them from other values. `new ErrorBox(error)` simply stores `error` in its `.error` property. Although `LazyPromise<"value" | ErrorBox<"error">>` is a little bit harder to read than `LazyPromise<"value", "error">`, an extra channel and type parameter would have introduced unnecessary complexity when it comes to using LazyPromise together with native promises and generator syntax.
+The way that LazyPromise supports typed errors reflects the JavaScript reality that you cannot typecheck errors that you throw and have to represent typed errors with return values. Instead of having an extra channel in addition to `resolve` and `reject`, we pass typed errors through the `resolve` channel, wrapping them in ErrorBox class to differentiate them from other values. `new ErrorBox(error)` simply stores `error` in its `.error` property.
 
 There is an operator `catchBoxed` which is a boxed error counterpart of `catch`, and a helper type `UnboxError` that extracts what's inside an ErrorBox.
 
@@ -211,10 +211,71 @@ Like typed errors, dependency injection is an optional feature. You can omit the
 
 ## Utilities
 
-The library provides wrappers for browser and Node deferral APIs: `inTimeout`, `inMicrotask`, `inAnimationFrame`, `inIdleCallback`, `inImmediate`, `inNextTick`, `inMessageChannel`, `inScheduled`. Each of these returns a LazyPromise that fires, typically with a value of `undefined`, in respectively `setTimeout`, `queueMicrotask` etc. Since these are non-imaginative convenience wrappers for native APIs, they don't add much complexity to the API surface, yet they remove the need for some extra constructs you'd normally find in libraries that deal with async. For example, to sleep for 1 second in the middle of a generator function, you would `yield* inTimeout(1000)`, or to make a lazy promise fire in a microtask like a native promise, you would do `.finally(inMicrotask)`.
+The library provides wrappers for browser and Node deferral APIs: `inTimeout`, `inMicrotask`, `inAnimationFrame`, `inIdleCallback`, `inImmediate`, `inNextTick`, `inMessageChannel`, `inScheduled`. Each of these returns a LazyPromise that fires, typically with a value of `undefined`, in respectively `setTimeout`, `queueMicrotask` etc. Since these are non-imaginative convenience wrappers for native APIs, they don't add much complexity to the API surface, yet they remove the need for some extra constructs you'd normally find in libraries that deal with async. For example, to sleep for 1 second in the middle of a generator function, you would `yield* inTimeout(1000)`.
 
 The library also provides a `log` function that wraps a LazyPromise without changing its behavior, and `console.log`s everything that happens to it: `lazyPromise.pipe(log("your label"))`.
 
 ## Class-based API
 
 To get the best performance, for instance when working on a library, you can avoid the overhead of creating and garbage-collecting functions by using objects in their place. Instead of passing a callback to the `LazyPromise` constructor, you can pass an object with `.produce` method (a `Producer`), and instead of returning a teardown function, you can return an object with `.dispose` method (a `Job`).
+
+## QnA
+
+<details>
+<summary>Why is the method `map` called `map`?</summary>
+
+It cannot be `then` since JavaScript has some built-in behaviors around that particular name, and as to `map` vs. `flatMap`, we're taking advantage here of the fact that there can be no higher-order lazy promises. If `map` gets a LazyPromise from its callback, it cannot return a `LazyPromise<LazyPromise<...>>` and has no choice but to flatten the result, so we don't need to disambiguate between `map` and `flatMap`. Similarly, we can just say `box` since we don't have to disambiguate between `box` and `normalize`.
+
+</details>
+
+<details>
+<summary>Why no symmetry as in `Promise.resolve` and `Promise.reject`?</summary>
+
+Because actually there is no symmetry in the case of native promises either. If you give `Promise.resolve` a Promise, it will flatten it. If you give `Promise.reject` a Promise, it will just immediately throw it.
+
+</details>
+
+<details>
+<summary>Why dot notation and not pipes-only like RxJS?</summary>
+
+Because unlike RxJS, there exists a small and well-defined set of operators that can be mentally put into the same category as language features.
+
+</details>
+
+<details>
+<summary>Why does `finally` not run when the lazy promise is cancelled?</summary>
+
+This question applies to both the `finally` block in generator functions and the `.finally` method. There are three reasons:
+
+- That's how generator functions work in JavaScript: you only get the guarantee that the `finally` block gets executed if you don't `yield` in `try`/`catch`.
+
+- Using `finally` for cleanup would go against only-one-way-to-do-it since there is already teardown logic that you return from LazyPromise constructor.
+
+- This enables the pattern `lazyPromise.finally(() => anotherLazyPromise)`, which is the equivalent of the native
+
+  ```
+  try {
+    return await promise;
+  } finally {
+    // Wait for `anotherPromise`, then pass on result of `promise`.
+    await anotherPromise;
+  }
+  ```
+
+  and which can for example be used to make a lazy promise fire in a microtask like a native promise: `lazyPromise.finally(inMicrotask)`.
+
+</details>
+
+<details>
+<summary>Why doesn't LazyPromise provide an affordance for sharing/caching the result?</summary>
+
+While this is achievable with userland operators like those in RxJS, it's not something you want to bake into the primitive, because how you do it depends on what you use for state. If it's Signals, there is an existing `computed`/`createMemo` that just needs to be [extended so it knows what to do with lazy promises](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals#step-2-memos).
+
+</details>
+
+<details>
+<summary>Why not a separate channel for typed errors?</summary>
+
+Although `LazyPromise<"value" | ErrorBox<"error">>` is a little bit harder to read than `LazyPromise<"value", "error">`, an extra channel and type parameter would have introduced unnecessary complexity when it comes to using LazyPromise together with native promises and generator syntax. You wouldn't be able to produce typed errors in native async functions by returning ErrorBoxes, and try/catch/finally syntax in generator functions would have non-obvious behavior.
+
+</details>
