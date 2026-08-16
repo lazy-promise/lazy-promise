@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.34](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.34)
+
+- Fix the `log` utility so that it supports dependency injection.
+
 ## [@lazy-promise/core@0.0.33](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.33)
 
 - Switch from `Disposable` to `Subscription` and `Job` to not clash with native type.

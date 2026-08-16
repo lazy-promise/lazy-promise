@@ -39,16 +39,16 @@ test("base case", () => {
     logContents.push(args.map(String).join(" ")),
   );
 
-  new LazyPromise((sink) => {
-    console.log("subscribing");
+  new LazyPromise<number, "dep">((sink, dep) => {
+    console.log("subscribing", dep);
     sink.resolve(1);
   })
     .pipe(log("base case"))
-    .subscribe(logConsumer);
+    .subscribe(logConsumer, "dep");
   expect(readLog()).toMatchInlineSnapshot(`
     [
-      "[base case] [1] [subscribe]",
-      "· subscribing",
+      "[base case] [1] [subscribe] dep",
+      "· subscribing dep",
       "· [base case] [1] [resolve] 1",
       "· · handleValue 1",
     ]
@@ -63,7 +63,7 @@ test("rejection", () => {
   rejecting(1).pipe(log("rejection case")).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
-      "[rejection case] [1] [subscribe]",
+      "[rejection case] [1] [subscribe] undefined",
       "· [rejection case] [1] [reject] 1",
       "· · handleError 1",
     ]
@@ -83,7 +83,7 @@ test("unsubscribe", () => {
     .dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
-      "[unsubscribe case] [1] [subscribe]",
+      "[unsubscribe case] [1] [subscribe] undefined",
       "[unsubscribe case] [1] [unsubscribe]",
       "· unsubscribing",
     ]
@@ -102,7 +102,7 @@ test("unsubscribe (no teardown function)", () => {
     .subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
     [
-      "[unsubscribe (no teardown function) case] [1] [subscribe]",
+      "[unsubscribe (no teardown function) case] [1] [subscribe] undefined",
       "· subscribing",
     ]
   `);
@@ -118,9 +118,9 @@ test("counter", () => {
   getPromise().subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
     [
-      "[counter case] [1] [subscribe]",
+      "[counter case] [1] [subscribe] undefined",
       "· [counter case] [1] [resolve] 1",
-      "[counter case] [2] [subscribe]",
+      "[counter case] [2] [subscribe] undefined",
       "· [counter case] [2] [resolve] 1",
     ]
   `);
@@ -136,12 +136,12 @@ test("no label", () => {
   getPromise().subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
     [
-      "[1] [subscribe]",
+      "[1] [subscribe] undefined",
       "· [1] [resolve] 1",
-      "[2] [subscribe]",
+      "[2] [subscribe] undefined",
       "· [2] [resolve] 1",
     ]
-    `);
+  `);
 });
 
 test("number as label", () => {
@@ -154,9 +154,9 @@ test("number as label", () => {
   getPromise().subscribe();
   expect(readLog()).toMatchInlineSnapshot(`
     [
-      "[42] [1] [subscribe]",
+      "[42] [1] [subscribe] undefined",
       "· [42] [1] [resolve] 1",
-      "[42] [2] [subscribe]",
+      "[42] [2] [subscribe] undefined",
       "· [42] [2] [resolve] 1",
     ]
   `);
@@ -179,7 +179,7 @@ test("patched console.log", () => {
 
   expect(readLog()).toMatchInlineSnapshot(`
     [
-      "[label] [1] [subscribe]",
+      "[label] [1] [subscribe] undefined",
       "· [label] [1] [resolve] undefined",
       "· · a b",
       "· · 1 a",
