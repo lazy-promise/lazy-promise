@@ -32,7 +32,7 @@ These concerns aside though, the native promise API is actually quite elegant, a
 
 ### If you start with Effect
 
-Like Effect, LazyPromise supports generator syntax, typed errors, and dependency injection, but the two could not be further apart on the library vs. framework scale.
+Like [Effect](https://www.effect.website/), LazyPromise supports generator syntax, typed errors, and dependency injection, but the two could not be further apart on the library vs. framework scale.
 
 ## Usage
 
@@ -224,7 +224,7 @@ To get the best performance, for instance when working on a library, you can avo
 <details>
 <summary><strong>Why is the method <code>map</code> called <code>map</code>?</strong></summary>
 
-It cannot be `then` since JavaScript has some built-in behaviors around that particular name, and as to `map` vs. `flatMap`, we're taking advantage here of the fact that there can be no higher-order lazy promises. If `map` gets a LazyPromise from its callback, it cannot return a `LazyPromise<LazyPromise<...>>` and has no choice but to flatten the result, so we don't need to disambiguate between `map` and `flatMap`. Similarly, we can just say `box` since we don't have to disambiguate between `box` and `normalize`.
+It cannot be `then` since JavaScript has some built-in behaviors around that particular name, and as to `map` vs. `flatMap`, here we're taking advantage of the fact that there can be no higher-order lazy promises. If `map` gets a LazyPromise from its callback, it cannot return a `LazyPromise<LazyPromise<...>>` and has no choice but to flatten the result, so we don't need to disambiguate between `map` and `flatMap`. Similarly, we can just say `box` since we don't have to disambiguate between `box` and `normalize`.
 
 </details>
 
@@ -238,7 +238,7 @@ Because actually there is no symmetry in the case of native promises either. If 
 <details>
 <summary><strong>Why dot notation and not pipes-only like RxJS?</strong></summary>
 
-Because unlike RxJS, there exists a small and well-defined set of operators that can be mentally put into the same category as language features, and that are more equal than others.
+Because unlike RxJS, there exists a small and well-defined set of operators that are in the same category as language features and more equal than others.
 
 </details>
 
@@ -249,7 +249,7 @@ This question applies to both the `finally` block in generator functions and the
 
 - That's how generator functions work in JavaScript: you only get the guarantee that the `finally` block gets executed if you don't `yield` in `try`/`catch`.
 
-- Using `finally` for cleanup would go against only-one-way-to-do-it since there is already teardown logic that you return from LazyPromise constructor.
+- Using `finally` for cleanup would go against "only one way to do it" principle since there is already teardown logic that you return from LazyPromise constructor.
 
 - This enables the pattern `lazyPromise.finally(() => anotherLazyPromise)`, which is the equivalent of the native
 
@@ -277,6 +277,25 @@ While this is achievable with userland operators like those in RxJS, it's not so
 <summary><strong>Why not a separate channel for typed errors?</strong></summary>
 
 Although `LazyPromise<"value" | ErrorBox<"error">>` is a little bit harder to read than `LazyPromise<"value", "error">`, an extra channel and type parameter would have introduced unnecessary complexity when it comes to using LazyPromise together with native promises and generator syntax. You wouldn't be able to produce typed errors in native async functions by returning ErrorBoxes, and try/catch/finally syntax in generator functions would have non-obvious behavior.
+
+</details>
+
+<details>
+<summary><strong>Why not have a utility like <code>fromEvent</code> in RxJS?</strong></summary>
+
+It's tricky to come up with a simple and universal design for such a utility because sometimes you need to resolve or reject the promise not just when you get the first event, but when you get the first event that matches a certain condition. It seems that a better solution would be a lower-level utility not specific to LazyPromise that adds a listener and returns teardown logic:
+
+```
+new LazyPromise<void>((sink) => {
+  const dispose = addDisposableEventListener(window, "message", (event) => {
+    if (...) {
+      dispose();
+      sink.resolve();
+    }
+  });
+  return dispose;
+});
+```
 
 </details>
 
