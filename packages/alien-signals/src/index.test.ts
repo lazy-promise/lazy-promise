@@ -85,7 +85,7 @@ test("effect: reads in LazyPromise producer are not tracked", () => {
   `);
 });
 
-test("effect: previous LazyPromise subscription is cancelled when effect re-runs", () => {
+test("effect: previous LazyPromise subscription is canceled when effect re-runs", () => {
   const a = signal(0);
 
   effect(() => {
@@ -150,7 +150,7 @@ test("effect: previous LazyPromise subscription is cancelled when effect re-runs
   `);
 });
 
-test("effect: LazyPromise subscription is cancelled when effect is disposed", () => {
+test("effect: LazyPromise subscription is canceled when effect is disposed", () => {
   const dispose = effect(
     () =>
       new LazyPromise<number>(() => () => {
