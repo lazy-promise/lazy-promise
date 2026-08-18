@@ -282,4 +282,4 @@ Although `LazyPromise<"value" | ErrorBox<"error">>` is a little bit harder to re
 
 ## Playground
 
-[Stackblitz](https://stackblitz.com/edit/unbox-ystyv5lf?devToolsHeight=1000&file=index.ts)
+[Stackblitz](https://stackblitz.com/edit/lazy-promise?devToolsHeight=1000&file=index.ts)
