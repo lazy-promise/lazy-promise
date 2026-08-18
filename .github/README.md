@@ -274,7 +274,7 @@ While this is achievable with userland operators like those in RxJS, it's not so
 </details>
 
 <details>
-<summary><strong>Why not a separate channel for typed errors?</strong></summary>
+<summary><strong>Why not a separate channel for typed errors like in Effect?</strong></summary>
 
 Although `LazyPromise<"value" | ErrorBox<"error">>` is a little bit harder to read than `LazyPromise<"value", "error">`, an extra channel and type parameter would have introduced unnecessary complexity when it comes to using LazyPromise together with native promises and generator syntax. You wouldn't be able to produce typed errors in native async functions by returning ErrorBoxes, and try/catch/finally syntax in generator functions would have non-obvious behavior.
 
