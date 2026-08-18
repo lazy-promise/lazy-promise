@@ -280,33 +280,6 @@ Although `LazyPromise<"value" | ErrorBox<"error">>` is a little bit harder to re
 
 </details>
 
-<details>
-<summary><strong>Why not have a utility like <code>fromEvent</code> in RxJS?</strong></summary>
-
-It's tricky to come up with good design for such a utility because sometimes you need to resolve or reject the promise not just when you get the first event, but when you get the first event that matches a certain condition. You may want to go instead with a helper that's like `addEventListener`, but returns teardown logic, and use it with the LazyPromise constructor:
-
-```
-new LazyPromise<any>((sink) =>
-  ddDisposableEventListener(window, "message", { once: true }, (event) => {
-    sink.resolve(event.data);
-  }),
-);
-```
-
-```
-new LazyPromise<any>((sink) => {
-  const dispose = addDisposableEventListener(window, "message", (event) => {
-    if (...) {
-      dispose();
-      sink.resolve(event.data);
-    }
-  });
-  return dispose;
-});
-```
-
-</details>
-
 ## Playground
 
 [Stackblitz](https://stackblitz.com/edit/unbox-ystyv5lf?devToolsHeight=1000&file=index.ts)
