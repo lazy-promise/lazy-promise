@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.35](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.35)
+
+- A minor perf optimization in `all`/`any`/`race`.
+
 ## [@lazy-promise/core@0.0.34](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.34)
 
 - Fix the `log` utility so that it supports dependency injection.

@@ -10,11 +10,35 @@ import type {
 } from "./lazyPromise.js";
 import { LazyPromise } from "./lazyPromise.js";
 
+interface SubscriptionNode {
+  subscription: Subscription;
+  next: SubscriptionNode | undefined;
+}
+
 class RaceConsumerJob implements Consumer<any>, Job {
-  subscriptions: Subscription[] = [];
+  subscriptions?: SubscriptionNode;
   settled = false;
 
-  constructor(public sink: Sink<any>) {}
+  constructor(
+    public sink: Sink<any>,
+    public dep: any,
+  ) {}
+
+  /**
+   * The return value indicates whether the promise has settled.
+   */
+  next(source: any) {
+    if (source instanceof LazyPromise) {
+      const subscription = source.subscribe<any>(this, this.dep);
+      if (this.settled) {
+        return true;
+      }
+      this.subscriptions = { subscription, next: this.subscriptions };
+      return false;
+    }
+    this.resolve(source);
+    return true;
+  }
 
   resolve(value: any) {
     this.sink.resolve(value);
@@ -29,8 +53,10 @@ class RaceConsumerJob implements Consumer<any>, Job {
   }
 
   dispose() {
-    for (let index = 0; index < this.subscriptions.length; index++) {
-      this.subscriptions[index]!.dispose();
+    let node = this.subscriptions;
+    while (node) {
+      node.subscription.dispose();
+      node = node.next;
     }
   }
 }
@@ -39,18 +65,19 @@ class RaceProducer implements Producer<any, any> {
   constructor(public sources: Iterable<any>) {}
 
   produce(sink: Sink<any>, dep: any) {
-    const job = new RaceConsumerJob(sink);
-    for (const source of this.sources) {
-      if (source instanceof LazyPromise) {
-        job.subscriptions.push(source.subscribe<any>(job, dep));
-        if (job.settled) {
+    const job = new RaceConsumerJob(sink, dep);
+    if (Array.isArray(this.sources)) {
+      for (let index = 0; index < this.sources.length; index++) {
+        if (job.next(this.sources[index])) {
           return;
         }
-        continue;
       }
-      sink.resolve(source);
-      job.dispose();
-      return;
+    } else {
+      for (const source of this.sources) {
+        if (job.next(source)) {
+          return;
+        }
+      }
     }
     return job;
   }

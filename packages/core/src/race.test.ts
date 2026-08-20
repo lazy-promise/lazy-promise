@@ -308,10 +308,10 @@ test("unsubscribe", () => {
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
-        "dispose a",
+        "dispose b",
       ],
       [
-        "dispose b",
+        "dispose a",
       ],
     ]
   `);
@@ -464,7 +464,7 @@ test("internally disposed by the teardown function, a source resolve is ignored 
         "produce b",
       ],
       [
-        "dispose a",
+        "dispose b",
       ],
     ]
   `);

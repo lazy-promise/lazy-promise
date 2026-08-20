@@ -12,6 +12,11 @@ import type {
 import { ErrorBox, LazyPromise } from "./lazyPromise.js";
 import type { NeverIfArrayContainsNever } from "./utils.js";
 
+interface SubscriptionNode {
+  subscription: Subscription;
+  next: SubscriptionNode | undefined;
+}
+
 class AnyConsumer implements Consumer<any> {
   constructor(
     public index: number,
@@ -49,7 +54,7 @@ class AnyConsumer implements Consumer<any> {
 class AnyJob implements Job {
   // A sparse array.
   errors: any[] = [];
-  subscriptions: Subscription[] = [];
+  subscriptions?: SubscriptionNode;
   pendingCount = 0;
   initialized = false;
 
@@ -61,9 +66,14 @@ class AnyJob implements Job {
   next(index: number, source: any) {
     if (source instanceof LazyPromise) {
       this.pendingCount++;
-      this.subscriptions.push(
-        source.subscribe<any>(new AnyConsumer(index, this), this.dep),
+      const subscription = source.subscribe<any>(
+        new AnyConsumer(index, this),
+        this.dep,
       );
+      if (this.initialized) {
+        return;
+      }
+      this.subscriptions = { subscription, next: this.subscriptions };
       return;
     }
     if (source instanceof ErrorBox) {
@@ -76,8 +86,10 @@ class AnyJob implements Job {
   }
 
   dispose() {
-    for (let index = 0; index < this.subscriptions.length; index++) {
-      this.subscriptions[index]!.dispose();
+    let node = this.subscriptions;
+    while (node) {
+      node.subscription.dispose();
+      node = node.next;
     }
   }
 }
@@ -88,12 +100,21 @@ class AnyProducer implements Producer<any, any> {
   produce(sink: Sink<any>, dep: any) {
     const job = new AnyJob(sink, dep);
     let index = 0;
-    for (const source of this.sources) {
-      job.next(index, source);
-      if (job.initialized) {
-        return;
+    if (Array.isArray(this.sources)) {
+      for (; index < this.sources.length; index++) {
+        job.next(index, this.sources[index]);
+        if (job.initialized) {
+          return;
+        }
       }
-      index++;
+    } else {
+      for (const source of this.sources) {
+        job.next(index, source);
+        if (job.initialized) {
+          return;
+        }
+        index++;
+      }
     }
     if (job.pendingCount === 0) {
       sink.resolve(new ErrorBox(job.errors));

@@ -482,7 +482,7 @@ test("internally disposed when unsubscribed, a source resolve is ignored when in
         "produce b",
       ],
       [
-        "dispose a",
+        "dispose b",
       ],
     ]
   `);

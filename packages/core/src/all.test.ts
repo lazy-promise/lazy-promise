@@ -177,6 +177,21 @@ test("non-array iterable", () => {
   `);
 });
 
+test("boxed error in a non-array iterable", () => {
+  const promise = all(new Set(["a", new ErrorBox("oops")]));
+  promise.subscribe<any>(logConsumer);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleValue",
+        ErrorBox {
+          "error": "oops",
+        },
+      ],
+    ]
+  `);
+});
+
 test("async resolve", () => {
   const promise = all([
     new LazyPromise<"a">((sink) => {
@@ -444,7 +459,7 @@ test("internally disposed when unsubscribed, a source reject is ignored when int
         "produce b",
       ],
       [
-        "dispose a",
+        "dispose b",
       ],
     ]
   `);
