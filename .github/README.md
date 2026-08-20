@@ -130,7 +130,7 @@ There is an operator `catchBoxed` which is a boxed error counterpart of `catch`,
 
 ErrorBox instances are treated differently from other values by some of the previously mentioned APIs:
 
-- By default, if you call `.subscribe` or `.toEager` on a LazyPromise that can resolve to boxed errors, you'll get a typechecking error. This makes sure that if for example you add a new error to a server endpoint, you'll catch all the places on the client where that error isn't handled. Both methods have an optional generic type parameter WhitelistedError that you can use to silence the check for some or all errors.
+- If you call `.subscribe` or `.toEager` on a LazyPromise that can resolve to boxed errors, you'll get a typechecking error. This makes sure that if for example you add a new error to a server endpoint, you'll catch all the places on the client where that error isn't handled. The `.subscribe` method has an optional generic type parameter WhitelistedError that you can use to silence the check for some or all errors.
 
 - `map`, `all`, and `race` operators pass boxed errors through the same way they pass through rejections, e.g.
 

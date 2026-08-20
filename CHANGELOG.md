@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.36](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.36)
+
+- Update the type of `toEager` so it correctly handles dependencies and no longer has WhitelistedError param.
+
 ## [@lazy-promise/core@0.0.35](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.35)
 
 - A minor perf optimization in `all`/`any`/`race`.

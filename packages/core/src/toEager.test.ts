@@ -39,43 +39,32 @@ test("types", () => {
     "value a" | ErrorBox<"error a"> | ErrorBox<"error b">
   >(() => {});
 
-  promise1.toEager<"error a" | "error b">();
-
-  promise1.toEager<"error a" | "error b" | "error c">();
-
-  promise1.toEager<unknown>();
-
-  promise1.toEager<any>();
-
   /** @ts-expect-error */
   promise1.toEager();
 
-  /** @ts-expect-error */
-  promise1.toEager<"error a">();
-
   const promise2 = new LazyPromise<"value a">(() => {});
 
-  promise2.toEager();
-
-  promise2.toEager<"error a">();
+  expectTypeOf(promise2.toEager()).toEqualTypeOf<Promise<"value a">>();
 
   const promise3 = never as
     | LazyPromise<1 | ErrorBox<"error a">>
     | LazyPromise<2 | ErrorBox<"error b">>;
 
-  const nativePromise3 = promise3.toEager<"error a" | "error b">();
-  expectTypeOf(nativePromise3).toEqualTypeOf<
-    Promise<ErrorBox<"error a"> | 1> | Promise<ErrorBox<"error b"> | 2>
-  >();
-
   /** @ts-expect-error */
   promise3.toEager();
 
-  /** @ts-expect-error */
-  promise3.toEager<"error a">();
+  const promise4 = never as LazyPromise<1> | LazyPromise<2>;
 
+  expectTypeOf(promise4.toEager()).toEqualTypeOf<Promise<1> | Promise<2>>();
+
+  new LazyPromise<void, undefined>(() => {}).toEager();
+  new LazyPromise<void, void>(() => {}).toEager();
+  new LazyPromise<void, number | undefined>(() => {}).toEager();
+  new LazyPromise<void, any>(() => {}).toEager();
   /** @ts-expect-error */
-  promise3.toEager<"error b">();
+  new LazyPromise<void, "dep">(() => {}).toEager();
+  /** @ts-expect-error */
+  new LazyPromise<void, never>(() => {}).toEager();
 
   /* eslint-enable @typescript-eslint/no-floating-promises */
 });

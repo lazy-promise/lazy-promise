@@ -381,8 +381,9 @@ export class LazyPromise<out Value, in Dep = unknown> {
    * the callback.
    */
   inject<This, ExtraDep = unknown>(
-    // We avoid occurrence of `Dep` in a method signature since this would
-    // affect its measured variance and break `InferDep`.
+    // Depending on position, occurrence of `Value` or `Dep` in this signature
+    // could change measured variance (breaking `InferDep`) or break
+    // assignability between LazyPromise instantiations.
     this: This,
     // eslint-disable-next-line no-use-before-define
     callback: (dep: ExtraDep) => InferDep<This>,
@@ -391,22 +392,22 @@ export class LazyPromise<out Value, in Dep = unknown> {
   }
 
   /**
-   * Converts a LazyPromise to a Promise. You can pass an AbortSignal in the
-   * options object.
-   *
-   * The type parameter `WhitelistedError` is used to constrain the type of
-   * boxed errors that the promise is allowed to resolve to. If you do not
-   * expect  _any_ boxed errors, just omit the type parameter so it would
-   * default to `never`. If you do expect errors of a certain type, specify it
-   * explicitly: `.toEager<"error1" | "error2">()`. To bypass the check, use
-   * `unknown` or `any`.
+   * Converts a LazyPromise to a Promise. The LazyPromise must have no
+   * dependencies and not resolve to boxed errors. You can pass an AbortSignal
+   * in the options object.
    */
-  toEager<WhitelistedError = never>(
-    this: UnboxError<Value> extends WhitelistedError
-      ? unknown
-      : {
-          [`❌ Unhandled boxed errors detected. Either catch them before calling .toEager, or whitelist them using that method's type parameter.`]: never;
-        },
+  toEager<This>(
+    // Depending on position, occurrence of `Value` or `Dep` in this signature
+    // could change measured variance (breaking `InferDep`) or break
+    // assignability between LazyPromise instantiations.
+    this: This &
+      // eslint-disable-next-line no-use-before-define
+      (UnboxError<Unbox<This>> extends never
+        ? // eslint-disable-next-line no-use-before-define
+          undefined extends InferDep<This>
+          ? unknown
+          : "❌ You cannot call .toEager on a LazyPromise that has dependencies."
+        : "❌ Unhandled boxed errors detected. Catch them before calling the .toEager method."),
     options?: { readonly signal?: AbortSignal },
   ): Promise<Value> {
     return new Promise((resolve, reject) => {
