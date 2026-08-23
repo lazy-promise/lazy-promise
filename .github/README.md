@@ -283,3 +283,7 @@ Although `LazyPromise<"value" | ErrorBox<"error">>` is a little bit harder to re
 ## Playground
 
 [Stackblitz](https://stackblitz.com/edit/lazy-promise?devToolsHeight=1000&file=index.ts)
+
+## Contributing
+
+Issues/PRs/discussions welcome. The tests import from locally built output instead of directly from the source, so after checking out the repo, run `turbo build`. To test, run `turbo test`. To build irrespective of errors, run `turbo build:force`. These commands assume that you have Turborepo installed globally (`npm install turbo --global`).
