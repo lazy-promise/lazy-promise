@@ -1,6 +1,6 @@
-# Experimental SolidJS bindings for LazyPromise
+# Experimental glue for LazyPromise and Solid 2
 
-For details on LazyPromise, please see [root readme](https://github.com/lazy-promise/lazy-promise).
+For details on LazyPromise, please see the [root readme](https://github.com/lazy-promise/lazy-promise).
 
 ## Installation
 
@@ -8,118 +8,74 @@ For details on LazyPromise, please see [root readme](https://github.com/lazy-pro
 npm install @lazy-promise/core @lazy-promise/solid-js
 ```
 
-## Usage
+## `cg` and `eg`
 
-### useLazyPromise
-
-Simply subscribes to a lazy promise and unsubscribes when the scope is disposed. Used for side effects such as mutations.
-
-```
-useLazyPromise(yourLazyPromise);
-```
-
-Since this function takes a lazy promise that cannot resolve with an ErrorBox, type system will catch any unhandled typed errors. All callbacks are run outside the scope and so are untracked:
-
-```ts
-createEffect(() => {
-  useLazyPromise(
-    yourLazyPromise.map((value) => {
-      // Reading a signal here will not create a dependency even
-      // when the callback is run synchronously.
-    }),
-  );
-});
-```
-
-To error out the scope, reject the lazy promise:
-
-```ts
-useLazyPromise(
-  yourLazyPromise.catchBoxed((error) => {
-    // Trigger the error boundary.
-    throw new Error("oops");
-  }),
-);
-```
-
-You don't necessarily need to put a lazy promise subscription in a scope. You could just do
-
-```ts
-return (
-  <button
-    onClick={() => {
-      yourLazyPromise.subscribe();
-    }}
-  >
-    Click Me
-  </button>
-);
-```
-
-useLazyPromise is helpful when you subscribe to a lazy promise inside a memo or an effect, and as for event handlers, you can use it to abort an async task when a component is unmounted by doing the following:
-
-```ts
-const owner = getOwner();
-
-return (
-  <button
-    onClick={() => {
-      runWithOwner(owner, () => {
-        useLazyPromise(yourLazyPromise);
-      })
-    }}
-  >
-    Click Me
-  </button>
-);
-```
-
-### createFetcher
-
-Creates a fetcher that you can pass to `createResource` instead of the usual async function.
-
-```ts
-const [accessor] = createResource(createFetcher(() => yourLazyPromise));
-```
-
-The fetcher will subscribe/unsubscribe to the lazy promise as needed. As with `useLazyPromise`, rejecting the lazy promise errors out the scope. If you pass the fetcher as the second argument of `createResource`, you'll need to help TypeScript along (but since this is not a type assertion, this will not affect correctness):
+This stands for "computation glue" and "effect glue". Whenever Solid API expects an async iterable, you can return `yourLazyPromise.pipe(cg)`, for example
 
 ```ts
 const [count, setCount] = createSignal(0);
-const [accessor] = createResource(
-  count,
-  // Notice `count: number`.
-  createFetcher((count: number) => yourLazyPromise),
+const debouncedCount = createMemo(() =>
+  // Track `count` and wrap it in a LazyPromise
+  box(count())
+    // Delay that LazyPromise by a second
+    .finalize(() => inTimeout(1000))
+    // Computation glue
+    .pipe(cg),
 );
 ```
 
-[Stackblitz example](https://stackblitz.com/edit/github-evfywxxk-qqrcrueo?file=src%2Fmain.tsx)
-
-### createTrackProcessing
-
-This is a little like Suspense for mutations: a typical use-case is to disable a button (and maybe show a spinner) when the user clicks it and some async action is performed.
-
-```
-const [processing, trackProcessing] = createTrackProcessing();
-```
-
-Here, `trackProcessing` (a value of type `TrackProcessing`) is an operator that you can use to wrap one or more lazy promises:
-
-```
-const wrappedLazyPromise = lazyPromise.pipe(trackProcessing);
-```
-
-`processing` is an accessor that will tell you whether any of the wrapped promises are currently active (subscribed but not yet settled/unsubscribed):
+`eg` is used with `createEffect`/`createRenderEffect` as the second argument: `createEffect(() => yourLazyPromise, eg)`. For example,
 
 ```ts
-<button
-  onClick={() => {
-    wrappedLazyPromise.subscribe();
-  }}
-  disabled={processing()}
->
-  Click Me
-</button>
+createEffect(() => {
+  const someValue = someTrackedAccessor();
+  // For a change, create a LazyPromise using generator syntax
+  return fromGen(function* () {
+    while (true) {
+      // Type of `pollResult` is inferred similarly to async/await syntax
+      const pollResult = yield* pollYourEndpoint(someValue);
+      if (pollResult !== undefined) {
+        // Do something using pollResult
+
+        return;
+      }
+      // Sleep before next iteration.
+      yield* inTimeout(1000);
+    }
+  });
+}, eg);
 ```
 
-`processing` only changes its value to `true` when a lazy promise doesn't settle synchronously.
+In both cases there is a clear distinction on what is and isn't tracked: you _build_ a LazyPromise in a tracked context, and it gets _subscribed_ in untracked (and ownerless) context.
+
+Both utilities will give you a typechecking error if you fail to catch any [boxed errors](https://github.com/lazy-promise/lazy-promise#typed-errors).
+
+## OwnerDep
+
+`cg` and `eg` [dependency-inject](https://github.com/lazy-promise/lazy-promise#dependency-injection) an object of the shape
+
+```ts
+interface OwnerDep {
+  [typeof ownerSymbol]: Owner | null;
+}
+```
+
+That means that anywhere in your async logic you can get hold of the owner without having to explicitly pass it around:
+
+```ts
+const yourLazyPromise = fromGen(function* (dep: OwnerDep) {
+  const result = runWithOwner(dep[ownerSymbol], () => {
+    // Call `onCleanup` or `useContext`.
+  });
+});
+```
+
+There is a `runWithOwnerDep` utility that makes this a little more concise:
+
+```ts
+const yourLazyPromise = fromGen(function* () {
+  const result = yield* runWithOwnerDep(() => {
+    // Call `onCleanup` or `useContext`.
+  });
+});
+```

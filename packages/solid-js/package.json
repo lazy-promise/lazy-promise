@@ -46,6 +46,6 @@
   },
   "peerDependencies": {
     "@lazy-promise/core": "workspace:^",
-    "solid-js": "^1.0.0"
+    "solid-js": "2.0.0-rc.1"
   }
 }
