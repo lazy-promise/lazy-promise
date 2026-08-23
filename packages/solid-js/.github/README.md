@@ -1,4 +1,4 @@
-# Experimental glue for LazyPromise and Solid 2
+# Glue for LazyPromise and Solid 2.0
 
 For details on LazyPromise, please see the [root readme](https://github.com/lazy-promise/lazy-promise).
 
@@ -8,25 +8,25 @@ For details on LazyPromise, please see the [root readme](https://github.com/lazy
 npm install @lazy-promise/core @lazy-promise/solid-js
 ```
 
-## `cg` and `eg`
+## `glue` and `noop`
 
-This stands for "computation glue" and "effect glue". Whenever Solid API expects an async iterable, you can return `yourLazyPromise.pipe(cg)`, for example
+Whenever Solid API expects an async iterable, you can pass `yourLazyPromise.pipe(glue)`, for example
 
-```ts
+```
 const [count, setCount] = createSignal(0);
 const debouncedCount = createMemo(() =>
   // Track `count` and wrap it in a LazyPromise
   box(count())
     // Delay that LazyPromise by a second
-    .finalize(() => inTimeout(1000))
-    // Computation glue
-    .pipe(cg),
+    .finally(() => inTimeout(1000))
+    // Add glue
+    .pipe(glue),
 );
 ```
 
-`eg` is used with `createEffect`/`createRenderEffect` as the second argument: `createEffect(() => yourLazyPromise, eg)`. For example,
+With `createEffect`/`createRenderEffect`, the effect logic can live entirely in the LazyPromise, and you can pass `noop` (simply `() => {}`) as the required second argument: `createEffect(() => yourLazyPromise.pipe(glue), noop)`. For example,
 
-```ts
+```
 createEffect(() => {
   const someValue = someTrackedAccessor();
   // For a change, create a LazyPromise using generator syntax
@@ -42,40 +42,40 @@ createEffect(() => {
       // Sleep before next iteration.
       yield* inTimeout(1000);
     }
-  });
-}, eg);
+  }).pipe(glue);
+}, noop);
 ```
 
-In both cases there is a clear distinction on what is and isn't tracked: you _build_ a LazyPromise in a tracked context, and it gets _subscribed_ in untracked (and ownerless) context.
+In both cases there is a clear distinction on what is and isn't tracked: you _build_ a LazyPromise in a tracked context, and it gets _subscribed_ in untracked (and ownerless) context. The LazyPromise is unsubscribed when Solid closes the async iterable (when the computation re-runs or is disposed), and rejections are handled by Solid the same way as rejections of a native promise returned from a computation.
 
-Both utilities will give you a typechecking error if you fail to catch any [boxed errors](https://github.com/lazy-promise/lazy-promise#typed-errors).
+`glue` will give you a typechecking error if you fail to catch any [boxed errors](https://github.com/lazy-promise/lazy-promise#typed-errors).
 
 ## OwnerDep
 
-`cg` and `eg` [dependency-inject](https://github.com/lazy-promise/lazy-promise#dependency-injection) an object of the shape
+`glue` [dependency-injects](https://github.com/lazy-promise/lazy-promise#dependency-injection) an object of the shape
 
-```ts
+```
 interface OwnerDep {
-  [typeof ownerSymbol]: Owner | null;
+  [ownerSymbol]: Owner | null;
 }
 ```
 
 That means that anywhere in your async logic you can get hold of the owner without having to explicitly pass it around:
 
-```ts
+```
 const yourLazyPromise = fromGen(function* (dep: OwnerDep) {
   const result = runWithOwner(dep[ownerSymbol], () => {
-    // Call `onCleanup` or `useContext`.
+    // Call `useContext`.
   });
 });
 ```
 
 There is a `runWithOwnerDep` utility that makes this a little more concise:
 
-```ts
+```
 const yourLazyPromise = fromGen(function* () {
   const result = yield* runWithOwnerDep(() => {
-    // Call `onCleanup` or `useContext`.
+    // Call `useContext`.
   });
 });
 ```

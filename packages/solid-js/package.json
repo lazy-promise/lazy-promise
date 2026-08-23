@@ -1,7 +1,7 @@
 {
   "name": "@lazy-promise/solid-js",
-  "version": "0.0.43",
-  "description": "SolidJS bindings for LazyPromise",
+  "version": "0.0.44",
+  "description": "Glue for LazyPromise and SolidJS",
   "repository": "https://github.com/lazy-promise/lazy-promise.git",
   "license": "MIT",
   "sideEffects": false,
@@ -24,9 +24,9 @@
   ],
   "scripts": {
     "build:clean": "rm -rf build",
-    "build:force": "tsc -p tsconfig.json --noEmitOnError false || true",
+    "build:force": "tsc -p tsconfig.build.json --noEmitOnError false || true",
     "build:main": "babel build/module --out-dir build/main",
-    "build:module": "tsc --build",
+    "build:module": "tsc --build tsconfig.build.json",
     "test:eslint": "eslint . --max-warnings=0",
     "test:typescript": "tsc --noEmit",
     "test:vitest": "vitest run --passWithNoTests"
@@ -41,11 +41,12 @@
     "@repo/typescript-config": "workspace:*",
     "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^8.57.0",
+    "solid-js": "2.0.0-rc.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.16"
   },
   "peerDependencies": {
     "@lazy-promise/core": "workspace:^",
-    "solid-js": "2.0.0-rc.1"
+    "solid-js": "^2.0.0-rc.1"
   }
 }
