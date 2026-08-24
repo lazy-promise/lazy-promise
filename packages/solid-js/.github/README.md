@@ -82,4 +82,4 @@ const yourLazyPromise = fromGen(function* () {
 
 ## Playground
 
-[Stackblitz](https://stackblitz.com/edit/solid2-glue?file=src%2Fmain.tsx)
+[Basic](https://stackblitz.com/edit/solid2-glue?file=src%2Fmain.tsx) | [OwnerDep](https://stackblitz.com/edit/solid2-glue-lzpbsrxt?file=src%2Fmain.tsx)
