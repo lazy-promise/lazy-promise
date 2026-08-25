@@ -2,8 +2,6 @@
 
 A proof-of-concept Async Signals library built on top of regular Signals and a single-shot Observable.
 
-See also: [Glue for LazyPromise and Solid 2.0](https://github.com/lazy-promise/lazy-promise/tree/main/packages/solid-js).
-
 ## Installation
 
 ```bash

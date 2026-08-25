@@ -136,45 +136,6 @@ importers:
         specifier: 3.9.1
         version: 3.9.1(eslint@8.57.1)(typescript@5.9.3)
 
-  packages/solid-js:
-    devDependencies:
-      '@babel/cli':
-        specifier: ^7.19.3
-        version: 7.26.4(@babel/core@7.26.0)
-      '@babel/core':
-        specifier: ^7.24.7
-        version: 7.26.0
-      '@babel/preset-env':
-        specifier: ^7.24.7
-        version: 7.26.0(@babel/core@7.26.0)
-      '@babel/preset-typescript':
-        specifier: ^7.24.7
-        version: 7.26.0(@babel/core@7.26.0)
-      '@lazy-promise/core':
-        specifier: workspace:^
-        version: link:../core
-      '@repo/eslint-config':
-        specifier: workspace:*
-        version: link:../eslint-config
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
-      '@vitest/coverage-v8':
-        specifier: ^4.0.16
-        version: 4.0.16(vitest@4.0.16)
-      eslint:
-        specifier: ^8.57.0
-        version: 8.57.1
-      solid-js:
-        specifier: 2.0.0-rc.1
-        version: 2.0.0-rc.1
-      typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
-      vitest:
-        specifier: ^4.0.16
-        version: 4.0.16(@types/node@25.0.3)
-
   packages/typescript-config: {}
 
 packages:
@@ -1906,10 +1867,6 @@ packages:
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
     dev: true
 
-  /@solidjs/signals@2.0.0-rc.1:
-    resolution: {integrity: sha512-KQpgUbn9xuzFaXupwej9MvUnQV+H6wcCgvrERf+dygco3T9JWP9S02g/UoYwwmJ6Vh+LE1b82ZlSHYR2Bd1O8A==}
-    dev: true
-
   /@standard-schema/spec@1.1.0:
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
     dev: true
@@ -2575,10 +2532,6 @@ packages:
       path-key: 3.1.1
       shebang-command: 2.0.0
       which: 2.0.2
-    dev: true
-
-  /csstype@3.2.3:
-    resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
     dev: true
 
   /data-view-buffer@1.0.2:
@@ -4224,20 +4177,6 @@ packages:
     hasBin: true
     dev: true
 
-  /seroval-plugins@1.5.6(seroval@1.5.6):
-    resolution: {integrity: sha512-HXuLAX2pu/UByPpaeo/TaMfvMIi+1QqIoPJYCcAtU8QkVNwgR6MPlGuCQTErV1JwraaMbYaWVIBX7mppzGLATQ==}
-    engines: {node: '>=10'}
-    peerDependencies:
-      seroval: ^1.0
-    dependencies:
-      seroval: 1.5.6
-    dev: true
-
-  /seroval@1.5.6:
-    resolution: {integrity: sha512-rVQVWjjSvlINzaQPZH5JFqsqEsIWdTxY3iJZCnTL/5gQbXIRooVZKI60tVCkOVfzcRPejboxO2t0P89dg5mQaA==}
-    engines: {node: '>=10'}
-    dev: true
-
   /set-function-length@1.2.2:
     resolution: {integrity: sha512-pgRc4hJ4/sNjWCSS9AmnS40x3bNMDTknHgL5UaMBTMyJnU90EgWh1Rz+MC9eFu4BuN/UwZjKQuY/1v3rM7HMfg==}
     engines: {node: '>= 0.4'}
@@ -4324,15 +4263,6 @@ packages:
   /slash@3.0.0:
     resolution: {integrity: sha512-g9Q1haeby36OSStwb4ntCGGGaKsaVSjQ68fBxoQcutl5fS1vuY18H3wSt3jFyFtrkx+Kz0V1G85A4MyAdDMi2Q==}
     engines: {node: '>=8'}
-    dev: true
-
-  /solid-js@2.0.0-rc.1:
-    resolution: {integrity: sha512-UD+UfqfiuuOTaDw01YeT+LwsYJC2ilTlMfs6h8EC8FFLmZD0ZjeZIoJXdZEo9uMzIof2tu0Rfh3dnzI7FAmuJQ==}
-    dependencies:
-      '@solidjs/signals': 2.0.0-rc.1
-      csstype: 3.2.3
-      seroval: 1.5.6
-      seroval-plugins: 1.5.6(seroval@1.5.6)
     dev: true
 
   /sort-object-keys@1.1.3:
