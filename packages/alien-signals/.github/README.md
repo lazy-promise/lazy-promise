@@ -10,7 +10,7 @@ npm install @lazy-promise/alien-signals @lazy-promise/core
 
 ## Introduction
 
-With [LazyPromise](https://github.com/lazy-promise/lazy-promise) as an implementation of a single-shot Observable, we'll take [alien-signals](https://github.com/stackblitz/alien-signals) as the starting point, and then change the API in three steps, surfacing along the way a couple of reasons why the same cannot be implemented using the native Promise.
+With [LazyPromise](https://github.com/lazy-promise/lazy-promise) as an implementation of a single-shot Observable, we'll take [alien-signals](https://github.com/stackblitz/alien-signals) as the starting point, and then change the API in four steps, surfacing along the way a couple of reasons why the same cannot be implemented using the native Promise.
 
 ## Step 1: effects
 
@@ -129,19 +129,17 @@ The first condition means we're never changing the identity of the proxy if the 
 
 The second condition means that after the callback returns, but before the `computed` itself returns, we subscribe to the new lazy promise and check if it synchronously settles to the same result as the cached result. If so, there is no need for downstream updates. This logic is possible thanks to the fact that unlike native Promise, LazyPromise doesn't defer notifications to microtasks.
 
-## Step 3: batching
+## Step 3: auto-batching
 
-As in [Solid 2.0 signals](https://github.com/solidjs/solid/blob/next/documentation/solid-2.0/01-reactivity-batching-effects.md#flush-and-microtask-batching), we're going to add auto-batching, meaning that writing a signal will not actually update it until you run `flush()`, and if you don't run `flush()`, it will be run for you in a microtask.
+As in [Solid 2.0 signals](https://github.com/solidjs/solid/blob/next/documentation/solid-2.0/01-reactivity-batching-effects.md#flush-and-microtask-batching), we're going to add auto-batching, meaning that writing a signal will not actually update it until the system flushes the queue in a microtask.
 
-This makes sense irrespective of async: unless the flush is deferred, each time you update a signal outside of a batch, you're not just saying "update a signal", but "update a signal and I guarantee that I'm not about to update more signals". With async this becomes more of an issue because multiple signals are likely to be written when a lazy promise fires, and you don't want redundant reactive updates.
+This makes sense irrespective of async: unless the flush is deferred, each time you update a signal outside of a batch, you're not just saying "update a signal", but "update a signal and I guarantee that I'm not about to update more signals". It's also something that we're going to rely on in the next step.
 
-With this change, there is no longer a need for `startBatch`/`endBatch`.
+With this change, there is no longer a need for `startBatch`/`endBatch`. Also, unlike Solid, we're not going to make `flush` (a function that synchronously flushes the queue) available to the user. If `flush` is available and you run a client-provided callback that may or may not call it, you end up not knowing what state your signals are in. A typical use case for `flush` is when you need to update some external state like DOM before you do something else. Rather than forcing a sync update with `flush`, you can update the external state in an effectful memo, and have the subsequent logic depend on that memo, so that everything runs asynchronously but in the right order. We're used to a requirement that memos should be pure, but what they really should be is idempotent for as long as their dependencies don't change. This seems to be the only logical solution, and if it seems non-ideal, maybe this means that signals themselves in their current form should be given a second thought.
 
-## PS: what you can build on top
+## Step 4: unboxing
 
-On the client, you can have JSX or templates take lazy promises as inputs and trigger suspense/error boundaries. It would also be interesting to see how async signals can be used on the server.
-
-Here as an example we'll build a function `unbox` that takes a lazy promise getter (`() => LazyPromise<T>`) and returns a signal that gives you the value that the promise resolves to, or `undefined` if the promise hasn't resolved yet. Here's how one could use it:
+As a final step, we'll build a function `unbox` that takes a lazy promise getter (`() => LazyPromise<T>`) and returns a signal that gives you the value that the promise resolves to, or `undefined` if the promise hasn't resolved yet. Here's how one could use it:
 
 ```ts
 const str = signal("");
@@ -155,7 +153,9 @@ const debounced = unbox(
 );
 ```
 
-When implementing `unbox`, the trick is not to write (or `trigger`) signals synchronously in `computed` callbacks. If we did that, then even with auto-batching we'd end up with redundant reactive updates. If the promise resolves synchronously, we use only memos, and only trigger a signal if the promise settles asynchronously:
+You can see why auto-batching is necessary: to implement `unbox`, we need to set some signal when a lazy promise resolves asynchronously, so if we're unboxing the same lazy promise in two different places, we would end up setting two signals, and without auto-batching this would potentially lead to redundant reactive updates.
+
+Also, when implementing `unbox`, we need to take care not to write (or `trigger`) signals synchronously in `computed` callbacks. If we did that, we'd get redundant updates even with auto-batching. If the promise resolves synchronously, we use only memos, and only trigger a signal if the promise settles asynchronously:
 
 ```ts
 const unbox = <T>(

@@ -1,7 +1,20 @@
 import type { ReactiveFramework } from "reactive-framework-test-suite";
 import { SkipTest, setExpect, testSuite } from "reactive-framework-test-suite";
 import { describe, expect, test } from "vitest";
-import { computed, effect, effectScope, flush, setActiveSub, signal } from "..";
+import { computed, effect, effectScope, setActiveSub, signal } from "..";
+
+// The suite expects writes to propagate synchronously, while the library only
+// flushes in a microtask it schedules via queueMicrotask. Capture the
+// scheduled auto-flush and run it synchronously after each write.
+let pendingAutoFlush: (() => void) | undefined;
+
+const drainAutoFlush = () => {
+  while (pendingAutoFlush !== undefined) {
+    const callback = pendingAutoFlush;
+    pendingAutoFlush = undefined;
+    callback();
+  }
+};
 
 const framework: ReactiveFramework = {
   signal(initialValue) {
@@ -9,8 +22,16 @@ const framework: ReactiveFramework = {
     return {
       read: () => s(),
       write: (v) => {
-        s(v);
-        flush();
+        const originalQueueMicrotask = globalThis.queueMicrotask;
+        globalThis.queueMicrotask = (callback) => {
+          pendingAutoFlush = callback;
+        };
+        try {
+          s(v);
+          drainAutoFlush();
+        } finally {
+          globalThis.queueMicrotask = originalQueueMicrotask;
+        }
       },
     };
   },

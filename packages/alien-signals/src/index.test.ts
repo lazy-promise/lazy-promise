@@ -1,7 +1,7 @@
-import type { ErrorBox, UnboxError } from "@lazy-promise/core";
+import type { ErrorBox } from "@lazy-promise/core";
 import { LazyPromise, box } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { computed, effect, flush, signal, trigger } from "./index.js";
+import { computed, effect, signal, trigger, unbox } from "./index.js";
 
 const logContents: unknown[] = [];
 let logTime = 0;
@@ -43,7 +43,7 @@ afterEach(() => {
 // Effects
 //
 
-test("effect: reads in LazyPromise producer are not tracked", () => {
+test("effect: reads in LazyPromise producer are not tracked", async () => {
   const a = signal(0);
   const b = signal(0);
 
@@ -69,12 +69,12 @@ test("effect: reads in LazyPromise producer are not tracked", () => {
 
   // b changes: no reactive dependency on b, effect must not re-run
   b(1);
-  flush();
+  await Promise.resolve();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 
   // a changes: effect re-runs, map fires again reading the current b value
   a(1);
-  flush();
+  await Promise.resolve();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -85,7 +85,7 @@ test("effect: reads in LazyPromise producer are not tracked", () => {
   `);
 });
 
-test("effect: previous LazyPromise subscription is canceled when effect re-runs", () => {
+test("effect: previous LazyPromise subscription is canceled when effect re-runs", async () => {
   const a = signal(0);
 
   effect(() => {
@@ -110,12 +110,12 @@ test("effect: previous LazyPromise subscription is canceled when effect re-runs"
     ]
   `);
 
-  flush();
+  await Promise.resolve();
 
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 
   a(1);
-  flush();
+  await Promise.resolve();
 
   // teardown fires before the new run
   expect(readLog()).toMatchInlineSnapshot(`
@@ -133,7 +133,7 @@ test("effect: previous LazyPromise subscription is canceled when effect re-runs"
   `);
 
   a(2);
-  flush();
+  await Promise.resolve();
 
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -295,7 +295,7 @@ test("computed: multiple subscribers to proxy share result, original subscribed 
   `);
 });
 
-test("computed: original stays subscribed when effect re-runs while proxy is pending", () => {
+test("computed: original stays subscribed when effect re-runs while proxy is pending", async () => {
   const localCount = signal(0);
   let resolveOriginal!: (v: number) => void;
 
@@ -330,7 +330,7 @@ test("computed: original stays subscribed when effect re-runs while proxy is pen
 
   // localCount changes → effect re-runs, but original is NOT re-subscribed
   localCount(1);
-  flush();
+  await Promise.resolve();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -352,7 +352,7 @@ test("computed: original stays subscribed when effect re-runs while proxy is pen
   `);
 });
 
-test("computed: reads in original producer are not tracked when computed is in graph", () => {
+test("computed: reads in original producer are not tracked when computed is in graph", async () => {
   const a = signal(0);
   const b = signal(0);
 
@@ -375,11 +375,11 @@ test("computed: reads in original producer are not tracked when computed is in g
   `);
 
   b(1);
-  flush();
+  await Promise.resolve();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 
   a(1);
-  flush();
+  await Promise.resolve();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -390,7 +390,7 @@ test("computed: reads in original producer are not tracked when computed is in g
   `);
 });
 
-test("computed: proxy identity preserved when getter re-runs and previous original is still pending", () => {
+test("computed: proxy identity preserved when getter re-runs and previous original is still pending", async () => {
   const a = signal(0);
 
   const memo = computed(() => {
@@ -425,7 +425,7 @@ test("computed: proxy identity preserved when getter re-runs and previous origin
   const proxy1 = memo();
 
   a(1);
-  flush();
+  await Promise.resolve();
 
   // Since identity is preserved, effect does not re-run.
   expect(readLog()).toMatchInlineSnapshot(`
@@ -443,7 +443,7 @@ test("computed: proxy identity preserved when getter re-runs and previous origin
   expect(proxy1).toBe(proxy2);
 });
 
-test("computed: new proxy when new original synchronously resolves to different value - downstream re-runs", () => {
+test("computed: new proxy when new original synchronously resolves to different value - downstream re-runs", async () => {
   const a = signal(0);
   let value = 1;
 
@@ -481,7 +481,7 @@ test("computed: new proxy when new original synchronously resolves to different 
   // Getter re-runs with v=2: resolves synchronously to a different value → new proxy.
   value = 2;
   a(1);
-  flush();
+  await Promise.resolve();
 
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -499,7 +499,7 @@ test("computed: new proxy when new original synchronously resolves to different 
 
   // Getter re-runs with v=2 again (same value) → proxy is reused, no downstream re-run.
   a(2);
-  flush();
+  await Promise.resolve();
 
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -513,7 +513,7 @@ test("computed: new proxy when new original synchronously resolves to different 
   expect(proxy3).toBe(proxy2);
 });
 
-test("computed: new proxy when new original synchronously rejects with different error - downstream re-runs", () => {
+test("computed: new proxy when new original synchronously rejects with different error - downstream re-runs", async () => {
   const a = signal(0);
   let error: unknown = "foo";
 
@@ -551,7 +551,7 @@ test("computed: new proxy when new original synchronously rejects with different
   // Getter re-runs with "bar": rejects synchronously with a different error → new proxy.
   error = "bar";
   a(1);
-  flush();
+  await Promise.resolve();
 
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -569,7 +569,7 @@ test("computed: new proxy when new original synchronously rejects with different
 
   // Getter re-runs with "bar" again (same error) → proxy is reused, no downstream re-run.
   a(2);
-  flush();
+  await Promise.resolve();
 
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -583,7 +583,7 @@ test("computed: new proxy when new original synchronously rejects with different
   expect(proxy3).toBe(proxy2);
 });
 
-test("computed: new proxy returned when getter re-runs, previous original resolved, and new one hasn't", () => {
+test("computed: new proxy returned when getter re-runs, previous original resolved, and new one hasn't", async () => {
   let resolveOriginal!: (v: number) => void;
   const a = signal(0);
 
@@ -627,7 +627,7 @@ test("computed: new proxy returned when getter re-runs, previous original resolv
   `);
 
   a(1);
-  flush();
+  await Promise.resolve();
 
   // Proxy changes identity and this triggers the effect.
   expect(readLog()).toMatchInlineSnapshot(`
@@ -645,7 +645,7 @@ test("computed: new proxy returned when getter re-runs, previous original resolv
   expect(proxy1).not.toBe(proxy2);
 });
 
-test("computed: same proxy returned when getter re-runs and settled value is strictly equal", () => {
+test("computed: same proxy returned when getter re-runs and settled value is strictly equal", async () => {
   const a = signal(0);
 
   const memo = computed(() => {
@@ -686,7 +686,7 @@ test("computed: same proxy returned when getter re-runs and settled value is str
   const proxy1 = memo();
 
   a(1);
-  flush();
+  await Promise.resolve();
 
   // No downstream propagation
   expect(readLog()).toMatchInlineSnapshot(`
@@ -1084,7 +1084,7 @@ test("computed: in dependency graph - cached rejection delivered immediately to 
 // Auto-batching
 //
 
-test("signal writes stay stale until flush", () => {
+test("auto-flushes in a microtask", async () => {
   const a = signal(0);
   const doubled = computed(() => a() * 2);
 
@@ -1109,7 +1109,7 @@ test("signal writes stay stale until flush", () => {
     ]
   `);
 
-  flush();
+  await Promise.resolve();
 
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -1128,17 +1128,17 @@ test("signal writes stay stale until flush", () => {
   `);
 });
 
-test("multiple writes to the same signal coalesce to the last value", () => {
+test("multiple writes to the same signal coalesce to the last value", async () => {
   const a = signal(0);
   a(1);
   a(2);
   a(3);
   expect(a()).toBe(0);
-  flush();
+  await Promise.resolve();
   expect(a()).toBe(3);
 });
 
-test("flush drains chained writes", () => {
+test("auto-flush drains chained writes", async () => {
   const a = signal(0);
   const b = signal(0);
 
@@ -1170,7 +1170,7 @@ test("flush drains chained writes", () => {
 
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 
-  flush();
+  await Promise.resolve();
 
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -1181,42 +1181,6 @@ test("flush drains chained writes", () => {
       [
         "second",
         1,
-      ],
-    ]
-  `);
-});
-
-test("auto-flushes in a microtask when flush is not called", async () => {
-  const a = signal(0);
-  const doubled = computed(() => a() * 2);
-
-  effect(() => {
-    log("effect", doubled());
-  });
-
-  readLog(); // discard initial run
-
-  a(1);
-  expect([a(), doubled()]).toMatchInlineSnapshot(`
-    [
-      0,
-      0,
-    ]
-  `);
-
-  await Promise.resolve();
-
-  expect([a(), doubled()]).toMatchInlineSnapshot(`
-    [
-      1,
-      2,
-    ]
-  `);
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "effect",
-        2,
       ],
     ]
   `);
@@ -1336,42 +1300,10 @@ test("signal written inside effect during flush can be written again afterwards"
 });
 
 //
-// `unbox` utility
+// `unbox`
 //
 
-const unbox = <T>(
-  // Errors are expected to have been handled, so do not accept
-  // promises that can resolve to typed errors.
-  getter: UnboxError<T> extends never ? () => LazyPromise<T> : never,
-): (() => T | undefined) => {
-  let returnValue: T | undefined, returnValuePromise: unknown;
-  const memoizedGetter = computed(getter);
-  // A signal we'll use to trigger downstream updates in the case
-  // when the promise resolves asynchronously.
-  const tokenSignal = signal();
-  return computed(() => {
-    const promise = memoizedGetter();
-    effect<any>(() =>
-      promise.map((value) => {
-        returnValue = value;
-        if (returnValuePromise === promise) {
-          // The promise has resolved asynchronously.
-          trigger(tokenSignal);
-          return;
-        }
-        returnValuePromise = promise;
-      }),
-    );
-    if (returnValuePromise === promise) {
-      // The promise has resolved synchronously.
-      return returnValue;
-    }
-    returnValuePromise = promise;
-    tokenSignal();
-  });
-};
-
-test("unbox sync promises", () => {
+test("unbox sync promises", async () => {
   const a = signal(0);
   const b = unbox(() => box(a() + 10));
   const c = unbox(() => box(a() + b()! + 100));
@@ -1387,7 +1319,7 @@ test("unbox sync promises", () => {
     ]
   `);
   a(1);
-  flush();
+  await Promise.resolve();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -1401,7 +1333,7 @@ test("unbox sync promises", () => {
   expect(c()).toMatchInlineSnapshot(`112`);
 });
 
-test("unbox async promise", () => {
+test("unbox async promise", async () => {
   let resolveOriginal!: (v: number) => void;
   const a = signal(0);
 
@@ -1436,7 +1368,7 @@ test("unbox async promise", () => {
 
   resolveOriginal(10);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  flush();
+  await Promise.resolve();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -1447,7 +1379,7 @@ test("unbox async promise", () => {
   `);
 
   a(1);
-  flush();
+  await Promise.resolve();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -1461,7 +1393,7 @@ test("unbox async promise", () => {
   `);
 
   a(2);
-  flush();
+  await Promise.resolve();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -1475,7 +1407,7 @@ test("unbox async promise", () => {
 
   resolveOriginal(20);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
-  flush();
+  await Promise.resolve();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
@@ -1486,7 +1418,7 @@ test("unbox async promise", () => {
   `);
 
   a(3);
-  flush();
+  await Promise.resolve();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [

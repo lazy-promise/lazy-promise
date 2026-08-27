@@ -1,11 +1,11 @@
 import { expect, test } from "vitest";
-import { computed, effect, flush, signal, trigger } from "..";
+import { computed, effect, signal, trigger } from "..";
 
 test("should not throw when triggering with no dependencies", () => {
   trigger(() => {});
 });
 
-test("should trigger updates for dependent computed signals", () => {
+test("should trigger updates for dependent computed signals", async () => {
   const arr = signal<number[]>([]);
   const length = computed(() => arr().length);
 
@@ -13,11 +13,11 @@ test("should trigger updates for dependent computed signals", () => {
   arr().push(1);
   trigger(arr);
   expect(length()).toBe(0);
-  flush();
+  await Promise.resolve();
   expect(length()).toBe(1);
 });
 
-test("should trigger updates for the second source signal", () => {
+test("should trigger updates for the second source signal", async () => {
   const src1 = signal<number[]>([]);
   const src2 = signal<number[]>([]);
   const length = computed(() => src2().length);
@@ -29,11 +29,11 @@ test("should trigger updates for the second source signal", () => {
     src2();
   });
   expect(length()).toBe(0);
-  flush();
+  await Promise.resolve();
   expect(length()).toBe(1);
 });
 
-test("should trigger effect once", () => {
+test("should trigger effect once", async () => {
   const src1 = signal<number[]>([]);
   const src2 = signal<number[]>([]);
 
@@ -51,7 +51,7 @@ test("should trigger effect once", () => {
     src2();
   });
   expect(triggers).toBe(1);
-  flush();
+  await Promise.resolve();
   expect(triggers).toBe(2);
 });
 

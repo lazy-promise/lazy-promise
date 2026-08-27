@@ -1,4 +1,10 @@
-import type { ErrorBox, Job, Sink, Subscription } from "@lazy-promise/core";
+import type {
+  ErrorBox,
+  Job,
+  Sink,
+  Subscription,
+  UnboxError,
+} from "@lazy-promise/core";
 import { LazyPromise } from "@lazy-promise/core";
 import type { ReactiveNode } from "alien-signals/system";
 import { createReactiveSystem, ReactiveFlags } from "alien-signals/system";
@@ -423,7 +429,7 @@ const scheduleFlush = (): void => {
   }
 };
 
-export const flush = (): void => {
+const flush = (): void => {
   try {
     // Drain signal queue first - update all pending signal values
     while (signalNotifyIndex < signalQueuedLength) {
@@ -691,4 +697,36 @@ export const trigger = (fn: () => void) => {
       }
     }
   }
+};
+
+export const unbox = <T>(
+  // Errors are expected to have been handled, so do not accept
+  // promises that can resolve to typed errors.
+  getter: UnboxError<T> extends never ? () => LazyPromise<T> : never,
+): (() => T | undefined) => {
+  let returnValue: T | undefined, returnValuePromise: unknown;
+  const memoizedGetter = computed(getter);
+  // A signal we'll use to trigger downstream updates in the case
+  // when the promise resolves asynchronously.
+  const tokenSignal = signal();
+  return computed(() => {
+    const promise = memoizedGetter();
+    effect<any>(() =>
+      promise.map((value) => {
+        returnValue = value;
+        if (returnValuePromise === promise) {
+          // The promise has resolved asynchronously.
+          trigger(tokenSignal);
+          return;
+        }
+        returnValuePromise = promise;
+      }),
+    );
+    if (returnValuePromise === promise) {
+      // The promise has resolved synchronously.
+      return returnValue;
+    }
+    returnValuePromise = promise;
+    tokenSignal();
+  });
 };

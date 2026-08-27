@@ -1,8 +1,8 @@
 import { ReactiveFlags } from "alien-signals/system";
 import { expect, test } from "vitest";
-import { computed, effect, flush, getActiveSub, signal } from "..";
+import { computed, effect, getActiveSub, signal } from "..";
 
-test("should support custom recurse effect", () => {
+test("should support custom recurse effect", async () => {
   const src = signal(0);
 
   let triggers = 0;
@@ -13,12 +13,12 @@ test("should support custom recurse effect", () => {
     src(Math.min(src() + 1, 5));
   });
 
-  flush();
+  await Promise.resolve();
 
   expect(triggers).toBe(6);
 });
 
-test("cleanup order on outer re-run: inner before outer, before new run", () => {
+test("cleanup order on outer re-run: inner before outer, before new run", async () => {
   const log: string[] = [];
   const a = signal(0);
 
@@ -35,7 +35,7 @@ test("cleanup order on outer re-run: inner before outer, before new run", () => 
 
   log.length = 0;
   a(1);
-  flush();
+  await Promise.resolve();
   expect(log).toEqual([
     "inner:cleanup",
     "outer:cleanup",
@@ -78,7 +78,7 @@ test("sibling cleanup order on dispose: reverse creation (LIFO)", () => {
   ]);
 });
 
-test("sibling cleanup order on outer re-run: reverse creation (LIFO)", () => {
+test("sibling cleanup order on outer re-run: reverse creation (LIFO)", async () => {
   const log: string[] = [];
   const a = signal(0);
 
@@ -92,7 +92,7 @@ test("sibling cleanup order on outer re-run: reverse creation (LIFO)", () => {
   log.length = 0;
 
   a(1);
-  flush();
+  await Promise.resolve();
   expect(log.slice(0, 4)).toEqual([
     "inner3:cleanup",
     "inner2:cleanup",
@@ -133,7 +133,7 @@ test("computed unwatched: child effect cleanups run in reverse creation (LIFO)",
   expect(log).toEqual(["e3", "e2", "e1"]);
 });
 
-test("effect created inside computed: old inner cleanup runs before new inner setup", () => {
+test("effect created inside computed: old inner cleanup runs before new inner setup", async () => {
   // When a computed re-evaluates, any effects its getter created on the
   // previous run must be disposed (with cleanup) before the getter runs
   // again. Otherwise the old inner's cleanup ends up running after the
@@ -156,11 +156,11 @@ test("effect created inside computed: old inner cleanup runs before new inner se
   log.length = 0;
 
   a(1);
-  flush();
+  await Promise.resolve();
   expect(log).toEqual(["inner:cleanup", "computed:eval", "inner:run"]);
 });
 
-test("cleanup order is correct on outer re-run after a prior inner-only re-run", () => {
+test("cleanup order is correct on outer re-run after a prior inner-only re-run", async () => {
   // Regression: inner re-running alone routes outer through run()'s
   // not-dirty branch (restore Watching), which must preserve any
   // "has child effect" tracking so the next real outer re-run still
@@ -181,11 +181,11 @@ test("cleanup order is correct on outer re-run after a prior inner-only re-run",
   });
 
   b(1); // inner re-runs alone; outer is touched via notify chain
-  flush();
+  await Promise.resolve();
   log.length = 0;
 
   a(1);
-  flush();
+  await Promise.resolve();
   expect(log).toEqual([
     "inner:cleanup",
     "outer:cleanup",
@@ -195,7 +195,7 @@ test("cleanup order is correct on outer re-run after a prior inner-only re-run",
 });
 
 // https://github.com/stackblitz/alien-signals/issues/115
-test("outer effect keeps responding to its own dep after inner re-runs", () => {
+test("outer effect keeps responding to its own dep after inner re-runs", async () => {
   const a = signal(0);
   const b = signal(0);
   let outerRuns = 0;
@@ -213,11 +213,11 @@ test("outer effect keeps responding to its own dep after inner re-runs", () => {
   expect(innerRuns).toBe(1);
 
   b(1);
-  flush();
+  await Promise.resolve();
   expect(outerRuns).toBe(1);
   expect(innerRuns).toBeGreaterThanOrEqual(2);
 
   a(1);
-  flush();
+  await Promise.resolve();
   expect(outerRuns).toBe(2);
 });

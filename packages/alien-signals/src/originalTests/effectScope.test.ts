@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { effect, effectScope, flush, signal } from "..";
+import { effect, effectScope, signal } from "..";
 
 test("scope dispose runs child effect cleanup", () => {
   const log: string[] = [];
@@ -33,7 +33,7 @@ test("scope dispose: nested effect cleanup runs depth-first reverse", () => {
   expect(log).toEqual(["grandchild:cleanup", "child:cleanup"]);
 });
 
-test("scope as intermediate parent: cleanup order respects nesting", () => {
+test("scope as intermediate parent: cleanup order respects nesting", async () => {
   // When effectScope is used as an intermediate scope inside an outer
   // effect, the outer's re-run must still dispose the scope (and its
   // effects) before running the outer's own cleanup.
@@ -54,7 +54,7 @@ test("scope as intermediate parent: cleanup order respects nesting", () => {
   log.length = 0;
 
   a(1);
-  flush();
+  await Promise.resolve();
   expect(log).toEqual([
     "inner:cleanup",
     "outer:cleanup",
