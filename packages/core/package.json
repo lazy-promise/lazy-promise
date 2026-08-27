@@ -1,6 +1,6 @@
 {
   "name": "@lazy-promise/core",
-  "version": "0.0.36",
+  "version": "0.0.37",
   "description": "A Promise-like primitive which is lazy, cancelable, emits synchronously instead of in a microtask, and supports typed errors and dependency injection",
   "repository": {
     "type": "git",
