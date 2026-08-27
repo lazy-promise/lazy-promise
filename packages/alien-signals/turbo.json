@@ -3,7 +3,7 @@
   "extends": ["//"],
   "tasks": {
     "build": {
-      "dependsOn": ["build:clean", "build:module", "build:main"]
+      "dependsOn": ["build:clean", "build:module"]
     },
     "build:clean": {
       "cache": false
@@ -11,10 +11,6 @@
     "build:module": {
       "dependsOn": ["^build", "build:clean"],
       "outputs": ["build/module/**", "build/types/**"]
-    },
-    "build:main": {
-      "dependsOn": ["build:module"],
-      "outputs": ["build/main/**"]
     },
     "build:force": {
       "dependsOn": ["^build:force", "build:clean"],
