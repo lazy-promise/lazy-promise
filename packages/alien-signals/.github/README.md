@@ -50,7 +50,7 @@ effect(() =>
 
 A footnote: to keep things simple, the above snippets don't involve any actual async, but if for example you add `.finally(() => inTimeout(1000))` after `all(...)`, this will delay the effect by a second but otherwise won't change the logic.
 
-Another example is LazyPromise constructor:
+Another example is the LazyPromise constructor:
 
 ```ts
 effect(() => {
@@ -64,7 +64,7 @@ effect(() => {
 });
 ```
 
-Here the reads in the effect callback would be tracked, and the reads in the LazyPromise constructor callback won't be, since the latter is executed when the LazyPromise is subscribed.
+Here the reads in the effect callback would be tracked, and the reads in the LazyPromise constructor callback wouldn't be, since the latter is executed when the LazyPromise is subscribed.
 
 We wouldn't be able to have the same simple convention on what is and isn't tracked if we used a native Promise, since in
 
@@ -83,7 +83,7 @@ Since LazyPromise supports typed errors, there's one more twist which you can ig
 
 ## Step 2: memos
 
-Like an Observable and unlike the native Promise, LazyPromise doesn't store and multi-cast its result by default, so if you create
+Like an Observable and unlike the native Promise, LazyPromise doesn't store and multicast its result by default, so if you create
 
 ```ts
 const lazyPromise = new LazyPromise(foo);
@@ -91,7 +91,7 @@ const lazyPromise = new LazyPromise(foo);
 
 `foo` will be called each time you subscribe to `lazyPromise`. Because of this, if a memo aka `computed` callback returns a LazyPromise, instead of just passing it along, we're going to proxy it with another LazyPromise so that:
 
-- The original lazy promise can have at most one subscription at a time, and the result will be multi-casted among all the subscriptions to the proxy promise.
+- The original lazy promise can have at most one subscription at a time, and the result will be multicast among all the subscriptions to the proxy promise.
 
 - As long as the memo is in the dependency graph, it should either be subscribed to the original lazy promise and waiting for it to settle, or hold on to the result once the promise does settle.
 
@@ -115,7 +115,7 @@ effect(() =>
 );
 ```
 
-If you increment `localCount` while the `remoteCount` is still loading, `effect` will need to rerun, so it will unsubscribe and then immediately re-subscribe to `remoteCount`. `remoteCount`, however, is the proxy promise, not the original promise returned by `fetchRemoteCount`. Since all the while the memo stays in the dependency graph, that original promise will stay subscribed.
+If you increment `localCount` while `remoteCount` is still loading, `effect` will need to rerun, so it will unsubscribe and then immediately re-subscribe to `remoteCount`. `remoteCount`, however, is the proxy promise, not the original promise returned by `fetchRemoteCount`. Since all the while the memo stays in the dependency graph, that original promise will stay subscribed.
 
 Continuing with this example, once the original promise settles with a value or an error, the memo will hold on to that result for as long as it stays in the dependency graph, and immediately give it to anyone who subscribes to `remoteCount`. This is analogous to how things work with non-async memos.
 
@@ -127,15 +127,15 @@ To prevent redundant reactive updates, when the memo re-runs, we change the iden
 
 The first condition means we're never changing the identity of the proxy if the promise previously returned by the callback hasn't settled yet. In this case we can just as well use the existing proxy promise to pass on the value or error once we have it.
 
-The second condition means that after the callback returns, but before the `computed` itself returns, we subscribe to the new lazy promise and check if it synchronously settles to the same result as the cached result. If so, there is no need for downstream updates. This logic is possible thanks to the fact that unlike native Promise, LazyPromise doesn't defer notifications to microtasks.
+The second condition means that after the callback returns, but before the `computed` itself returns, we subscribe to the new lazy promise and check if it synchronously settles to the same result as the cached result. If so, there is no need for downstream updates. This logic is possible thanks to the fact that unlike the native Promise, LazyPromise doesn't defer notifications to microtasks.
 
 ## Step 3: auto-batching
 
-As in [Solid 2.0 signals](https://github.com/solidjs/solid/blob/next/documentation/solid-2.0/01-reactivity-batching-effects.md#flush-and-microtask-batching), we're going to add auto-batching, meaning that writing a signal will not actually update it until the system flushes the queue in a microtask.
+As in [Solid 2.0 signals](https://github.com/solidjs/solid/blob/next/documentation/solid-2.0/01-reactivity-batching-effects.md#flush-and-microtask-batching), we're going to add auto-batching, meaning that writing a signal will not actually update it until the system flushes the queued writes in a microtask.
 
 This makes sense irrespective of async: unless the flush is deferred, each time you update a signal outside of a batch, you're not just saying "update a signal", but "update a signal and I guarantee that I'm not about to update more signals". It's also something that we're going to rely on in the next step.
 
-With this change, there is no longer a need for `startBatch`/`endBatch`. Also, unlike Solid, we're not going to make `flush` (a function that synchronously flushes the queue) available to the user. If `flush` is available and you run a client-provided callback that may or may not call it, you end up not knowing what state your signals are in. A typical use case for `flush` is when you need to update some external state like DOM before you do something else. Rather than forcing a sync update with `flush`, you can update the external state in an effectful memo, and have the subsequent logic depend on that memo, so that everything runs asynchronously but in the right order. We're used to a requirement that memos should be pure, but what they really should be is idempotent for as long as their dependencies don't change. This seems to be the only logical solution, and if it seems non-ideal, maybe this means that signals themselves in their current form should be given a second thought.
+With this change, there is no longer a need for `startBatch`/`endBatch`. Also, unlike Solid, we're not going to expose a `flush` function that synchronously flushes the queue. The problem with exposing `flush` is that any client-provided callback may or may not call it, so after running one you no longer know what state your signals are in. A typical use case for `flush` is when you need to update some external state like the DOM before you do something else. Rather than forcing a sync update with `flush`, you can update the external state in an effectful memo, and have the subsequent logic depend on that memo, so that everything runs asynchronously but in the right order. Here, when we say "effectful memo", we're generalizing the concept of a memo from something that when necessary updates a cached value to something that when necessary updates any kind of state, including external state.
 
 ## Step 4: unboxing
 
@@ -153,9 +153,9 @@ const debounced = unbox(
 );
 ```
 
-You can see why auto-batching is necessary: to implement `unbox`, we need to set some signal when a lazy promise resolves asynchronously, so if we're unboxing the same lazy promise in two different places, we would end up setting two signals, and without auto-batching this would potentially lead to redundant reactive updates.
+You can see why auto-batching is necessary: to implement `unbox`, we need to set some signal when a lazy promise resolves asynchronously, so if we're unboxing the same proxy lazy promise in two different places, we would end up setting two signals, and without auto-batching this would potentially cause redundant reactive updates.
 
-Also, when implementing `unbox`, we need to take care not to write (or `trigger`) signals synchronously in `computed` callbacks. If we did that, we'd get redundant updates even with auto-batching. If the promise resolves synchronously, we use only memos, and only trigger a signal if the promise settles asynchronously:
+One more subtlety: we need to take care not to write (or `trigger`) signals synchronously in `computed` callbacks. If we did that, we'd get redundant updates even with auto-batching. If the promise resolves synchronously, we use only memos, and only trigger a signal if the promise settles asynchronously:
 
 ```ts
 const unbox = <T>(
