@@ -6,7 +6,9 @@ A LazyPromise is like a native promise, except
 
 - It emits synchronously instead of in a microtask
 
-- It supports typed errors and dependency injection.
+- It supports type-safe errors and dependency injection.
+
+LazyPromise is tiny—not just in terms of bundle size, but first and foremost in how easy it is to learn. This README describes its API in every detail, and you can skip the sections on typed errors and dependency injection if you're not going to use those features.
 
 ## Installation
 
@@ -124,7 +126,7 @@ If you `yield*` to a lazy promise inside a `try` or `catch` block, and the whole
 
 ## Typed errors
 
-The way that LazyPromise supports typed errors reflects the JavaScript reality that you cannot typecheck errors that you throw and have to represent typed errors with return values. Instead of having an extra channel in addition to `resolve` and `reject`, we pass typed errors through the `resolve` channel, wrapping them in the ErrorBox class to differentiate them from other values. `new ErrorBox(error)` simply stores `error` in its `.error` property.
+The way that LazyPromise supports type-safe errors reflects the JavaScript reality that you cannot typecheck errors that you throw and have to represent typed errors with return values. Instead of having an extra channel in addition to `resolve` and `reject`, we pass typed errors through the `resolve` channel, wrapping them in the ErrorBox class to differentiate them from other values. `new ErrorBox(error)` simply stores `error` in its `.error` property.
 
 There is an operator `catchBoxed` which is a boxed error counterpart of `catch`, and a helper type `UnboxError` that extracts what's inside an ErrorBox.
 
