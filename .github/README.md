@@ -8,7 +8,7 @@ A LazyPromise is like a native promise, except
 
 - It supports type-safe errors and dependency injection.
 
-LazyPromise is tiny—not just in terms of bundle size, but first and foremost in how easy it is to learn. This README describes its API in every detail, and you can skip the sections on typed errors and dependency injection if you're not going to use those features.
+LazyPromise is tiny—not just in terms of bundle size, but first and foremost in how easy it is to learn. This README covers everything there is to know, and you can skip the sections on typed errors and dependency injection if you're not going to use those features.
 
 ## Installation
 
