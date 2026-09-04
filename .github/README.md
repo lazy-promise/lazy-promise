@@ -1,28 +1,14 @@
 # LazyPromise
 
-A LazyPromise is like a native promise, except
+## About
 
-- It's lazy and cancelable
+There are three equivalent ways to define LazyPromise.
 
-- It emits synchronously instead of in a microtask
+### A single-shot Observable
 
-- It supports type-safe errors and dependency injection.
+Observable is beautifully simple conceptually, and has a great cancellation mechanism. LazyPromise takes care to keep that, but limits Observable to a single shot—you could say it's a JavaScript cousin of a Single in RxJava. A single-shot Observable has a collapsed API surface, [nicely complements Signals](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals) and is not prone to [undesirable behavior in the case of synchronous reentry](https://stackblitz.com/edit/rxjs-sync-reentry-vxjr9fhr?devToolsHeight=50&file=index.ts).
 
-LazyPromise is tiny—not just in terms of bundle size, but also in terms of its API surface, which is fully described by this README.
-
-## Installation
-
-```bash
-npm install @lazy-promise/core
-```
-
-## Motivation
-
-### If you start with Observable
-
-Observable is beautifully simple conceptually, and has a great cancellation mechanism. LazyPromise takes care to keep that, but limits Observable to a single shot—you could say it's a JavaScript cousin of a Single in RxJava. A single-shot Observable [nicely complements Signals](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals) and is not prone to [undesirable behavior in the case of synchronous reentry](https://stackblitz.com/edit/rxjs-sync-reentry-vxjr9fhr?devToolsHeight=50&file=index.ts).
-
-### If you start with the native promise
+### A Promise that is lazy and cancelable but keeps the familiar API
 
 At first glance the native promise seems to obviate the need for a single-shot Observable, but there's a catch—two of them actually, one major and one minor.
 
@@ -32,9 +18,15 @@ Second, like Observable, LazyPromise takes the view that microtasks should not b
 
 These concerns aside though, the native promise API is actually quite elegant, and the LazyPromise API does not just resemble it, but follows all its subtleties unless stated otherwise in the docs. This has a side benefit of making the library way easier to document and learn.
 
-### If you start with Effect
+### A tiny alternative to Effect
 
-Like [Effect](https://www.effect.website/), LazyPromise supports generator syntax, type-safe errors, and dependency injection, but the two could not be further apart on the library vs. framework scale.
+Like [Effect(-TS)](https://www.effect.website/), and as any self-respecting lazy promise should, LazyPromise supports generator syntax, type-safe errors, and dependency injection, but the two could not be further apart on the library vs. framework scale.
+
+## Installation
+
+```bash
+npm install @lazy-promise/core
+```
 
 ## Usage
 
