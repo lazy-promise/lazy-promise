@@ -8,7 +8,7 @@ A LazyPromise is like a native promise, except
 
 - It supports type-safe errors and dependency injection.
 
-LazyPromise is tiny—not just in terms of bundle size, but first and foremost in how easy it is to learn. This README covers everything there is to know, and you can skip the sections on typed errors and dependency injection if you're not going to use those features.
+LazyPromise is tiny—not just in terms of bundle size, but also in terms of its API surface, which is fully described by this README.
 
 ## Installation
 
@@ -34,7 +34,7 @@ These concerns aside though, the native promise API is actually quite elegant, a
 
 ### If you start with Effect
 
-Like [Effect](https://www.effect.website/), LazyPromise supports generator syntax, typed errors, and dependency injection, but the two could not be further apart on the library vs. framework scale.
+Like [Effect](https://www.effect.website/), LazyPromise supports generator syntax, type-safe errors, and dependency injection, but the two could not be further apart on the library vs. framework scale.
 
 ## Usage
 
@@ -124,7 +124,7 @@ In the case of native promises, if you `await promise`, and `promise` rejects wi
 
 If you `yield*` to a lazy promise inside a `try` or `catch` block, and the whole flow is canceled while waiting for that lazy promise, the `finally` block will not get executed. Similarly, the `.finally` method will run its callback if the lazy promise resolves or rejects, but not if it's unsubscribed before settling.
 
-## Typed errors
+## Type-safe errors
 
 The way that LazyPromise supports type-safe errors reflects the JavaScript reality that you cannot typecheck errors that you throw and have to represent typed errors with return values. Instead of having an extra channel in addition to `resolve` and `reject`, we pass typed errors through the `resolve` channel, wrapping them in the ErrorBox class to differentiate them from other values. `new ErrorBox(error)` simply stores `error` in its `.error` property.
 
@@ -209,7 +209,7 @@ export interface RandomDep {
 
 There is also a helper type `InferDep` which is like `Unbox`, but for the dependency type parameter.
 
-Like typed errors, dependency injection is an optional feature. You can omit the second type parameter of a LazyPromise, in which case it will default to `unknown`, indicating that there are no dependencies.
+Like type-safe errors, dependency injection is an optional feature. You can omit the second type parameter of a LazyPromise, in which case it will default to `unknown`, indicating that there are no dependencies.
 
 ## Utilities
 
