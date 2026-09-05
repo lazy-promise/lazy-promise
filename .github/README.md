@@ -2,7 +2,7 @@
 
 ## About
 
-There are three equivalent ways to describe LazyPromise.
+There are three interchangeable ways to describe LazyPromise.
 
 ### A single-shot Observable
 
