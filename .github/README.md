@@ -72,7 +72,7 @@ Whereas a native promise executes eagerly and once, a LazyPromise behaves like a
 
 - The teardown function is run at most once, and only if nothing was emitted.
 
-- There can be no higher-order LazyPromise (a LazyPromise that resolves to a LazyPromise). If you call the `resolve` handle of a native `Promise` with a `Promise<string>` as an argument, you'll end up with `Promise<string>`, not `Promise<Promise<string>>`. LazyPromise is similarly flattened.
+- There can be no higher-order LazyPromise (a LazyPromise that resolves to a LazyPromise). If you call the `resolve` handle of a native `Promise` with a `Promise<string>` as an argument, you'll end up with `Promise<string>`, not `Promise<Promise<string>>`, so it's physically impossible to create a higher-order Promise. LazyPromise is similarly flattened.
 
 Aside from superficial differences, the LazyPromise API mirrors that of the native promise:
 
