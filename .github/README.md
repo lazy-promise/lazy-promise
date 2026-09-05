@@ -153,7 +153,7 @@ ErrorBox instances are treated differently from other values by some of the prev
   });
   ```
 
-It's sometimes convenient to use LazyPromise on the client and async-await on the server. In that case you can still have the server endpoints produce typed errors by returning error boxes from async functions.
+It's sometimes convenient to use LazyPromise in some parts of your codebase (e.g. on the client), and async-await in others (e.g. on the server, if you don't need cancellation and often have to call Promise-based APIs). In that case you can still have the async-await code produce typed errors by returning error boxes, and converting values of the shape `Promise<... | ErrorBox<...>>` into lazy promises using `fromEager`.
 
 Typed errors are optional in the sense that you can pretend that the concept does not exist as long as you don't use the `ErrorBox` class. There's one exception to this which is the `any` operator, but this is only because that operator isn't very ergonomic without typed errors anyway. When one of the promises passed to the native `Promise.any` rejects because of a bug, the bug passes undetected if some other input promise resolves. The LazyPromise version of `any` works like `Promise.any` with respect to boxed errors, but rejects if just one input rejects.
 
@@ -175,11 +175,13 @@ lazyPromise.subscribe(
 );
 ```
 
+There is a helper type `InferDep` which is like `Unbox`, but for the dependency type parameter.
+
 Dependencies bubble up through the type system when you use the operators or the generator syntax, so for example if `promiseA` has dependency `A` and `promiseB` has dependency `B`, `all([promiseA, promiseB])` will have dependency `A & B`, in other words `all` needs a dependency that it'll be able to pass to both `promiseA` and `promiseB`. This is useful for testing since you can gather up a bunch of dependencies needed by your async logic, and then satisfy them with either production implementations or mocks.
 
-The `dep` parameter is made available not only to the LazyPromise constructor callback, but also to all other lazily executed callbacks, namely those you pass to `map`, `catch`, `catchBoxed`, `finally`, and `fromGen`, e.g. `lazyPromise.map((value, dep: MyDep) => ...)`. You must specify the type of `dep` explicitly.
+The `dep` parameter is made available not only to the LazyPromise constructor callback, but also to all other lazily executed callbacks, namely those you pass to `map`, `catch`, `catchBoxed`, `finally`, and `fromGen`, e.g. `lazyPromise.map((value, dep: MyDep) => ...)`. You must specify the type of `dep` explicitly: it will inform the type of the resulting lazy promise.
 
-You can satisfy the dependency when subscribing, but you can also do it sooner using the `inject` method of a LazyPromise. That method's callback should return a dependency, but like other lazy callbacks, it can optionally take a dependency as a parameter, allowing dependencies to depend on one another:
+You can satisfy the dependency when subscribing, but you can also do it sooner using `inject` method of a LazyPromise. That method's callback should return a dependency, but like other lazy callbacks, it can optionally take a dependency as a parameter, allowing dependencies to depend on one another:
 
 ```
 declare const upstreamLazyPromise: LazyPromise<MyValue, UpstreamDep>;
@@ -199,8 +201,6 @@ export interface RandomDep {
 }
 ```
 
-There is also a helper type `InferDep` which is like `Unbox`, but for the dependency type parameter.
-
 Like type-safe errors, dependency injection is an optional feature. You can omit the second type parameter of a LazyPromise, in which case it will default to `unknown`, indicating that there are no dependencies.
 
 ## Utilities
@@ -218,7 +218,7 @@ To get the best performance, for instance when working on a library, you can avo
 <details>
 <summary><strong>Why is the method <code>map</code> called <code>map</code>?</strong></summary>
 
-It cannot be `then` since JavaScript has some built-in behaviors around that particular name, and as to `map` vs. `flatMap`, here we're taking advantage of the fact that there can be no higher-order lazy promises. If `map` gets a LazyPromise from its callback, it cannot return a `LazyPromise<LazyPromise<...>>` and has no choice but to flatten the result, so we don't need to disambiguate between `map` and `flatMap`. Similarly, we can just say `box` since we don't have to disambiguate between `box` and `normalize`.
+It cannot be `then` since JavaScript has some built-in behaviors around that particular name, and as to `map` vs. `flatMap`, here we're taking advantage of the fact that there can be no higher-order lazy promises. If `map` gets a LazyPromise from its callback, it cannot return a `LazyPromise<LazyPromise<...>>` and has no choice but to flatten the result, so we don't need to disambiguate between `map` and `flatMap`. Similarly, we can just say `box` since we don't have to disambiguate between `box` (wrap in a LazyPromise) and `normalize` (coerce to a LazyPromise).
 
 </details>
 
@@ -232,7 +232,7 @@ Because actually there is no symmetry in the case of native promises either. If 
 <details>
 <summary><strong>Why dot notation and not pipes-only like RxJS?</strong></summary>
 
-Because unlike RxJS, there exists a small and well-defined set of operators that are in the same category as language features and are more equal than others.
+Because unlike RxJS, there exists a small and well-defined set of operators that are comparable to language features and are more equal than others.
 
 </details>
 
@@ -241,11 +241,11 @@ Because unlike RxJS, there exists a small and well-defined set of operators that
 
 This question applies to both the `finally` block in generator functions and the `.finally` method. There are three reasons:
 
-- That's how generator functions work in JavaScript: you only get the guarantee that the `finally` block gets executed if you don't `yield` in `try`/`catch`.
+- That's how generator functions work in JavaScript: you only get the guarantee that the `finally` block gets executed if you don't `yield` or `yield*` in `try` or `catch`.
 
 - Using `finally` for cleanup would go against the "only one way to do it" principle since there is already teardown logic that you return from the LazyPromise constructor.
 
-- This enables the pattern `lazyPromise.finally(() => anotherLazyPromise)`, which is the equivalent of the native
+- This enables a pattern `lazyPromise.finally(() => anotherLazyPromise)`, which is the equivalent of the native
 
   ```
   try {
@@ -263,14 +263,14 @@ This question applies to both the `finally` block in generator functions and the
 <details>
 <summary><strong>Why doesn't LazyPromise provide an affordance for sharing/caching the result?</strong></summary>
 
-While this is achievable with userland operators like those in RxJS, it's not something you want to bake into the primitive, because how you do it depends on what you use for state. If it's Signals, there is an existing `computed`/`createMemo` that just needs to be [extended so it knows what to do with lazy promises](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals#step-2-memos).
+While this is achievable with userland operators like those in RxJS, it's not something you want to bake into the primitive, because how you do it depends on what you use for state. For example if it's Signals, you would [extend `computed`/`createMemo` so it knows what to do with lazy promises](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals#step-2-memos).
 
 </details>
 
 <details>
 <summary><strong>Why not a separate channel for typed errors like in Effect?</strong></summary>
 
-Although `LazyPromise<"value" | ErrorBox<"error">>` is a little bit harder to read than `LazyPromise<"value", "error">`, an extra channel and type parameter would have introduced unnecessary complexity when it comes to using LazyPromise together with native promises and generator syntax. You wouldn't be able to produce typed errors in native async functions by returning ErrorBoxes, and try/catch/finally syntax in generator functions would have non-obvious behavior.
+Although `LazyPromise<"value" | ErrorBox<"error">>` is a little bit harder to read than `LazyPromise<"value", "error">`, an extra channel and type parameter would have introduced unnecessary complexity when it comes to using LazyPromise together with native promises and generator syntax. You wouldn't be able to produce typed errors in native async functions by returning error boxes, and try/catch/finally syntax in generator functions would have non-obvious behavior.
 
 </details>
 
