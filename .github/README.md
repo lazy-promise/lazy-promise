@@ -2,13 +2,13 @@
 
 ## About
 
-There are three equivalent ways to define LazyPromise.
+There are three equivalent ways to describe LazyPromise.
 
 ### A single-shot Observable
 
 Observable is beautifully simple conceptually, and has a great cancellation mechanism. LazyPromise takes care to keep that, but limits Observable to a single shot—you could say it's a JavaScript cousin of a Single in RxJava. A single-shot Observable has a collapsed API surface, [nicely complements Signals](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals) and is not prone to [undesirable behavior in the case of synchronous reentry](https://stackblitz.com/edit/rxjs-sync-reentry-vxjr9fhr?devToolsHeight=50&file=index.ts).
 
-### A Promise that is lazy and cancelable but has the familiar API
+### A Promise that is lazy and cancelable but keeps the familiar API
 
 At first glance the native promise seems to obviate the need for a single-shot Observable, but there's a catch—two of them actually, one major and one minor.
 
