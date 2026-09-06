@@ -133,7 +133,7 @@ new LazyPromise<number | ErrorBox<"oops">>((sink) => {
 );
 ```
 
-There is also a helper type `UnboxError` that extracts what's inside an ErrorBox.
+There is also a helper type `UnboxError` that extracts the error from the type a LazyPromise resolves with, so `UnboxError<number | ErrorBox<"oops">>` will give you `"oops"`.
 
 ErrorBox instances are treated differently from other values by some of the previously mentioned APIs:
 
@@ -188,7 +188,7 @@ lazyPromise.subscribe(
 );
 ```
 
-There is a helper type `InferDep` which is like `Unbox`, but for the dependency type parameter.
+There is a helper type `InferDep` which is like `Unbox` (the above-mentioned equivalent of the native `Awaited`), but for the dependency type parameter.
 
 Dependencies bubble up through the type system when you use the operators or the generator syntax, so for example if `promiseA` has dependency `A` and `promiseB` has dependency `B`, `all([promiseA, promiseB])` will have dependency `A & B`, in other words `all` needs a dependency that it'll be able to pass to both `promiseA` and `promiseB`. This is useful for testing since you can gather up a bunch of dependencies needed by your async logic, and then satisfy them with either production implementations or mocks.
 
