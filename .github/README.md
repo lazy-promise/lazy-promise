@@ -223,13 +223,6 @@ It cannot be `then` since JavaScript has some built-in behaviors around that par
 </details>
 
 <details>
-<summary><strong>Why no symmetry as in <code>Promise.resolve</code> and <code>Promise.reject</code>?</strong></summary>
-
-Because actually there is no symmetry in the case of native promises either. If you give `Promise.resolve` a Promise, it will flatten it. If you give `Promise.reject` a Promise, it will just immediately throw it.
-
-</details>
-
-<details>
 <summary><strong>Why dot notation and not pipes-only like RxJS?</strong></summary>
 
 Because unlike RxJS, there exists a small and well-defined set of operators that are comparable to language features and are more equal than others.
