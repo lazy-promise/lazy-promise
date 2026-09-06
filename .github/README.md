@@ -32,7 +32,7 @@ npm install @lazy-promise/core
 
 You create a LazyPromise like you create a native promise, except you have a `sink` object instead of a `resolve, reject` pair, and you can optionally return a teardown function:
 
-```
+```ts
 const lazyPromise = new LazyPromise<number>((sink) => {
   const timeoutId = setTimeout(() => {
     if (...) {
@@ -50,7 +50,7 @@ const lazyPromise = new LazyPromise<number>((sink) => {
 
 A LazyPromise doesn't do anything until you subscribe to it:
 
-```
+```ts
 const subscription = lazyPromise.subscribe({
   resolve: (value) => ...,
   reject: (error) => ...,
@@ -59,7 +59,7 @@ const subscription = lazyPromise.subscribe({
 
 To cancel the subscription, you call
 
-```
+```ts
 // This method is idempotent.
 subscription.dispose();
 ```
@@ -99,7 +99,7 @@ There is also a method `pipe` that allows you to dot-chain custom operators: `la
 
 This syntax is the LazyPromise equivalent of async-await. It lets you take advantage of JavaScript control flow statements, and as with chained operators, you get automatic cancellation. Just use generator functions instead of async functions, and `yield*` instead of `await`:
 
-```
+```ts
 // Type inferred as LazyPromise<number>
 const lazyPromise = fromGen(function* () {
   while (true) {
@@ -120,7 +120,20 @@ If you `yield*` to a lazy promise inside a `try` or `catch` block, and the whole
 
 The way that LazyPromise supports type-safe errors reflects the JavaScript reality that you cannot typecheck errors that you throw and have to represent typed errors with return values. Instead of having an extra channel in addition to `resolve` and `reject`, we pass typed errors through the `resolve` channel, wrapping them in the ErrorBox class to differentiate them from other values. `new ErrorBox(error)` simply stores `error` in its `.error` property.
 
-There is an operator `catchBoxed` which is a boxed error counterpart of `catch`, and a helper type `UnboxError` that extracts what's inside an ErrorBox.
+There is an operator `catchBoxed` which is a boxed error counterpart of `catch`:
+
+```ts
+new LazyPromise<number | ErrorBox<"oops">>((sink) => {
+  ...
+  sink.resolve(new ErrorBox("oops"));
+  ...
+}).catchBoxed(
+  // Type inferred as "oops"
+  (error) => ...,
+);
+```
+
+There is also a helper type `UnboxError` that extracts what's inside an ErrorBox.
 
 ErrorBox instances are treated differently from other values by some of the previously mentioned APIs:
 
@@ -128,7 +141,7 @@ ErrorBox instances are treated differently from other values by some of the prev
 
 - `map`, `all`, and `race` operators pass boxed errors through the same way they pass through rejections, e.g.
 
-  ```
+  ```ts
   declare const promiseA: LazyPromise<number | ErrorBox<"oops">>;
 
   // Type inferred as LazyPromise<string | ErrorBox<"oops">>
@@ -142,7 +155,7 @@ ErrorBox instances are treated differently from other values by some of the prev
 
 - We talked about how when `lazyPromise` rejects with `error`, `yield* lazyPromise` acts exactly like `throw error`. If `lazyPromise` resolves with an ErrorBox instance `boxedError`, `yield* lazyPromise` acts exactly like `return boxedError`. In both cases the execution of the generator function is interrupted, the only difference is that you can't `catch` a boxed error: you have to use the `catchBoxed` operator instead. If the execution continues, we know that `lazyPromise` has resolved with something other than a boxed error:
 
-  ```
+  ```ts
   declare const promiseA: LazyPromise<number | ErrorBox<"oops">>;
 
   // Type inferred as LazyPromise<string | ErrorBox<"oops">>
@@ -161,7 +174,7 @@ Typed errors are optional in the sense that you can pretend that the concept doe
 
 We've talked about how `new LazyPromise(foo)` is really just a wrapper around `foo`. Dependency injection is about being less restrictive about what kind of functions LazyPromise can wrap: namely, in addition to the first parameter of the shape `{ resolve, reject }`, we also allow a second parameter called "dependency" that can be of any type:
 
-```
+```ts
 const lazyPromise = new LazyPromise<MyValue, MyDep>(
   (
     sink,
@@ -183,18 +196,18 @@ The `dep` parameter is made available not only to the LazyPromise constructor ca
 
 You can satisfy the dependency when subscribing, but you can also do it sooner using `inject` method of a LazyPromise. That method's callback should return a dependency, but like other lazy callbacks, it can optionally take a dependency as a parameter, allowing dependencies to depend on one another:
 
-```
+```ts
 declare const upstreamLazyPromise: LazyPromise<MyValue, UpstreamDep>;
 
 // Type inferred as LazyPromise<MyValue, DownstreamDep>.
 const downstreamLazyPromise = upstreamLazyPromise.inject(
-  (dep: DownstreamDep) => <a value that satisfies UpstreamDep>,
+  (dep: DownstreamDep) => /* a value that satisfies UpstreamDep */,
 );
 ```
 
 It's often convenient, especially when using a dependency across multiple modules, to define it as an object with symbol keys, since you can satisfy multiple such dependencies with a single object without worrying about name clashes:
 
-```
+```ts
 export const randomSymbol = Symbol("random");
 export interface RandomDep {
   [randomSymbol]: () => number;
@@ -240,7 +253,7 @@ This question applies to both the `finally` block in generator functions and the
 
 - This enables a pattern `lazyPromise.finally(() => anotherLazyPromise)`, which is the equivalent of the native
 
-  ```
+  ```ts
   try {
     return await promise;
   } finally {
