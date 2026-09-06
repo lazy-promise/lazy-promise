@@ -10,13 +10,9 @@ Observable is beautifully simple conceptually, and has a great cancellation mech
 
 ### A Promise that is lazy and cancelable but keeps the familiar API
 
-At first glance the native promise seems to obviate the need for a single-shot Observable, but there's a catch—two of them actually, one major and one minor.
+At first glance the native promise seems to obviate the need for a single-shot Observable, but there's a catch: good luck using the AbortController API for cancellation. It's not the specifics of that API though that lie at the heart of the problem, but simply the fact that Promise is eager.
 
-First of all, good luck using the AbortController API for cancellation. It's not the specifics of that API though that lie at the heart of the problem here, but just the fact that Promise is eager.
-
-Second, like Observable, LazyPromise takes the view that microtasks should not be mandatory. A native promise would guarantee that when you do `promise.then(foo); bar();`, `foo` will run after `bar`, but this "Zalgo" guarantee comes with a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it.
-
-These concerns aside though, the native promise API is actually quite elegant, and the LazyPromise API does not just resemble it, but follows all its subtleties unless stated otherwise in the docs. This has a side benefit of making the library way easier to document and learn.
+That aside, the native promise API is actually quite elegant, and the LazyPromise API does not just resemble it, but follows all its subtleties unless stated otherwise in the docs. This has a side benefit of making the library way easier to document and learn.
 
 ### A tiny alternative to Effect
 
@@ -73,6 +69,8 @@ Whereas a native promise executes eagerly and once, a LazyPromise behaves like a
 - The teardown function is run at most once, and only if nothing was emitted.
 
 - There can be no higher-order LazyPromise (a LazyPromise that resolves to a LazyPromise). If you call the `resolve` handle of a native `Promise` with a `Promise<string>` as an argument, you'll end up with `Promise<string>`, not `Promise<Promise<string>>`, so it's physically impossible to create a higher-order Promise. LazyPromise is similarly flattened.
+
+Also like Observable, LazyPromise has no mandatory microtasks, so the consumer may be called synchronously, before `subscribe` returns. A native promise guarantees that in `promise.then(foo); bar();`, `foo` runs after `bar`, but that guarantee comes at a cost: for example, if two async functions each await a few already-resolved promises, the one with more `await`s in it finishes last.
 
 Aside from superficial differences, the LazyPromise API mirrors that of the native promise:
 
