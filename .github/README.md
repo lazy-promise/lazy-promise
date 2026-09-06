@@ -8,7 +8,7 @@ There are three interchangeable ways to describe LazyPromise.
 
 Observable is beautifully simple conceptually, and has a great cancellation mechanism. LazyPromise takes care to keep that, but limits Observable to a single shot—you could say it's a JavaScript cousin of a Single in RxJava. A single-shot Observable has a collapsed API surface, [nicely complements Signals](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals), and is not prone to [undesirable behavior in the case of synchronous reentry](https://stackblitz.com/edit/rxjs-sync-reentry-vxjr9fhr?devToolsHeight=50&file=index.ts).
 
-### A Promise that is lazy and cancelable but keeps the familiar API
+### A Promise that is lazy and cancelable, and has an already-familiar API
 
 At first glance the native promise seems to obviate the need for a single-shot Observable, but there's a catch: good luck using the AbortController API for cancellation. It's not the specifics of that API though that lie at the heart of the problem, but simply the fact that Promise is eager.
 
