@@ -20,7 +20,7 @@ These concerns aside though, the native promise API is actually quite elegant, a
 
 ### A tiny alternative to Effect
 
-Like [Effect(-TS)](https://www.effect.website/), and as any self-respecting lazy promise should, LazyPromise supports generator syntax, type-safe errors, and dependency injection, but does so without adding much complexity.
+Like [Effect(-TS)](https://www.effect.website/), and as any self-respecting lazy promise should, LazyPromise supports generator syntax, type-safe errors, and dependency injection, but does it without adding much complexity.
 
 ## Installation
 
