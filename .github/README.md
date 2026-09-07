@@ -212,6 +212,25 @@ export interface RandomDep {
 }
 ```
 
+Continuing with that pattern, a dependency can be optional:
+
+```ts
+export const randomSymbol = Symbol("random");
+export interface RandomDep {
+  [randomSymbol]?: () => number;
+}
+
+// Type inferred as LazyPromise<number, RandomDep | undefined>
+const lazyPromise = fromGen(function* (dep?: RandomDep) {
+  return (dep?.[randomSymbol] ?? Math.random)();
+});
+
+// No typechecking error even though RandomDep is not provided.
+lazyPromise.subscribe({ resolve: console.log });
+// Provide RandomDep.
+lazyPromise.subscribe({ resolve: console.log }, { [randomSymbol]: () => 0.5 });
+```
+
 Like type-safe errors, dependency injection is an optional feature. You can omit the second type parameter of a LazyPromise, in which case it will default to `unknown`, indicating that there are no dependencies.
 
 ## Utilities
