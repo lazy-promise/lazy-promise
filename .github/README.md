@@ -284,6 +284,30 @@ This question applies to both the `finally` block in generator functions and the
 </details>
 
 <details>
+<summary><strong>Why not run the teardown logic when a LazyPromise settles, like RxJS does?</strong></summary>
+
+The short intuitive answer is that we're doing things in the simplest way possible. Since it's you who settles the LazyPromise, you don't need a notification telling you about the fact. For a formal answer, buckle up.
+
+First of all, if we did call the teardown logic, we would have to do that _before_ notifying the consumer. A library has to free up resources as early as possible because it has to cover all use-cases, including ones where late cleanup would be prohibitively expensive. This is why `switchMap` in RxJS would first unsubscribe from the previous inner Observable, then subscribe to the next one.
+
+But that means that when `sink.resolve` is called synchronously inside the constructor callback, we have to wait for that callback to return teardown logic before notifying the consumer, and that's a problem. Consider the following snippet:
+
+```ts
+new LazyPromise((sink) =>
+  upstream.subscribe({
+    resolve: (value) => {
+      sink.resolve(value);
+      more();
+    },
+  }),
+);
+```
+
+Does `more()` run before or after the consumer's `resolve` handler? It would depend on whether `upstream` resolves synchronously, so it would not be lexically decidable.
+
+</details>
+
+<details>
 <summary><strong>Why doesn't LazyPromise provide an affordance for sharing/caching the result?</strong></summary>
 
 While this is achievable with userland operators like those in RxJS, it's not something you want to bake into the primitive, because how you do it depends on what you use for state. For example if it's Signals, you would [extend `computed`/`createMemo` so it knows what to do with lazy promises](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals#step-2-memos).
