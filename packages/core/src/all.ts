@@ -26,9 +26,9 @@ class AllConsumer implements Consumer<any> {
   resolve(value: any) {
     const job = this.job;
     if (value instanceof ErrorBox) {
-      job.sink.resolve(value);
       job.initialized = true;
       job.dispose();
+      job.sink.resolve(value);
       return;
     }
     job.values[this.index] = value;
@@ -43,9 +43,9 @@ class AllConsumer implements Consumer<any> {
 
   reject(error: unknown) {
     const job = this.job;
-    job.sink.reject(error);
     job.initialized = true;
     job.dispose();
+    job.sink.reject(error);
   }
 }
 
@@ -75,9 +75,9 @@ class AllJob implements Job {
       return;
     }
     if (source instanceof ErrorBox) {
-      this.sink.resolve(source);
       this.initialized = true;
       this.dispose();
+      this.sink.resolve(source);
       return;
     }
     this.values[index] = source;

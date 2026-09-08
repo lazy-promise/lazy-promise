@@ -113,11 +113,11 @@ test("sync resolve", () => {
         "produce a",
       ],
       [
-        "handleValue",
-        "b",
+        "dispose a",
       ],
       [
-        "dispose a",
+        "handleValue",
+        "b",
       ],
     ]
   `);
@@ -143,11 +143,11 @@ test("value as one of the sources", () => {
         "produce a",
       ],
       [
-        "handleValue",
-        "b",
+        "dispose a",
       ],
       [
-        "dispose a",
+        "handleValue",
+        "b",
       ],
     ]
   `);
@@ -198,11 +198,11 @@ test("async resolve", () => {
     [
       "1000 ms passed",
       [
-        "handleValue",
-        "a",
+        "dispose b",
       ],
       [
-        "dispose b",
+        "handleValue",
+        "a",
       ],
     ]
   `);
@@ -231,11 +231,11 @@ test("sync error", () => {
         "produce a",
       ],
       [
-        "handleError",
-        "b",
+        "dispose a",
       ],
       [
-        "dispose a",
+        "handleError",
+        "b",
       ],
     ]
   `);
@@ -268,11 +268,11 @@ test("async error", () => {
     [
       "1000 ms passed",
       [
-        "handleError",
-        "a",
+        "dispose b",
       ],
       [
-        "dispose b",
+        "handleError",
+        "a",
       ],
     ]
   `);

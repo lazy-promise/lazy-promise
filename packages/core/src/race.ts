@@ -41,15 +41,15 @@ class RaceConsumerJob implements Consumer<any>, Job {
   }
 
   resolve(value: any) {
-    this.sink.resolve(value);
     this.settled = true;
     this.dispose();
+    this.sink.resolve(value);
   }
 
   reject(error: unknown) {
-    this.sink.reject(error);
     this.settled = true;
     this.dispose();
+    this.sink.reject(error);
   }
 
   dispose() {

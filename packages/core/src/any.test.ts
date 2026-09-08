@@ -247,11 +247,11 @@ test("resolving of one of the sources should resolve result", () => {
     [
       "1000 ms passed",
       [
-        "handleValue",
-        "b",
+        "dispose a",
       ],
       [
-        "dispose a",
+        "handleValue",
+        "b",
       ],
     ]
   `);
@@ -274,14 +274,14 @@ test("rejection of one of the sources should reject result", () => {
     [
       "1000 ms passed",
       [
+        "dispose a",
+      ],
+      [
         "handleError",
         "oops",
       ],
-      [
-        "dispose a",
-      ],
     ]
-    `);
+  `);
 });
 
 test("internally disposed when a source resolves, internal disposal should prevent further subscriptions to sources", () => {
@@ -304,11 +304,11 @@ test("internally disposed when a source resolves, internal disposal should preve
         "produce a",
       ],
       [
-        "handleValue",
-        "b",
+        "dispose a",
       ],
       [
-        "dispose a",
+        "handleValue",
+        "b",
       ],
     ]
   `);

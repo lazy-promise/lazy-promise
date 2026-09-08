@@ -37,17 +37,16 @@ class AnyConsumer implements Consumer<any> {
       job.pendingCount--;
       return;
     }
-    job.sink.resolve(value);
     job.initialized = true;
     job.dispose();
-    return;
+    job.sink.resolve(value);
   }
 
   reject(error: unknown) {
     const job = this.job;
-    job.sink.reject(error);
     job.initialized = true;
     job.dispose();
+    job.sink.reject(error);
   }
 }
 
@@ -80,9 +79,9 @@ class AnyJob implements Job {
       this.errors[index] = source.error;
       return;
     }
-    this.sink.resolve(source);
     this.initialized = true;
     this.dispose();
+    this.sink.resolve(source);
   }
 
   dispose() {

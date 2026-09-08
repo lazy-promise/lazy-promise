@@ -255,13 +255,13 @@ test("boxed error emitted by one of the sources should be passed on as result", 
     [
       "1000 ms passed",
       [
+        "dispose a",
+      ],
+      [
         "handleValue",
         ErrorBox {
           "error": "oops",
         },
-      ],
-      [
-        "dispose a",
       ],
     ]
   `);
@@ -284,14 +284,14 @@ test("rejection of one of the sources should reject result", () => {
     [
       "1000 ms passed",
       [
+        "dispose a",
+      ],
+      [
         "handleError",
         "oops",
       ],
-      [
-        "dispose a",
-      ],
     ]
-    `);
+  `);
 });
 
 test("internally disposed when a source rejects, internal disposal should prevent further subscriptions to sources", () => {
@@ -314,11 +314,11 @@ test("internally disposed when a source rejects, internal disposal should preven
         "produce a",
       ],
       [
-        "handleError",
-        "b",
+        "dispose a",
       ],
       [
-        "dispose a",
+        "handleError",
+        "b",
       ],
     ]
   `);
