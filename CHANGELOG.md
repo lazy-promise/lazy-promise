@@ -1,5 +1,11 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.38](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.38)
+
+- Revert previous change.
+
+- In `all`, `any` and `race`, dispose before emitting.
+
 ## [@lazy-promise/core@0.0.37](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.37)
 
 - Drop support for Node < 22.
