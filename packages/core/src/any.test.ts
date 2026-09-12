@@ -184,6 +184,19 @@ test("non-array iterable", () => {
   `);
 });
 
+test("non-error value in a non-array iterable", () => {
+  const promise = any(new Set([new ErrorBox("oops"), "a"]));
+  promise.subscribe<unknown>(logConsumer);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleValue",
+        "a",
+      ],
+    ]
+  `);
+});
+
 test("async resolve with typed errors", () => {
   const promise = any([
     new LazyPromise<ErrorBox<"a">>((sink) => {

@@ -166,6 +166,29 @@ test("non-array iterable", () => {
   `);
 });
 
+test("non-array iterable with an async source", () => {
+  const promise = race(
+    new Set([
+      new LazyPromise<"a">((sink) => {
+        setTimeout(() => {
+          sink.resolve("a");
+        }, 1000);
+      }),
+    ]),
+  );
+  promise.subscribe(logConsumer);
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "handleValue",
+        "a",
+      ],
+    ]
+  `);
+});
+
 test("never", () => {
   const promise = race([never]);
   promise.subscribe();
