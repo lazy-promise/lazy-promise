@@ -17,7 +17,10 @@ export type {
   Job,
   Producer,
   Sink,
+  Span,
   Subscription,
+  Tracer,
+  Tracing,
   Unbox,
   UnboxError,
 } from "./lazyPromise.js";

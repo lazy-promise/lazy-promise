@@ -4,6 +4,7 @@ import { FinallyProducer } from "./finally.js";
 import { InjectProducer } from "./inject.js";
 import { MapProducer } from "./map.js";
 import { ToEagerConsumerListener } from "./toEager.js";
+import { throwInMicrotask } from "./utils.js";
 
 export class ErrorBox<const Error> {
   constructor(public readonly error: Error) {}
@@ -12,11 +13,185 @@ export class ErrorBox<const Error> {
 
 export type UnboxError<T> = T extends ErrorBox<infer Error> ? Error : never;
 
-const throwInMicrotask = (error: unknown) => {
-  queueMicrotask(() => {
-    throw error;
+/**
+ * Observes a single subscription. Returned by `Tracer.subscribe`.
+ */
+export interface Span<Value> {
+  /**
+   * Wraps synchronous work done on behalf of the subscription: running the
+   * producer, the consumer handlers, or the teardown logic. Must call `work`
+   * exactly once.
+   */
+  run?(work: () => void): void;
+  resolve?(value: Value): void;
+  reject?(error: unknown): void;
+  unsubscribe?(): void;
+}
+
+class SpanNode {
+  constructor(
+    public span: Span<any>,
+    public next: SpanNode | undefined,
+  ) {}
+}
+
+/**
+ * Linked list of spans whose `run` is on the stack, innermost first.
+ */
+let activeSpans: SpanNode | undefined;
+
+const runSpan = (span: Span<any>, work: () => void) => {
+  if (!span.run) {
+    work();
+    return;
+  }
+  const frame = new SpanNode(span, activeSpans);
+  activeSpans = frame;
+  let called = false;
+  const guardedWork = () => {
+    if (called) {
+      return;
+    }
+    called = true;
+    work();
+  };
+  try {
+    span.run(guardedWork);
+  } catch (error) {
+    throwInMicrotask(error);
+  } finally {
+    activeSpans = frame.next;
+  }
+  // In case the tracer failed to call it.
+  guardedWork();
+};
+
+/**
+ * Runs `work` inside the `run` methods of the spans in the `node` linked list
+ * up to and excluding `end`, with `node` innermost in the stack.
+ */
+const runSpans = (
+  node: SpanNode | undefined,
+  end: SpanNode | undefined,
+  work: () => void,
+): void => {
+  if (node === end) {
+    work();
+    return;
+  }
+  runSpans(node!.next, end, () => {
+    runSpan(node!.span, work);
   });
 };
+
+/**
+ * For each span in the `node` linked list, calls `notify` and then runs the
+ * rest inside the span's `run` method, finishing with `work`, so that `node`
+ * is outermost in the stack.
+ */
+const settleSpans = (
+  node: SpanNode | undefined,
+  notify: (span: Span<any>) => void,
+  work: () => void,
+): void => {
+  if (!node) {
+    work();
+    return;
+  }
+  try {
+    notify(node.span);
+  } catch (error) {
+    throwInMicrotask(error);
+  }
+  runSpan(node.span, () => {
+    settleSpans(node.next, notify, work);
+  });
+};
+
+/**
+ * Same as `settleSpans` with `unsubscribe` as the notification, except that
+ * the last node of the list is outermost in the stack.
+ */
+const unsubscribeSpans = (
+  node: SpanNode | undefined,
+  work: () => void,
+): void => {
+  if (!node) {
+    work();
+    return;
+  }
+  unsubscribeSpans(node.next, () => {
+    try {
+      node.span.unsubscribe?.();
+    } catch (error) {
+      throwInMicrotask(error);
+    }
+    runSpan(node.span, work);
+  });
+};
+
+/**
+ * Attached to a LazyPromise with its `trace` method.
+ */
+export interface Tracer<Value, Dep = unknown> {
+  /**
+   * Called when the LazyPromise is subscribed, before the producer runs.
+   */
+  // eslint-disable-next-line no-use-before-define
+  subscribe(dep: Dep, subscription: Subscription): Span<Value> | void;
+}
+
+/**
+ * Returned by `LazyPromise.prototype.trace`.
+ */
+class Tracing {
+  /** @internal */
+  // eslint-disable-next-line no-use-before-define
+  previous: Tracing | undefined;
+
+  /** @internal */
+  constructor(
+    /** @internal */
+    public tracer: Tracer<any, any>,
+    /** @internal */
+    public lazyPromise: LazyPromise<any, any> | undefined, // eslint-disable-line no-use-before-define
+    /** @internal */
+    public next: Tracing | undefined,
+  ) {}
+
+  /**
+   * Detaches the tracer. Spans that have already been created are unaffected.
+   */
+  dispose() {
+    const lazyPromise = this.lazyPromise;
+    if (!lazyPromise) {
+      return;
+    }
+    this.lazyPromise = undefined;
+    if (this.previous) {
+      this.previous.next = this.next;
+    } else {
+      lazyPromise.tracers = this.next;
+    }
+    if (this.next) {
+      this.next.previous = this.previous;
+    }
+  }
+}
+
+export type { Tracing };
+
+/**
+ * What the next producer run of a subscription needs for tracing: tracers of
+ * the LazyPromise whose producer it is, and spans that were active when it was
+ * scheduled.
+ */
+class PendingTrace {
+  constructor(
+    public tracers: Tracing | undefined,
+    public activeSpans: SpanNode | undefined,
+  ) {}
+}
 
 export type Yieldable = {
   [`❌ Did you forget a star (*) after yield?`]: never;
@@ -77,6 +252,12 @@ class Sink<in Value, out Dep = unknown> {
     // eslint-disable-next-line no-use-before-define
     if (value instanceof LazyPromise) {
       this.resolvedWithAPromise = true;
+      if (value.tracers || activeSpans) {
+        subscription.pendingTrace = new PendingTrace(
+          value.tracers,
+          activeSpans,
+        );
+      }
       if (subscription.producer) {
         // Use the while loop to avoid increasing stack depth.
         subscription.producer = value.producer;
@@ -87,20 +268,7 @@ class Sink<in Value, out Dep = unknown> {
       subscription.next();
       return;
     }
-    subscription.settled = true;
-    // For GC purposes.
-    subscription.dep = undefined;
-    // For GC purposes.
-    subscription.job = undefined;
-    if (subscription.consumer?.resolve) {
-      try {
-        subscription.consumer.resolve(value);
-      } catch (error) {
-        throwInMicrotask(error);
-      }
-    }
-    // For GC purposes.
-    subscription.consumer = undefined;
+    subscription.resolve(value);
   }
 
   reject(this: Sink<Value, Dep>, error: unknown) {
@@ -111,22 +279,7 @@ class Sink<in Value, out Dep = unknown> {
     if (subscription.disposed || subscription.settled) {
       return;
     }
-    subscription.settled = true;
-    // For GC purposes.
-    subscription.job = undefined;
-    // For GC purposes.
-    subscription.dep = undefined;
-    if (subscription.consumer?.reject) {
-      try {
-        subscription.consumer.reject(error);
-      } catch (error) {
-        throwInMicrotask(error);
-      }
-    } else {
-      throwInMicrotask(error);
-    }
-    // For GC purposes.
-    subscription.consumer = undefined;
+    subscription.reject(error);
   }
 }
 
@@ -143,6 +296,10 @@ class Subscription {
   settled: boolean = false;
   /** @internal */
   disposed: boolean = false;
+  /** @internal */
+  spans: SpanNode | undefined;
+  /** @internal */
+  pendingTrace: PendingTrace | undefined;
 
   /** @internal */
   constructor(
@@ -160,58 +317,165 @@ class Subscription {
     public dep?: any,
   ) {}
 
+  // Methods that run when there is no tracing must not contain closures (even
+  // ones that are never created) because that would make V8 allocate a context
+  // on every call. That's why the `...Traced` methods are separate.
+
   /** @internal */
   next() {
-    while (true) {
-      const sink = new Sink(this);
-      try {
-        const job =
-          typeof this.producer === "function"
-            ? (0, this.producer)(sink, this.dep)
-            : this.producer!.produce(sink, this.dep);
-        if (sink.resolvedWithAPromise) {
-          continue;
-        }
-        this.producer = undefined;
-        if (this.settled) {
-          return;
-        }
-        if (this.disposed) {
-          if (job) {
-            try {
-              typeof job === "function" ? job() : job.dispose();
-            } catch (error) {
-              throwInMicrotask(error);
-            }
-          }
-          return;
-        }
-        this.job = job;
-      } catch (error) {
-        if (sink.resolvedWithAPromise) {
-          continue;
-        }
-        // For GC purposes.
-        this.producer = undefined;
-        if (this.disposed || this.settled) {
-          return;
-        }
-        this.settled = true;
-        // For GC purposes.
-        this.dep = undefined;
-        if (this.consumer?.reject) {
-          try {
-            this.consumer.reject(error);
-          } catch (error) {
-            throwInMicrotask(error);
-          }
-        } else {
-          throwInMicrotask(error);
-        }
-        // For GC purposes.
-        this.consumer = undefined;
+    const baseSpans = activeSpans;
+    let sink: Sink<any, any>;
+    do {
+      sink = new Sink(this);
+      if (this.pendingTrace) {
+        this.runProducerTraced(sink, baseSpans);
+      } else {
+        this.runProducer(sink);
       }
-      return;
+    } while (sink.resolvedWithAPromise);
+  }
+
+  /** @internal */
+  runProducerTraced(sink: Sink<any, any>, baseSpans: SpanNode | undefined) {
+    const pendingTrace = this.pendingTrace!;
+    this.pendingTrace = undefined;
+    runSpans(pendingTrace.activeSpans, baseSpans, () => {
+      const previousSpans = this.spans;
+      this.subscribeTracers(pendingTrace.tracers);
+      runSpans(this.spans, previousSpans, () => {
+        this.runProducer(sink);
+      });
+    });
+  }
+
+  /** @internal */
+  subscribeTracers(tracers: Tracing | undefined) {
+    for (let tracing = tracers; tracing; tracing = tracing.next) {
+      let span;
+      try {
+        span = tracing.tracer.subscribe(this.dep, this);
+      } catch (error) {
+        throwInMicrotask(error);
+      }
+      if (span) {
+        this.spans = new SpanNode(span, this.spans);
+      }
+    }
+  }
+
+  /** @internal */
+  runProducer(sink: Sink<any, any>) {
+    try {
+      const job =
+        typeof this.producer === "function"
+          ? (0, this.producer)(sink, this.dep)
+          : this.producer!.produce(sink, this.dep);
+      if (sink.resolvedWithAPromise) {
+        return;
+      }
+      this.producer = undefined;
+      if (this.settled) {
+        return;
+      }
+      this.job = job;
+      if (this.disposed) {
+        this.disposeJob();
+      }
+    } catch (error) {
+      if (sink.resolvedWithAPromise) {
+        return;
+      }
+      // For GC purposes.
+      this.producer = undefined;
+      sink.reject(error);
+    }
+  }
+
+  /** @internal */
+  resolve(value: any) {
+    this.settled = true;
+    // For GC purposes.
+    this.dep = undefined;
+    // For GC purposes.
+    this.job = undefined;
+    if (this.spans) {
+      this.resolveTraced(value);
+    } else {
+      this.consumeValue(value);
+    }
+  }
+
+  /** @internal */
+  resolveTraced(value: any) {
+    const spans = this.spans;
+    this.spans = undefined;
+    settleSpans(
+      spans,
+      (span) => {
+        span.resolve?.(value);
+      },
+      () => {
+        this.consumeValue(value);
+      },
+    );
+  }
+
+  /** @internal */
+  reject(error: unknown) {
+    this.settled = true;
+    // For GC purposes.
+    this.dep = undefined;
+    // For GC purposes.
+    this.job = undefined;
+    if (this.spans) {
+      this.rejectTraced(error);
+    } else {
+      this.consumeError(error);
+    }
+  }
+
+  /** @internal */
+  rejectTraced(error: unknown) {
+    const spans = this.spans;
+    this.spans = undefined;
+    settleSpans(
+      spans,
+      (span) => {
+        span.reject?.(error);
+      },
+      () => {
+        this.consumeError(error);
+      },
+    );
+  }
+
+  /** @internal */
+  consumeValue(value: any) {
+    const consumer = this.consumer;
+    // For GC purposes.
+    this.consumer = undefined;
+    if (consumer?.resolve) {
+      try {
+        consumer.resolve(value);
+      } catch (error) {
+        throwInMicrotask(error);
+      }
+    }
+  }
+
+  /** @internal */
+  consumeError(error: unknown) {
+    const consumer = this.consumer;
+    // For GC purposes.
+    this.consumer = undefined;
+    if (consumer?.reject) {
+      try {
+        consumer.reject(error);
+      } catch (error) {
+        throwInMicrotask(error);
+      }
+    } else {
+      throwInMicrotask(error);
     }
   }
 
@@ -224,14 +488,34 @@ class Subscription {
     this.consumer = undefined;
     // For GC purposes.
     this.dep = undefined;
-    if (this.job) {
-      try {
-        typeof this.job === "function" ? (0, this.job)() : this.job.dispose();
-      } catch (error) {
-        throwInMicrotask(error);
-      }
-      // For GC purposes.
-      this.job = undefined;
+    if (this.spans) {
+      this.disposeTraced();
+    } else {
+      this.disposeJob();
+    }
+  }
+
+  /** @internal */
+  disposeTraced() {
+    const spans = this.spans;
+    this.spans = undefined;
+    unsubscribeSpans(spans, () => {
+      this.disposeJob();
+    });
+  }
+
+  /** @internal */
+  disposeJob() {
+    const job = this.job;
+    if (!job) {
+      return;
+    }
+    // For GC purposes.
+    this.job = undefined;
+    try {
+      typeof job === "function" ? job() : job.dispose();
+    } catch (error) {
+      throwInMicrotask(error);
     }
   }
 }
@@ -258,6 +542,8 @@ export class LazyPromise<out Value, in Dep = unknown> {
   public producer:
     | ((sink: Sink<Value, Dep>, dep: Dep) => (() => void) | Job | void)
     | Producer<Value, Dep>;
+  /** @internal */
+  tracers: Tracing | undefined;
 
   constructor(
     producer:
@@ -306,6 +592,9 @@ export class LazyPromise<out Value, in Dep = unknown> {
   ): Subscription;
   subscribe(consumer?: Consumer<Value>, dep?: Dep): Subscription {
     const subscription = new Subscription(this.producer, consumer, dep);
+    if (this.tracers) {
+      subscription.pendingTrace = new PendingTrace(this.tracers, activeSpans);
+    }
     subscription.next();
     return subscription;
   }
@@ -457,6 +746,27 @@ export class LazyPromise<out Value, in Dep = unknown> {
     >;
   } {
     return new LazyPromiseIterator(this as any);
+  }
+
+  /**
+   * Attaches a tracer that observes each subscription to the LazyPromise. To
+   * detach it, call `dispose` on the returned object.
+   */
+  trace<This>(
+    // Depending on position, occurrence of `Value` or `Dep` in this signature
+    // could change measured variance (breaking `InferDep`) or break
+    // assignability between LazyPromise instantiations.
+    this: This,
+    // eslint-disable-next-line no-use-before-define
+    tracer: Tracer<Unbox<This>, InferDep<This>>,
+  ): Tracing {
+    const lazyPromise = this as unknown as LazyPromise<any, any>;
+    const tracing = new Tracing(tracer, lazyPromise, lazyPromise.tracers);
+    if (lazyPromise.tracers) {
+      lazyPromise.tracers.previous = tracing;
+    }
+    lazyPromise.tracers = tracing;
+    return tracing;
   }
 
   // Gives `Dep` a contravariant occurrence.

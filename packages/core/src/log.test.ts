@@ -1,7 +1,13 @@
 /* eslint-disable no-console */
 
 import type { Consumer } from "@lazy-promise/core";
-import { box, LazyPromise, log, rejecting } from "@lazy-promise/core";
+import {
+  box,
+  inMicrotask,
+  LazyPromise,
+  log,
+  rejecting,
+} from "@lazy-promise/core";
 import { afterEach, expect, test, vi } from "vitest";
 
 const logContents: unknown[] = [];
@@ -184,6 +190,131 @@ test("patched console.log", () => {
       "· · a b",
       "· · 1 a",
       "· ·",
+    ]
+  `);
+});
+
+test("downstream is nested under upstream resolve", () => {
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
+
+  box(1)
+    .pipe(log("outer"))
+    .map(() => box(2).pipe(log("inner")))
+    .subscribe();
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "[outer] [1] [subscribe] undefined",
+      "· [outer] [1] [resolve] 1",
+      "· · [inner] [1] [subscribe] undefined",
+      "· · · [inner] [1] [resolve] 2",
+    ]
+  `);
+});
+
+test("producer resolving with a LazyPromise", () => {
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
+
+  new LazyPromise<number>((sink) => {
+    sink.resolve(box(2).pipe(log("flatten inner")));
+  })
+    .pipe(log("flatten outer"))
+    .subscribe(logConsumer);
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "[flatten outer] [1] [subscribe] undefined",
+      "· [flatten inner] [1] [subscribe] undefined",
+      "· · [flatten inner] [1] [resolve] 2",
+      "· · · [flatten outer] [1] [resolve] 2",
+      "· · · · handleValue 2",
+    ]
+  `);
+});
+
+test("dots reset at an async boundary", async () => {
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
+
+  inMicrotask()
+    .pipe(log("microtask outer"))
+    .map(() => box(2).pipe(log("microtask inner")))
+    .subscribe(logConsumer);
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "[microtask outer] [1] [subscribe] undefined",
+    ]
+  `);
+  await Promise.resolve();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "[microtask outer] [1] [resolve] undefined",
+      "· [microtask inner] [1] [subscribe] undefined",
+      "· · [microtask inner] [1] [resolve] 2",
+      "· · · handleValue 2",
+    ]
+  `);
+});
+
+test("log called twice on the same LazyPromise", () => {
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
+  const microtasks: (() => void)[] = [];
+  vi.spyOn(global, "queueMicrotask").mockImplementation((callback) => {
+    microtasks.push(callback);
+  });
+  const getErrorMessage = () => {
+    expect(microtasks.length).toBe(1);
+    try {
+      microtasks.pop()!();
+    } catch (error) {
+      return (error as Error).message;
+    }
+    throw new Error("Expected the microtask to throw.");
+  };
+
+  const labeled = box(1).pipe(log("a"));
+  expect(labeled.pipe(log("b"))).toBe(labeled);
+  expect(getErrorMessage()).toMatchInlineSnapshot(
+    `"The log(...) call (label "b") was ignored because the LazyPromise is already being logged (label "a")."`,
+  );
+  expect(labeled.pipe(log("a"))).toBe(labeled);
+  expect(getErrorMessage()).toMatchInlineSnapshot(
+    `"The log(...) call (label "a") was ignored because the LazyPromise is already being logged (same label)."`,
+  );
+  expect(labeled.pipe(log())).toBe(labeled);
+  expect(getErrorMessage()).toMatchInlineSnapshot(
+    `"The log(...) call (no label) was ignored because the LazyPromise is already being logged (label "a")."`,
+  );
+  labeled.subscribe();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "[a] [1] [subscribe] undefined",
+      "· [a] [1] [resolve] 1",
+    ]
+  `);
+
+  const unlabeled = box(1).pipe(log());
+  expect(unlabeled.pipe(log(2))).toBe(unlabeled);
+  expect(getErrorMessage()).toMatchInlineSnapshot(
+    `"The log(...) call (label 2) was ignored because the LazyPromise is already being logged (no label)."`,
+  );
+  expect(unlabeled.pipe(log())).toBe(unlabeled);
+  expect(getErrorMessage()).toMatchInlineSnapshot(
+    `"The log(...) call (no label) was ignored because the LazyPromise is already being logged (also no label)."`,
+  );
+  unlabeled.subscribe();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "[3] [subscribe] undefined",
+      "· [3] [resolve] 1",
     ]
   `);
 });

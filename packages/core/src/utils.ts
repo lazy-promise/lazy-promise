@@ -1,3 +1,9 @@
+export const throwInMicrotask = (error: unknown) => {
+  queueMicrotask(() => {
+    throw error;
+  });
+};
+
 export type NeverIfArrayContainsNever<T extends unknown[]> = T extends [
   infer First,
   ...infer Rest,
