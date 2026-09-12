@@ -1,3 +1,5 @@
+import type { AsyncContextResource } from "./asyncResource.js";
+import { AsyncResource } from "./asyncResource.js";
 import { CatchProducer } from "./catch.js";
 import { CatchBoxedProducer } from "./catchBoxed.js";
 import { FinallyProducer } from "./finally.js";
@@ -265,7 +267,14 @@ class Sink<in Value, out Dep = unknown> {
       }
       subscription.producer = value.producer;
       subscription.job = undefined;
-      subscription.next();
+      if (subscription.asyncResource) {
+        subscription.asyncResource.runInAsyncScope(
+          subscription.next,
+          subscription,
+        );
+      } else {
+        subscription.next();
+      }
       return;
     }
     subscription.resolve(value);
@@ -300,6 +309,9 @@ class Subscription {
   spans: SpanNode | undefined;
   /** @internal */
   pendingTrace: PendingTrace | undefined;
+  /** @internal */
+  asyncResource: AsyncContextResource | undefined =
+    AsyncResource && new AsyncResource("LazyPromise");
 
   /** @internal */
   constructor(
@@ -398,6 +410,18 @@ class Subscription {
     this.dep = undefined;
     // For GC purposes.
     this.job = undefined;
+    if (this.asyncResource) {
+      const asyncResource = this.asyncResource;
+      // For GC purposes.
+      this.asyncResource = undefined;
+      asyncResource.runInAsyncScope(this.finishResolve, this, value);
+    } else {
+      this.finishResolve(value);
+    }
+  }
+
+  /** @internal */
+  finishResolve(value: any) {
     if (this.spans) {
       this.resolveTraced(value);
     } else {
@@ -427,6 +451,18 @@ class Subscription {
     this.dep = undefined;
     // For GC purposes.
     this.job = undefined;
+    if (this.asyncResource) {
+      const asyncResource = this.asyncResource;
+      // For GC purposes.
+      this.asyncResource = undefined;
+      asyncResource.runInAsyncScope(this.finishReject, this, error);
+    } else {
+      this.finishReject(error);
+    }
+  }
+
+  /** @internal */
+  finishReject(error: unknown) {
     if (this.spans) {
       this.rejectTraced(error);
     } else {
@@ -488,6 +524,18 @@ class Subscription {
     this.consumer = undefined;
     // For GC purposes.
     this.dep = undefined;
+    if (this.asyncResource) {
+      const asyncResource = this.asyncResource;
+      // For GC purposes.
+      this.asyncResource = undefined;
+      asyncResource.runInAsyncScope(this.finishDispose, this);
+    } else {
+      this.finishDispose();
+    }
+  }
+
+  /** @internal */
+  finishDispose() {
     if (this.spans) {
       this.disposeTraced();
     } else {

@@ -1,5 +1,6 @@
 import type { Consumer, Sink } from "@lazy-promise/core";
 import { LazyPromise, never } from "@lazy-promise/core";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { test } from "vitest";
 
 const gc = () =>
@@ -188,4 +189,81 @@ test("garbage collect producer after it throws", async () => {
     reject: () => {},
   });
   await expectCollected(producer);
+});
+
+const asyncLocalStorage = new AsyncLocalStorage<object>();
+
+/**
+ * Subscribes inside an async context whose store is only reachable through the
+ * subscription.
+ */
+const subscribeWithStore = (
+  promise: LazyPromise<undefined>,
+  consumer?: Consumer<undefined>,
+) => {
+  const store = new WeakRef({});
+  const subscription = asyncLocalStorage.run(store.deref()!, () =>
+    promise.subscribe(consumer),
+  );
+  return { store, subscription };
+};
+
+test("garbage collect async context store when unsubscribed", async () => {
+  const promise = new LazyPromise<undefined>(() => () => {});
+  const { store, subscription } = subscribeWithStore(promise);
+  await expectNotCollected(store);
+  subscription.dispose();
+  await expectCollected(store);
+});
+
+test("garbage collect async context store when resolved", async () => {
+  let sink: Sink<undefined>;
+  const promise = new LazyPromise<undefined>((sinkLocal) => {
+    sink = sinkLocal;
+  });
+  // It's necessary to hold on to the subscription.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { store, subscription } = subscribeWithStore(promise);
+  await expectNotCollected(store);
+  sink!.resolve(undefined);
+  await expectCollected(store);
+});
+
+test("garbage collect async context store when rejected", async () => {
+  let sink: Sink<undefined>;
+  const promise = new LazyPromise<undefined>((sinkLocal) => {
+    sink = sinkLocal;
+  });
+  // It's necessary to hold on to the subscription.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { store, subscription } = subscribeWithStore(promise, {
+    reject: () => {},
+  });
+  await expectNotCollected(store);
+  sink!.reject(undefined);
+  await expectCollected(store);
+});
+
+test("garbage collect async context store when producer throws", async () => {
+  const promise = new LazyPromise<undefined>(() => {
+    throw "oops";
+  });
+  // It's necessary to hold on to the subscription.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { store, subscription } = subscribeWithStore(promise, {
+    reject: () => {},
+  });
+  await expectCollected(store);
+});
+
+test("keep async context store while pending after asynchronously resolved with a promise", async () => {
+  let sink: Sink<undefined>;
+  const promise = new LazyPromise<undefined>((sinkLocal) => {
+    sink = sinkLocal;
+  });
+  const { store, subscription } = subscribeWithStore(promise);
+  sink!.resolve(never);
+  await expectNotCollected(store);
+  subscription.dispose();
+  await expectCollected(store);
 });

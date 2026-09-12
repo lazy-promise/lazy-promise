@@ -260,6 +260,10 @@ The number in the second pair of brackets tells apart entries that share a label
 
 Under the hood, `log` calls the `trace` method of a LazyPromise, which you can use to plug in similar tooling of your own, like performance marks or OpenTelemetry spans. `trace` takes a tracer: an object with a `subscribe(dep, subscription)` method which is called each time the LazyPromise is subscribed. `subscribe` can return a span: an object with optional methods `resolve(value)`, `reject(error)`, `unsubscribe()`, and `run(work)`, the latter wrapping any synchronous work done on behalf of the subscription (running the producer, the consumer or the teardown logic). `trace` returns a `Tracing` object whose `dispose` method detaches the tracer.
 
+## AsyncContext and AsyncLocalStorage
+
+The way LazyPromise interacts with AsyncLocalStorage (and the logic will be the same for the upcoming AsyncContext) is that we run the constructor callback, the consumer's `resolve`/`reject` handlers, and the teardown logic in the context where `subscribe` was called. This means that the async context is like a dependency in that it propagates upstream, from a lazy promise that you subscribe to, to lazy promises that it subscribes to in turn.
+
 ## Class-based API
 
 To get the best performance, for instance when working on a library, you can avoid the overhead of creating and garbage-collecting functions by using objects in their place. Instead of passing a callback to the `LazyPromise` constructor, you can pass an object with a `.produce` method (a `Producer`), and instead of returning a teardown function, you can return an object with a `.dispose` method (a `Job`).

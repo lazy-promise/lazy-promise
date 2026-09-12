@@ -3,7 +3,7 @@
 // processes and the minimum time per benchmark is reported, because JIT
 // decisions vary between processes.
 //
-//   node scripts/bench.mjs [ref] [--runs=5]
+//   node scripts/bench.mjs [ref] [--runs=5] [--iterations=500000]
 //
 // E.g.
 //
@@ -68,11 +68,17 @@ const benchmarks = {
 
 const consumer = { resolve() {}, reject() {} };
 
-const iterations = 3_000_000;
-const warmupIterations = 300_000;
+const args = process.argv.slice(2);
+const numberArg = (name, fallback) => {
+  const arg = args.find((candidate) => candidate.startsWith(`--${name}=`));
+  return arg ? Number(arg.slice(name.length + 3)) : fallback;
+};
+
+const iterations = numberArg("iterations", 500_000);
+const warmupIterations = Math.ceil(iterations / 10);
 const roundsPerProcess = 7;
 
-// Worker mode: `node scripts/bench.mjs --worker <index.js path>`.
+// Worker mode: `node scripts/bench.mjs --worker <index.js path> [--iterations=N]`.
 const runWorker = async (modulePath) => {
   const core = await import(modulePath);
   for (const [name, setup] of Object.entries(benchmarks)) {
@@ -158,6 +164,7 @@ const compare = (ref, runs) => {
             fileURLToPath(import.meta.url),
             "--worker",
             modulePath,
+            `--iterations=${iterations}`,
           ],
           { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
         );
@@ -177,11 +184,9 @@ const compare = (ref, runs) => {
   }
 };
 
-const args = process.argv.slice(2);
 if (args[0] === "--worker") {
   await runWorker(args[1]);
 } else {
-  const runsArg = args.find((arg) => arg.startsWith("--runs="));
   const ref = args.find((arg) => !arg.startsWith("--")) ?? "HEAD";
-  compare(ref, runsArg ? Number(runsArg.slice("--runs=".length)) : 5);
+  compare(ref, numberArg("runs", 5));
 }
