@@ -79,6 +79,8 @@ effect(() => {
 
 the Promise constructor callback would execute synchronously, so as long as you track the effect callback, you'd also be tracking the Promise constructor callback.
 
+When AsyncContext becomes available, this will not change the picture. Even when you can track signals inside an async function (or the LazyPromise's generator-based equivalent), you still have no way to re-run just the part of the function after the read of a signal that changed. So the approach "build a lazy promise in a tracked context, subscribe to it in untracked context" will remain valid, the only thing that will need to change is the context will need to be captured where `effect` was called, and applied to all re-runs.
+
 Since LazyPromise supports typed errors, there's one more twist which you can ignore if you're not interested in that functionality: we'll make `effect(...)` show a typechecking error if the LazyPromise returned by the callback can resolve to an ErrorBox. This makes sure that if, for example, there is a new typed error that a server endpoint can return, you don't forget to handle it in all the relevant places on the client.
 
 ## Step 2: memos
@@ -95,7 +97,7 @@ const lazyPromise = new LazyPromise(foo);
 
 - As long as the memo is in the dependency graph, it should either be subscribed to the original lazy promise and waiting for it to settle, or hold on to the result once the promise does settle.
 
-- As with the effects, we subscribe in untracked context and unsubscribe as needed.
+- As with the effects, we run the callback in a tracked context (with AsyncContext applied), subscribe in an untracked context and unsubscribe as needed.
 
 Let's take a look at the following example:
 
