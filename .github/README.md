@@ -311,6 +311,25 @@ This question applies to both the `finally` block in generator functions and the
 </details>
 
 <details>
+<summary><strong>Do <code>sink.resolve</code> and <code>sink.reject</code> fire synchronously?</strong></summary>
+
+Not when called synchronously from the LazyPromise constructor callback: we first let that callback return any teardown logic, call that logic, and only then fire. Otherwise, yes. It's only an academic question though. Consider the synchronous case:
+
+```ts
+const lazyPromise = new LazyPromise<number>((sink) => {
+  sink.resolve(42);
+  // `foo` has not run.
+});
+// `foo` has not run.
+lazyPromise.subscribe({ resolve: foo });
+// `foo` has run.
+```
+
+Once the constructor callback has settled the promise, its job is done, and in practice you wouldn't do anything in the no man's land after `sink.resolve(42)` and before the constructor callback returns. As to wrapping `sink.resolve(42)` in an AsyncContext/AsyncLocalStorage `run` call, this wouldn't have any effect whether we fire synchronously or asynchronously, since downstream code always runs in the context of the `.subscribe` call.
+
+</details>
+
+<details>
 <summary><strong>Why doesn't LazyPromise provide an affordance for sharing/caching the result?</strong></summary>
 
 While this is achievable with userland operators like those in RxJS, it's not something you want to bake into the primitive, because how you do it depends on what you use for state. For example if it's Signals, you would [extend `computed`/`createMemo` so it knows what to do with lazy promises](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals#step-2-memos).
