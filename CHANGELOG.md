@@ -1,5 +1,17 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.39](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.39)
+
+- Call teardown logic before settling.
+
+- New `trace` method of a LazyPromise.
+
+- `log` utility no longer changes the identity of the LazyPromise.
+
+- Support for AsyncLocalStorage.
+
+- Supported Node versions are now `^20.16.0 || >=22.3.0`.
+
 ## [@lazy-promise/core@0.0.38](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.38)
 
 - Revert previous change.
