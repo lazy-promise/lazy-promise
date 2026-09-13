@@ -320,7 +320,6 @@ const lazyPromise = new LazyPromise<number>((sink) => {
   sink.resolve(42);
   // `foo` has not run.
 });
-// `foo` has not run.
 lazyPromise.subscribe({ resolve: foo });
 // `foo` has run.
 ```
