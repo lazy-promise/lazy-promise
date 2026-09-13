@@ -15,8 +15,12 @@ class FromEagerOptions {
 
 class FromEagerJob implements Job {
   options = new FromEagerOptions();
+  settled = false;
 
   dispose() {
+    if (this.settled) {
+      return;
+    }
     this.options.abortController?.abort(
       new DOMException(
         "The LazyPromise subscription was disposed.",
@@ -38,9 +42,11 @@ class FromEagerProducer implements Producer<any> {
     if (callbackReturn instanceof Promise) {
       callbackReturn.then(
         (value) => {
+          job.settled = true;
           sink.resolve(value);
         },
         (error) => {
+          job.settled = true;
           sink.reject(error);
         },
       );

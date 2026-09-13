@@ -27,15 +27,12 @@ class AllConsumer implements Consumer<any> {
     const job = this.job;
     if (value instanceof ErrorBox) {
       job.initialized = true;
-      job.dispose();
       job.sink.resolve(value);
       return;
     }
     job.values[this.index] = value;
     if (job.initialized && job.pendingCount === 1) {
       job.sink.resolve(job.values);
-      // No need to unsubscribe since all sources that are promises have
-      // resolved.
       return;
     }
     job.pendingCount--;
@@ -44,7 +41,6 @@ class AllConsumer implements Consumer<any> {
   reject(error: unknown) {
     const job = this.job;
     job.initialized = true;
-    job.dispose();
     job.sink.reject(error);
   }
 }
@@ -76,7 +72,6 @@ class AllJob implements Job {
     }
     if (source instanceof ErrorBox) {
       this.initialized = true;
-      this.dispose();
       this.sink.resolve(source);
       return;
     }
@@ -102,22 +97,20 @@ class AllProducer implements Producer<any, any> {
       for (; index < this.sources.length; index++) {
         job.next(index, this.sources[index]);
         if (job.initialized) {
-          return;
+          return job;
         }
       }
     } else {
       for (const source of this.sources) {
         job.next(index, source);
         if (job.initialized) {
-          return;
+          return job;
         }
         index++;
       }
     }
     if (job.pendingCount === 0) {
       sink.resolve(job.values);
-      // No need to unsubscribe since all sources that are promises have
-      // resolved.
       return;
     }
     job.initialized = true;

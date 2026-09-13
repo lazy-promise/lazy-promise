@@ -45,6 +45,10 @@ class LogSpan implements Span<unknown> {
     log(this.label, "reject", error);
   }
 
+  flatten() {
+    log(this.label, "flatten");
+  }
+
   unsubscribe() {
     log(this.label, "unsubscribe");
   }
@@ -226,6 +230,108 @@ test("unsubscribe", () => {
       [
         "·",
         "teardown",
+      ],
+    ]
+  `);
+});
+
+test("teardown when settling", () => {
+  let sink: Sink<number>;
+  const promise = new LazyPromise<number>((sinkLocal) => {
+    sink = sinkLocal;
+    return () => {
+      log("teardown");
+    };
+  });
+  promise.trace(new LogTracer("a"));
+  promise.subscribe({
+    resolve: (value) => {
+      log("consume", value);
+    },
+  });
+  sink!.resolve(1);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "a",
+        "subscribe",
+        undefined,
+      ],
+      [
+        "a",
+        "resolve",
+        1,
+      ],
+      [
+        "·",
+        "teardown",
+      ],
+      [
+        "·",
+        "consume",
+        1,
+      ],
+    ]
+  `);
+});
+
+test("settling inside another span's run is logically nested", () => {
+  const traced = box(1);
+  traced.trace(new LogTracer("traced"));
+  traced
+    .map((value) => value + 1)
+    .subscribe({
+      resolve: (value) => {
+        log("consume", value);
+      },
+    });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "traced",
+        "subscribe",
+        undefined,
+      ],
+      [
+        "·",
+        "traced",
+        "resolve",
+        1,
+      ],
+      [
+        "· ·",
+        "consume",
+        2,
+      ],
+    ]
+  `);
+
+  traced
+    .map(() => {
+      throw "oops";
+    })
+    .subscribe({
+      reject: (error) => {
+        log("consume", error);
+      },
+    });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "traced",
+        "subscribe",
+        undefined,
+      ],
+      [
+        "·",
+        "traced",
+        "resolve",
+        1,
+      ],
+      [
+        "· ·",
+        "consume",
+        "oops",
       ],
     ]
   `);
@@ -486,6 +592,9 @@ test("errors thrown by tracer when settling", () => {
     reject: () => {
       throw "reject error";
     },
+    flatten: () => {
+      throw "flatten error";
+    },
   };
   const inner = box(1);
   inner.trace({ subscribe: () => throwingSpan });
@@ -506,12 +615,15 @@ test("errors thrown by tracer when settling", () => {
       ],
     ]
   `);
-  // Producer run of outer, then, nested: resolve of inner, resolve of outer,
-  // and the four remaining runs unwinding.
-  expect(mockMicrotaskQueue.length).toBe(7);
+  // Flatten of outer and its run, producer run of outer, then, nested: resolve
+  // of inner, resolve of outer, and the five remaining runs unwinding.
+  expect(mockMicrotaskQueue.length).toBe(10);
+  expect(processMockMicrotaskQueue).toThrow("flatten error");
+  expect(processMockMicrotaskQueue).toThrow("run error");
   expect(processMockMicrotaskQueue).toThrow("run error");
   expect(processMockMicrotaskQueue).toThrow("resolve error");
   expect(processMockMicrotaskQueue).toThrow("resolve error");
+  expect(processMockMicrotaskQueue).toThrow("run error");
   expect(processMockMicrotaskQueue).toThrow("run error");
   expect(processMockMicrotaskQueue).toThrow("run error");
   expect(processMockMicrotaskQueue).toThrow("run error");
@@ -593,6 +705,66 @@ test("resolving with a LazyPromise", () => {
       ],
       [
         "·",
+        "outer",
+        "flatten",
+      ],
+      [
+        "· ·",
+        "inner",
+        "subscribe",
+        undefined,
+      ],
+      [
+        "· · ·",
+        "inner",
+        "resolve",
+        1,
+      ],
+      [
+        "· · · ·",
+        "outer",
+        "resolve",
+        1,
+      ],
+      [
+        "· · · · ·",
+        "consume",
+        1,
+      ],
+    ]
+  `);
+});
+
+test("resolving with a LazyPromise asynchronously", () => {
+  let sink: Sink<number>;
+  const inner = box(1);
+  inner.trace(new LogTracer("inner"));
+  const outer = new LazyPromise<number>((sinkLocal) => {
+    sink = sinkLocal;
+    return () => {
+      log("teardown");
+    };
+  });
+  outer.trace(new LogTracer("outer"));
+  outer.subscribe({
+    resolve: (value) => {
+      log("consume", value);
+    },
+  });
+  readLog();
+  sink!.resolve(inner);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "outer",
+        "flatten",
+      ],
+      [
+        "·",
+        "teardown",
+      ],
+      [
+        "·",
         "inner",
         "subscribe",
         undefined,
@@ -637,6 +809,11 @@ test("unsubscribing after resolving with a LazyPromise", () => {
       ],
       [
         "·",
+        "outer",
+        "flatten",
+      ],
+      [
+        "· ·",
         "inner",
         "subscribe",
         undefined,

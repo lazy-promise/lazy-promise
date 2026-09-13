@@ -18,7 +18,7 @@ export type UnboxError<T> = T extends ErrorBox<infer Error> ? Error : never;
 /**
  * Observes a single subscription. Returned by `Tracer.subscribe`.
  */
-export interface Span<Value> {
+export interface Span<Value, Dep = unknown> {
   /**
    * Wraps synchronous work done on behalf of the subscription: running the
    * producer, the consumer handlers, or the teardown logic. Must call `work`
@@ -27,6 +27,11 @@ export interface Span<Value> {
   run?(work: () => void): void;
   resolve?(value: Value): void;
   reject?(error: unknown): void;
+  /**
+   * Called when the producer resolves with a LazyPromise.
+   */
+  // eslint-disable-next-line no-use-before-define
+  flatten?(lazyPromise: LazyPromise<Value, Dep>): void;
   unsubscribe?(): void;
 }
 
@@ -133,14 +138,14 @@ const unsubscribeSpans = (
 };
 
 /**
- * Attached to a LazyPromise with its `trace` method.
+ * Attached to a LazyPromise using its `trace` method.
  */
 export interface Tracer<Value, Dep = unknown> {
   /**
    * Called when the LazyPromise is subscribed, before the producer runs.
    */
   // eslint-disable-next-line no-use-before-define
-  subscribe(dep: Dep, subscription: Subscription): Span<Value> | void;
+  subscribe(dep: Dep, subscription: Subscription): Span<Value, Dep> | void;
 }
 
 /**
@@ -183,18 +188,6 @@ class Tracing {
 
 export type { Tracing };
 
-/**
- * What the next producer run of a subscription needs for tracing: tracers of
- * the LazyPromise whose producer it is, and spans that were active when it was
- * scheduled.
- */
-class PendingTrace {
-  constructor(
-    public tracers: Tracing | undefined,
-    public activeSpans: SpanNode | undefined,
-  ) {}
-}
-
 export type Yieldable = {
   [`❌ Did you forget a star (*) after yield?`]: never;
 };
@@ -230,7 +223,16 @@ export interface Consumer<Value> {
 
 class Sink<in Value, out Dep = unknown> {
   /** @internal */
-  resolvedWithAPromise: boolean = false;
+  done: boolean = false;
+
+  // A settlement that happens while the producer is running is recorded here
+  // and acted upon by `Subscription.runProducer` once the producer returns.
+  /** @internal */
+  rejected: boolean = false;
+  /** @internal */
+  pending: any;
+  /** @internal */
+  activeSpans: SpanNode | undefined;
 
   /** @internal */
   constructor(
@@ -244,51 +246,37 @@ class Sink<in Value, out Dep = unknown> {
     // eslint-disable-next-line no-use-before-define
     value: Value | LazyPromise<Value, Dep>,
   ) {
-    if (this.resolvedWithAPromise) {
+    const subscription = this.subscription;
+    if (this.done || subscription.disposed || subscription.settled) {
       return;
     }
-    const subscription = this.subscription;
-    if (subscription.disposed || subscription.settled) {
+    this.done = true;
+    if (subscription.lazyPromise) {
+      this.pending = value;
+      this.activeSpans = activeSpans;
       return;
     }
     // eslint-disable-next-line no-use-before-define
     if (value instanceof LazyPromise) {
-      this.resolvedWithAPromise = true;
-      if (value.tracers || activeSpans) {
-        subscription.pendingTrace = new PendingTrace(
-          value.tracers,
-          activeSpans,
-        );
-      }
-      if (subscription.producer) {
-        // Use the while loop to avoid increasing stack depth.
-        subscription.producer = value.producer;
-        return;
-      }
-      subscription.producer = value.producer;
-      subscription.job = undefined;
-      if (subscription.asyncResource) {
-        subscription.asyncResource.runInAsyncScope(
-          subscription.next,
-          subscription,
-        );
-      } else {
-        subscription.next();
-      }
+      subscription.runInContext(subscription.resolveWithLazyPromise, value);
       return;
     }
-    subscription.resolve(value);
+    subscription.runInContext(subscription.resolve, value);
   }
 
   reject(this: Sink<Value, Dep>, error: unknown) {
-    if (this.resolvedWithAPromise) {
-      return;
-    }
     const subscription = this.subscription;
-    if (subscription.disposed || subscription.settled) {
+    if (this.done || subscription.disposed || subscription.settled) {
       return;
     }
-    subscription.reject(error);
+    this.done = true;
+    if (subscription.lazyPromise) {
+      this.rejected = true;
+      this.pending = error;
+      this.activeSpans = activeSpans;
+      return;
+    }
+    subscription.runInContext(subscription.reject, error);
   }
 }
 
@@ -307,19 +295,20 @@ class Subscription {
   disposed: boolean = false;
   /** @internal */
   spans: SpanNode | undefined;
+  // Spans to replay around the next producer run so that nesting is logical
+  // rather than physical.
   /** @internal */
-  pendingTrace: PendingTrace | undefined;
+  pendingSpans: SpanNode | undefined = activeSpans;
+  // Created only once the producer has returned without settling, because
+  // that's when the async context of `subscribe` can get lost.
   /** @internal */
-  asyncResource: AsyncContextResource | undefined =
-    AsyncResource && new AsyncResource("LazyPromise");
+  asyncResource: AsyncContextResource | undefined;
 
   /** @internal */
   constructor(
     /** @internal */
-    public producer?:
-      | ((sink: Sink<any, any>, dep: any) => (() => void) | Job | void)
-      // eslint-disable-next-line no-use-before-define
-      | Producer<any, any>,
+    // eslint-disable-next-line no-use-before-define
+    public lazyPromise?: LazyPromise<any, any>,
     /** @internal */
     public consumer?: {
       resolve?: (value: any) => void;
@@ -336,24 +325,27 @@ class Subscription {
   /** @internal */
   next() {
     const baseSpans = activeSpans;
-    let sink: Sink<any, any>;
-    do {
-      sink = new Sink(this);
-      if (this.pendingTrace) {
+    // `lazyPromise` stays set while the producer resolves with LazyPromises,
+    // and is cleared when the subscription gets disposed.
+    while (this.lazyPromise) {
+      const sink = new Sink(this);
+      if (this.lazyPromise.tracers || this.pendingSpans !== baseSpans) {
         this.runProducerTraced(sink, baseSpans);
       } else {
         this.runProducer(sink);
       }
-    } while (sink.resolvedWithAPromise);
+    }
+    if (AsyncResource && !this.settled && !this.disposed) {
+      this.asyncResource ??= new AsyncResource("LazyPromise");
+    }
   }
 
   /** @internal */
   runProducerTraced(sink: Sink<any, any>, baseSpans: SpanNode | undefined) {
-    const pendingTrace = this.pendingTrace!;
-    this.pendingTrace = undefined;
-    runSpans(pendingTrace.activeSpans, baseSpans, () => {
+    const lazyPromise = this.lazyPromise!;
+    runSpans(this.pendingSpans, baseSpans, () => {
       const previousSpans = this.spans;
-      this.subscribeTracers(pendingTrace.tracers);
+      this.subscribeTracers(lazyPromise.tracers);
       runSpans(this.spans, previousSpans, () => {
         this.runProducer(sink);
       });
@@ -377,30 +369,112 @@ class Subscription {
 
   /** @internal */
   runProducer(sink: Sink<any, any>) {
+    const producer = this.lazyPromise!.producer;
+    let job;
     try {
-      const job =
-        typeof this.producer === "function"
-          ? (0, this.producer)(sink, this.dep)
-          : this.producer!.produce(sink, this.dep);
-      if (sink.resolvedWithAPromise) {
-        return;
-      }
-      this.producer = undefined;
-      if (this.settled) {
-        return;
-      }
-      this.job = job;
-      if (this.disposed) {
-        this.disposeJob();
-      }
+      job =
+        typeof producer === "function"
+          ? producer(sink, this.dep)
+          : producer.produce(sink, this.dep);
     } catch (error) {
-      if (sink.resolvedWithAPromise) {
-        return;
-      }
-      // For GC purposes.
-      this.producer = undefined;
+      // A no-op if the sink has already been used.
       sink.reject(error);
     }
+    this.lazyPromise = undefined;
+    // For GC purposes.
+    this.pendingSpans = undefined;
+    this.job = job;
+    if (this.disposed) {
+      this.disposeJob();
+      return;
+    }
+    if (!sink.done) {
+      return;
+    }
+    const pending = sink.pending;
+    const spans = sink.activeSpans;
+    // In case the producer holds on to the sink.
+    sink.pending = undefined;
+    sink.activeSpans = undefined;
+    // eslint-disable-next-line no-use-before-define
+    if (!sink.rejected && pending instanceof LazyPromise) {
+      this.flatten(pending, spans);
+      return;
+    }
+    if (spans !== activeSpans) {
+      this.settleTraced(spans, sink.rejected, pending);
+    } else if (sink.rejected) {
+      this.reject(pending);
+    } else {
+      this.resolve(pending);
+    }
+  }
+
+  /**
+   * Runs the settlement inside the spans that were active when the sink was
+   * used, so that nesting is logical rather than physical.
+   *
+   * @internal
+   */
+  settleTraced(
+    spans: SpanNode | undefined,
+    rejected: boolean,
+    pending: unknown,
+  ) {
+    runSpans(spans, activeSpans, () => {
+      if (rejected) {
+        this.reject(pending);
+      } else {
+        this.resolve(pending);
+      }
+    });
+  }
+
+  /**
+   * Prepares the next producer run. Doesn't start it, so that the loop in
+   * `next` can be used to avoid increasing stack depth.
+   *
+   * @internal
+   */
+  // eslint-disable-next-line no-use-before-define
+  flatten(lazyPromise: LazyPromise<any, any>, spans: SpanNode | undefined) {
+    // Set before the teardown runs, which may dispose the subscription and
+    // clear it.
+    this.lazyPromise = lazyPromise;
+    if (this.spans) {
+      this.flattenTraced(lazyPromise, spans);
+      return;
+    }
+    this.pendingSpans = spans;
+    this.disposeJob();
+  }
+
+  /** @internal */
+  flattenTraced(
+    // eslint-disable-next-line no-use-before-define
+    lazyPromise: LazyPromise<any, any>,
+    spans: SpanNode | undefined,
+  ) {
+    runSpans(spans, activeSpans, () => {
+      settleSpans(
+        this.spans,
+        (span) => {
+          span.flatten?.(lazyPromise);
+        },
+        () => {
+          // The next producer run is nested in the spans' `run` calls.
+          this.pendingSpans = activeSpans;
+          this.disposeJob();
+        },
+      );
+    });
+  }
+
+  /** @internal */
+  // eslint-disable-next-line no-use-before-define
+  resolveWithLazyPromise(lazyPromise: LazyPromise<any, any>) {
+    this.flatten(lazyPromise, activeSpans);
+    this.next();
   }
 
   /** @internal */
@@ -409,24 +483,13 @@ class Subscription {
     // For GC purposes.
     this.dep = undefined;
     // For GC purposes.
-    this.job = undefined;
-    if (this.asyncResource) {
-      const asyncResource = this.asyncResource;
-      // For GC purposes.
-      this.asyncResource = undefined;
-      asyncResource.runInAsyncScope(this.finishResolve, this, value);
-    } else {
-      this.finishResolve(value);
-    }
-  }
-
-  /** @internal */
-  finishResolve(value: any) {
+    this.asyncResource = undefined;
     if (this.spans) {
       this.resolveTraced(value);
-    } else {
-      this.consumeValue(value);
+      return;
     }
+    this.disposeJob();
+    this.consumeValue(value);
   }
 
   /** @internal */
@@ -439,6 +502,7 @@ class Subscription {
         span.resolve?.(value);
       },
       () => {
+        this.disposeJob();
         this.consumeValue(value);
       },
     );
@@ -450,24 +514,13 @@ class Subscription {
     // For GC purposes.
     this.dep = undefined;
     // For GC purposes.
-    this.job = undefined;
-    if (this.asyncResource) {
-      const asyncResource = this.asyncResource;
-      // For GC purposes.
-      this.asyncResource = undefined;
-      asyncResource.runInAsyncScope(this.finishReject, this, error);
-    } else {
-      this.finishReject(error);
-    }
-  }
-
-  /** @internal */
-  finishReject(error: unknown) {
+    this.asyncResource = undefined;
     if (this.spans) {
       this.rejectTraced(error);
-    } else {
-      this.consumeError(error);
+      return;
     }
+    this.disposeJob();
+    this.consumeError(error);
   }
 
   /** @internal */
@@ -480,6 +533,7 @@ class Subscription {
         span.reject?.(error);
       },
       () => {
+        this.disposeJob();
         this.consumeError(error);
       },
     );
@@ -520,22 +574,21 @@ class Subscription {
       return;
     }
     this.disposed = true;
+    // Ends the loop in `next` if the producer is running.
+    this.lazyPromise = undefined;
+    // For GC purposes.
+    this.pendingSpans = undefined;
     // For GC purposes.
     this.consumer = undefined;
     // For GC purposes.
     this.dep = undefined;
-    if (this.asyncResource) {
-      const asyncResource = this.asyncResource;
-      // For GC purposes.
-      this.asyncResource = undefined;
-      asyncResource.runInAsyncScope(this.finishDispose, this);
-    } else {
-      this.finishDispose();
-    }
+    this.runInContext(this.teardown, undefined);
   }
 
   /** @internal */
-  finishDispose() {
+  teardown() {
+    // For GC purposes.
+    this.asyncResource = undefined;
     if (this.spans) {
       this.disposeTraced();
     } else {
@@ -564,6 +617,19 @@ class Subscription {
       typeof job === "function" ? job() : job.dispose();
     } catch (error) {
       throwInMicrotask(error);
+    }
+  }
+
+  /**
+   * Calls the method in the async context of `subscribe`.
+   *
+   * @internal
+   */
+  runInContext<Arg>(method: (this: this, arg: Arg) => void, arg: Arg) {
+    if (this.asyncResource) {
+      this.asyncResource.runInAsyncScope(method, this, arg);
+    } else {
+      method.call(this, arg);
     }
   }
 }
@@ -639,10 +705,7 @@ export class LazyPromise<out Value, in Dep = unknown> {
             : [dep?: Dep]
   ): Subscription;
   subscribe(consumer?: Consumer<Value>, dep?: Dep): Subscription {
-    const subscription = new Subscription(this.producer, consumer, dep);
-    if (this.tracers) {
-      subscription.pendingTrace = new PendingTrace(this.tracers, activeSpans);
-    }
+    const subscription = new Subscription(this, consumer, dep);
     subscription.next();
     return subscription;
   }

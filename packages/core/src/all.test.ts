@@ -461,6 +461,9 @@ test("internally disposed when unsubscribed, a source reject is ignored when int
       [
         "dispose b",
       ],
+      [
+        "dispose a",
+      ],
     ]
   `);
 });

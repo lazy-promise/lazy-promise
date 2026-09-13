@@ -42,13 +42,11 @@ class RaceConsumerJob implements Consumer<any>, Job {
 
   resolve(value: any) {
     this.settled = true;
-    this.dispose();
     this.sink.resolve(value);
   }
 
   reject(error: unknown) {
     this.settled = true;
-    this.dispose();
     this.sink.reject(error);
   }
 
@@ -69,13 +67,13 @@ class RaceProducer implements Producer<any, any> {
     if (Array.isArray(this.sources)) {
       for (let index = 0; index < this.sources.length; index++) {
         if (job.next(this.sources[index])) {
-          return;
+          break;
         }
       }
     } else {
       for (const source of this.sources) {
         if (job.next(source)) {
-          return;
+          break;
         }
       }
     }

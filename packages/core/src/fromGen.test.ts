@@ -314,6 +314,9 @@ test("yield async", () => {
     [
       "1000 ms passed",
       [
+        "dispose inner",
+      ],
+      [
         "in generator, after yield",
         "a",
       ],

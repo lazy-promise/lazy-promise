@@ -66,11 +66,13 @@ Whereas a native promise executes eagerly and once, a LazyPromise behaves like a
 
 - Nothing gets emitted after you unsubscribe.
 
-- The teardown function is run at most once, and only if nothing was emitted.
+- The teardown logic is run at most once.
+
+- The teardown logic is run before something gets emitted.
 
 - There can be no higher-order LazyPromise (a LazyPromise that resolves to a LazyPromise). If you call the `resolve` handle of a native `Promise` with a `Promise<string>` as an argument, you'll end up with `Promise<string>`, not `Promise<Promise<string>>`, so it's physically impossible to create a higher-order Promise. LazyPromise is similarly flattened.
 
-Also like Observable, LazyPromise has no mandatory microtasks, so `sink.resolve(42)` calls the `resolve` handle of the consumer synchronously. A native promise guarantees that in `promise.then(foo); bar();`, `foo` runs after `bar`, but that guarantee comes at a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it. (It's jumping a bit ahead, but if you want a LazyPromise to fire in a microtask, add `.finally(inMicrotask)`.)
+Also like Observable, LazyPromise has no mandatory microtasks. A native promise guarantees that in `promise.then(foo); bar();`, `foo` runs after `bar`, but that guarantee comes at a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it. (It's jumping a bit ahead, but if you want a LazyPromise to fire in a microtask, add `.finally(inMicrotask)`.)
 
 Aside from superficial differences, the LazyPromise API mirrors that of the native promise:
 
@@ -258,7 +260,7 @@ logs
 
 The number in the second pair of brackets tells apart entries that share a label, and the value logged after `[subscribe]` is the dependency.
 
-Under the hood, `log` calls the `trace` method of a LazyPromise, which you can use to plug in similar tooling of your own, like performance marks or OpenTelemetry spans. `trace` takes a tracer: an object with a `subscribe(dep, subscription)` method which is called each time the LazyPromise is subscribed. `subscribe` can return a span: an object with optional methods `resolve(value)`, `reject(error)`, `unsubscribe()`, and `run(work)`, the latter wrapping any synchronous work done on behalf of the subscription (running the producer, the consumer or the teardown logic). `trace` returns a `Tracing` object whose `dispose` method detaches the tracer.
+Under the hood, `log` calls the `trace` method of a LazyPromise, which you can use to plug in similar tooling of your own, like performance marks or OpenTelemetry spans. `trace` takes a tracer: an object with a `subscribe(dep, subscription)` method which is called each time the LazyPromise is subscribed. `subscribe` can return a span: an object with optional methods `resolve(value)`, `reject(error)`, `flatten(lazyPromise)` (called when you `sink.resolve` with a LazyPromise), `unsubscribe()`, and `run(work)`, the latter wrapping any synchronous work done on behalf of the subscription (running the producer, the consumer or the teardown logic). `trace` returns a `Tracing` object whose `dispose` method detaches the tracer.
 
 ## AsyncContext and AsyncLocalStorage
 

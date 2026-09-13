@@ -154,6 +154,30 @@ test("garbage collect consumer and dependency when rejected", async () => {
   await expectCollected(dep);
 });
 
+test("garbage collect value when synchronously resolved", async () => {
+  const value = new WeakRef({});
+  // Simulates a producer that holds on to the sink.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let sink: Sink<object>;
+  new LazyPromise<object>((sinkLocal) => {
+    sink = sinkLocal;
+    sinkLocal.resolve(value.deref()!);
+  }).subscribe({ resolve: () => {} });
+  await expectCollected(value);
+});
+
+test("garbage collect error when synchronously rejected", async () => {
+  const error = new WeakRef({});
+  // Simulates a producer that holds on to the sink.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let sink: Sink<never>;
+  new LazyPromise<never>((sinkLocal) => {
+    sink = sinkLocal;
+    sinkLocal.reject(error.deref());
+  }).subscribe({ reject: () => {} });
+  await expectCollected(error);
+});
+
 test("garbage collect consumer and dependency when producer throws", async () => {
   const consumer = new WeakRef({
     reject: () => {},

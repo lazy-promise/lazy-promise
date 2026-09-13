@@ -254,6 +254,9 @@ test("async resolve", () => {
     [
       "1000 ms passed",
       [
+        "dispose",
+      ],
+      [
         "handleValue",
         "value",
       ],
@@ -280,6 +283,9 @@ test("async resolve (class-based)", () => {
     [
       "1000 ms passed",
       [
+        "dispose",
+      ],
+      [
         "handleValue",
         "value",
       ],
@@ -302,6 +308,9 @@ test("async resolve (flattening)", () => {
     [
       "1000 ms passed",
       [
+        "dispose",
+      ],
+      [
         "handleValue",
         "value",
       ],
@@ -323,6 +332,9 @@ test("sync resolve", () => {
         "produce",
       ],
       [
+        "dispose",
+      ],
+      [
         "handleValue",
         "value",
       ],
@@ -342,6 +354,9 @@ test("sync resolve (flattening)", () => {
     [
       [
         "produce",
+      ],
+      [
+        "dispose",
       ],
       [
         "handleValue",
@@ -366,6 +381,9 @@ test("async reject", () => {
     [
       "1000 ms passed",
       [
+        "dispose",
+      ],
+      [
         "handleError",
         "oops",
       ],
@@ -385,6 +403,9 @@ test("sync reject", () => {
     [
       [
         "produce",
+      ],
+      [
+        "dispose",
       ],
       [
         "handleError",
@@ -492,6 +513,9 @@ test("unsubscribe from produce", () => {
     [
       "1000 ms passed",
       [
+        "dispose outer",
+      ],
+      [
         "dispose inner",
         undefined,
       ],
@@ -527,6 +551,9 @@ test("unsubscribe from produce (class-based)", () => {
     [
       "1000 ms passed",
       [
+        "dispose outer",
+      ],
+      [
         "dispose inner",
       ],
     ]
@@ -558,6 +585,9 @@ test("unsubscribe from produce (error in unsubscribe)", () => {
     [
       "1000 ms passed",
       [
+        "dispose outer",
+      ],
+      [
         "dispose inner",
       ],
     ]
@@ -582,30 +612,32 @@ test("unsubscribe from produce (no teardown function)", () => {
   });
   const subscription = promise.subscribe(logConsumer);
   vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "dispose outer",
+      ],
+    ]
+  `);
 });
 
-test("teardown function is not called if the lazy promise resolves", () => {
-  const promise = new LazyPromise<number>((sink) => {
+test("resolve then unsubscribe from produce", () => {
+  const promise = new LazyPromise<string>((sink) => {
     setTimeout(() => {
-      sink.resolve(1);
+      sink.resolve(
+        new LazyPromise<string>((sink) => {
+          sink.resolve("value");
+          // eslint-disable-next-line no-use-before-define
+          subscription.dispose();
+          return () => {
+            log("dispose inner");
+          };
+        }),
+      );
     }, 1000);
     return () => {
-      log("dispose");
-    };
-  });
-  const subscription = promise.subscribe();
-  vi.runAllTimers();
-  subscription.dispose();
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
-});
-
-test("teardown function is not called if the lazy promise rejects", () => {
-  const promise = new LazyPromise<number>((sink) => {
-    setTimeout(() => {
-      sink.reject(1);
-    }, 1000);
-    return () => {
-      log("dispose");
+      log("dispose outer");
     };
   });
   const subscription = promise.subscribe(logConsumer);
@@ -614,11 +646,132 @@ test("teardown function is not called if the lazy promise rejects", () => {
     [
       "1000 ms passed",
       [
-        "handleError",
+        "dispose outer",
+      ],
+      [
+        "dispose inner",
+      ],
+    ]
+  `);
+});
+
+test("unsubscribe from the teardown function when flattening", () => {
+  const inner = new LazyPromise<string>(() => {
+    log("produce inner");
+  });
+  const promise = new LazyPromise<string>((sink) => {
+    setTimeout(() => {
+      sink.resolve(inner);
+    }, 1000);
+    return () => {
+      log("dispose outer");
+      // eslint-disable-next-line no-use-before-define
+      subscription.dispose();
+    };
+  });
+  const subscription = promise.subscribe(logConsumer);
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "dispose outer",
+      ],
+    ]
+  `);
+});
+
+test("sync settle is emitted after the producer returns", () => {
+  new LazyPromise<number>((sink) => {
+    sink.resolve(1);
+    log("after resolve");
+    return () => {
+      log("dispose");
+    };
+  }).subscribe(logConsumer);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "after resolve",
+      ],
+      [
+        "dispose",
+      ],
+      [
+        "handleValue",
         1,
       ],
     ]
   `);
+
+  new LazyPromise<number>((sink) => {
+    sink.reject("oops");
+    log("after reject");
+    return () => {
+      log("dispose");
+    };
+  }).subscribe(logConsumer);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "after reject",
+      ],
+      [
+        "dispose",
+      ],
+      [
+        "handleError",
+        "oops",
+      ],
+    ]
+  `);
+});
+
+test("error in teardown function when settling", () => {
+  const promise = new LazyPromise<number>((sink) => {
+    setTimeout(() => {
+      sink.resolve(1);
+    }, 1000);
+    return () => {
+      throw "oops";
+    };
+  });
+  promise.subscribe(logConsumer);
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "handleValue",
+        1,
+      ],
+    ]
+  `);
+  expect(processMockMicrotaskQueue).toThrow("oops");
+});
+
+test("settle from the teardown function", () => {
+  const promise = new LazyPromise<number>((sink) => {
+    setTimeout(() => {
+      sink.resolve(1);
+    }, 1000);
+    return () => {
+      sink.resolve(2);
+      sink.reject(3);
+    };
+  });
+  const subscription = promise.subscribe(logConsumer);
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "handleValue",
+        1,
+      ],
+    ]
+  `);
+  promise.subscribe(logConsumer).dispose();
   subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
@@ -642,6 +795,9 @@ test("teardown function called by consumer", () => {
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
+      [
+        "dispose",
+      ],
       [
         "handleValue",
         "a",
@@ -976,12 +1132,12 @@ test("stack overflow", () => {
         1,
       ],
       [
-        "handleValue",
-        "value",
-      ],
-      [
         "end",
         1,
+      ],
+      [
+        "handleValue",
+        "value",
       ],
     ]
   `);

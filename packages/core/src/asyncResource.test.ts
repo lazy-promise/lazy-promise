@@ -192,6 +192,32 @@ test("teardown runs in the context of subscribe, not of the dispose call", () =>
   `);
 });
 
+test("teardown runs in the context of subscribe when settling asynchronously", async () => {
+  const promise = new LazyPromise<number>((sink) => {
+    resolveLaterIn("producer", sink, 1);
+    return () => {
+      log("teardown");
+    };
+  });
+  als.run("subscriber", () => {
+    promise.subscribe(logConsumer);
+  });
+  await flushMicrotasks();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "teardown",
+        "context: subscriber",
+      ],
+      [
+        "resolve",
+        1,
+        "context: subscriber",
+      ],
+    ]
+  `);
+});
+
 test("a producer subscribed by a downstream handler runs in the context of subscribe", async () => {
   const upstream = new LazyPromise<number>((sink) => {
     resolveLaterIn("producer", sink, 1);

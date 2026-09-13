@@ -1367,7 +1367,13 @@ test("unbox async promise", async () => {
   `);
 
   resolveOriginal(10);
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "dispose",
+      ],
+    ]
+  `);
   await Promise.resolve();
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -1406,7 +1412,13 @@ test("unbox async promise", async () => {
   `);
 
   resolveOriginal(20);
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "dispose",
+      ],
+    ]
+  `);
   await Promise.resolve();
   expect(readLog()).toMatchInlineSnapshot(`
     [

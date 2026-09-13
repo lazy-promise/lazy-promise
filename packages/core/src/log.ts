@@ -61,6 +61,10 @@ class LogTracer implements Tracer<any, any>, Span<any> {
     console.log(...this.prefix, `[reject]`, error);
   }
 
+  flatten() {
+    console.log(...this.prefix, `[flatten]`);
+  }
+
   unsubscribe() {
     console.log(...this.prefix, `[unsubscribe]`);
   }

@@ -221,6 +221,9 @@ test("async resolve", () => {
     [
       "1000 ms passed",
       [
+        "dispose a",
+      ],
+      [
         "dispose b",
       ],
       [
@@ -290,6 +293,9 @@ test("async error", () => {
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "1000 ms passed",
+      [
+        "dispose a",
+      ],
       [
         "dispose b",
       ],
@@ -488,6 +494,9 @@ test("internally disposed by the teardown function, a source resolve is ignored 
       ],
       [
         "dispose b",
+      ],
+      [
+        "dispose a",
       ],
     ]
   `);

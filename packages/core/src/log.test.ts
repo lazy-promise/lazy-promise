@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import type { Consumer } from "@lazy-promise/core";
+import type { Consumer, Sink } from "@lazy-promise/core";
 import {
   box,
   inMicrotask,
@@ -110,6 +110,60 @@ test("unsubscribe (no teardown function)", () => {
     [
       "[unsubscribe (no teardown function) case] [1] [subscribe] undefined",
       "· subscribing",
+    ]
+  `);
+});
+
+test("resolve with a LazyPromise", () => {
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
+  const inner = new LazyPromise<number>((sink) => {
+    console.log("producing inner");
+    sink.resolve(1);
+  }).pipe(log("inner of flatten"));
+
+  new LazyPromise<number>((sink) => {
+    sink.resolve(inner);
+    return () => {
+      console.log("tearing down outer");
+    };
+  })
+    .pipe(log("outer sync"))
+    .subscribe(logConsumer);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "[outer sync] [1] [subscribe] undefined",
+      "· [outer sync] [1] [flatten]",
+      "· · tearing down outer",
+      "· · [inner of flatten] [1] [subscribe] undefined",
+      "· · · producing inner",
+      "· · · [inner of flatten] [1] [resolve] 1",
+      "· · · · [outer sync] [1] [resolve] 1",
+      "· · · · · handleValue 1",
+    ]
+  `);
+
+  let sinkAsync: Sink<number>;
+  new LazyPromise<number>((sink) => {
+    sinkAsync = sink;
+    return () => {
+      console.log("tearing down outer");
+    };
+  })
+    .pipe(log("outer async"))
+    .subscribe(logConsumer);
+  readLog();
+  sinkAsync!.resolve(inner);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "[outer async] [1] [flatten]",
+      "· tearing down outer",
+      "· [inner of flatten] [1] [subscribe] undefined",
+      "· · producing inner",
+      "· · [inner of flatten] [1] [resolve] 1",
+      "· · · [outer async] [1] [resolve] 1",
+      "· · · · handleValue 1",
     ]
   `);
 });
@@ -228,10 +282,11 @@ test("producer resolving with a LazyPromise", () => {
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "[flatten outer] [1] [subscribe] undefined",
-      "· [flatten inner] [1] [subscribe] undefined",
-      "· · [flatten inner] [1] [resolve] 2",
-      "· · · [flatten outer] [1] [resolve] 2",
-      "· · · · handleValue 2",
+      "· [flatten outer] [1] [flatten]",
+      "· · [flatten inner] [1] [subscribe] undefined",
+      "· · · [flatten inner] [1] [resolve] 2",
+      "· · · · [flatten outer] [1] [resolve] 2",
+      "· · · · · handleValue 2",
     ]
   `);
 });
