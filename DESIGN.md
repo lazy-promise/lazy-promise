@@ -1,4 +1,4 @@
-# Design notes
+# Design notes for coding agents
 
 Why `@lazy-promise/core` is built the way it is, and which alternatives were
 considered and rejected. Behavior is documented in the
