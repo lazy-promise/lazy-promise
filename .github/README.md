@@ -72,7 +72,7 @@ Whereas a native promise executes eagerly and once, a LazyPromise behaves like a
 
 - There can be no higher-order LazyPromise (a LazyPromise that resolves to a LazyPromise). If you call the `resolve` handle of a native `Promise` with a `Promise<string>` as an argument, you'll end up with `Promise<string>`, not `Promise<Promise<string>>`, so it's physically impossible to create a higher-order Promise. LazyPromise is similarly flattened.
 
-Also like Observable, LazyPromise has no mandatory microtasks. A native promise guarantees that in `promise.then(foo); bar();`, `foo` runs after `bar`, but that guarantee comes at a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it. (It's jumping a bit ahead, but if you want a LazyPromise to fire in a microtask, add `.finally(inMicrotask)`.)
+Also like Observable, LazyPromise does not defer notifications to microtasks. A native promise guarantees that in `promise.then(foo); bar();`, `foo` runs after `bar`, but that guarantee comes at a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it. (It's jumping a bit ahead, but if you want a LazyPromise to fire in a microtask, add `.finally(inMicrotask)`.)
 
 Aside from superficial differences, the LazyPromise API mirrors that of the native promise:
 
