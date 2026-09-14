@@ -1,4 +1,5 @@
-import type { LazyPromise, Span, Tracer } from "./lazyPromise.js";
+import type { LazyPromise } from "./lazyPromise.js";
+import type { Span, Tracer } from "./trace.js";
 import { throwInMicrotask } from "./utils.js";
 
 const instanceCountMap = new Map<string | number | undefined, number>();

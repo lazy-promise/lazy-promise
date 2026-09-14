@@ -26,6 +26,11 @@ Operational knowledge for working in this repo. Design rationale is in
   `npx prettier --write <files>` on anything you edit or the check fails.
 - Per package: `npx vitest run [file]`, `npx tsc` (noEmit), and
   `npx eslint . --max-warnings=0`.
+- Coverage: tests execute `build/module`, not `src`, so run
+  `npx vitest run --coverage --coverage.reporter=text --coverage.include='build/module/**'`
+  in `packages/core` after a rebuild (coverage on `src/**` reports 0%).
+  Coverage is 100% and must stay there; if a line ever has to be exempt,
+  still run the report and check for regressions elsewhere.
 - Benchmarks: `node scripts/bench.mjs [ref] --runs=5 --iterations=300000`
   compares the working tree against a git ref or npm version (default `HEAD`).
   The default iteration count is slow; run one benchmark process at a time.
@@ -42,6 +47,10 @@ Operational knowledge for working in this repo. Design rationale is in
   types.
 - vitest transpiles with esbuild and does not type-check. `expectTypeOf` and
   `@ts-expect-error` tests only fail under `tsc`.
+- Vite's SSR transform (vitest) snapshots imported bindings that are referenced
+  in class field initializers into a `const` before the class, so a mutable
+  export (`activeSpans` in `trace.ts`) read there is stale under vitest but
+  fine in Node. Read such bindings in the constructor body instead.
 - `build/` is gitignored; deleting it is always safe.
 - Editor-only or CLI-only type errors are usually TS version skew (bundled VS
   Code TS vs the workspace one) or check-order dependent variance validation;

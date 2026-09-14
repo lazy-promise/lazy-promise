@@ -6,6 +6,15 @@ import { FinallyProducer } from "./finally.js";
 import { InjectProducer } from "./inject.js";
 import { MapProducer } from "./map.js";
 import { ToEagerConsumerListener } from "./toEager.js";
+import type { Tracer } from "./trace.js";
+import {
+  activeSpans,
+  runSpans,
+  settleSpans,
+  SpanNode,
+  Tracing,
+  unsubscribeSpans,
+} from "./trace.js";
 import { throwInMicrotask } from "./utils.js";
 
 export class ErrorBox<const Error> {
@@ -14,179 +23,6 @@ export class ErrorBox<const Error> {
 }
 
 export type UnboxError<T> = T extends ErrorBox<infer Error> ? Error : never;
-
-/**
- * Observes a single subscription. Returned by `Tracer.subscribe`.
- */
-export interface Span<Value, Dep = unknown> {
-  /**
-   * Wraps synchronous work done on behalf of the subscription: running the
-   * producer, the consumer handlers, or the teardown logic. Must call `work`
-   * exactly once.
-   */
-  run?(work: () => void): void;
-  resolve?(value: Value): void;
-  reject?(error: unknown): void;
-  /**
-   * Called when the producer resolves with a LazyPromise.
-   */
-  // eslint-disable-next-line no-use-before-define
-  flatten?(lazyPromise: LazyPromise<Value, Dep>): void;
-  unsubscribe?(): void;
-}
-
-class SpanNode {
-  constructor(
-    public span: Span<any>,
-    public next: SpanNode | undefined,
-  ) {}
-}
-
-/**
- * Linked list of spans whose `run` is on the stack, innermost first.
- */
-let activeSpans: SpanNode | undefined;
-
-const runSpan = (span: Span<any>, work: () => void) => {
-  if (!span.run) {
-    work();
-    return;
-  }
-  const frame = new SpanNode(span, activeSpans);
-  activeSpans = frame;
-  let called = false;
-  const guardedWork = () => {
-    if (called) {
-      return;
-    }
-    called = true;
-    work();
-  };
-  try {
-    span.run(guardedWork);
-  } catch (error) {
-    throwInMicrotask(error);
-  } finally {
-    activeSpans = frame.next;
-  }
-  // In case the tracer failed to call it.
-  guardedWork();
-};
-
-/**
- * Runs `work` inside the `run` methods of the spans in the `node` linked list
- * up to and excluding `end`, with `node` innermost in the stack.
- */
-const runSpans = (
-  node: SpanNode | undefined,
-  end: SpanNode | undefined,
-  work: () => void,
-): void => {
-  if (node === end) {
-    work();
-    return;
-  }
-  runSpans(node!.next, end, () => {
-    runSpan(node!.span, work);
-  });
-};
-
-/**
- * For each span in the `node` linked list, calls `notify` and then runs the
- * rest inside the span's `run` method, finishing with `work`, so that `node`
- * is outermost in the stack.
- */
-const settleSpans = (
-  node: SpanNode | undefined,
-  notify: (span: Span<any>) => void,
-  work: () => void,
-): void => {
-  if (!node) {
-    work();
-    return;
-  }
-  try {
-    notify(node.span);
-  } catch (error) {
-    throwInMicrotask(error);
-  }
-  runSpan(node.span, () => {
-    settleSpans(node.next, notify, work);
-  });
-};
-
-/**
- * Same as `settleSpans` with `unsubscribe` as the notification, except that
- * the last node of the list is outermost in the stack.
- */
-const unsubscribeSpans = (
-  node: SpanNode | undefined,
-  work: () => void,
-): void => {
-  if (!node) {
-    work();
-    return;
-  }
-  unsubscribeSpans(node.next, () => {
-    try {
-      node.span.unsubscribe?.();
-    } catch (error) {
-      throwInMicrotask(error);
-    }
-    runSpan(node.span, work);
-  });
-};
-
-/**
- * Attached to a LazyPromise using its `trace` method.
- */
-export interface Tracer<Value, Dep = unknown> {
-  /**
-   * Called when the LazyPromise is subscribed, before the producer runs.
-   */
-  // eslint-disable-next-line no-use-before-define
-  subscribe(dep: Dep, subscription: Subscription): Span<Value, Dep> | void;
-}
-
-/**
- * Returned by `LazyPromise.prototype.trace`.
- */
-class Tracing {
-  /** @internal */
-  // eslint-disable-next-line no-use-before-define
-  previous: Tracing | undefined;
-
-  /** @internal */
-  constructor(
-    /** @internal */
-    public tracer: Tracer<any, any>,
-    /** @internal */
-    public lazyPromise: LazyPromise<any, any> | undefined, // eslint-disable-line no-use-before-define
-    /** @internal */
-    public next: Tracing | undefined,
-  ) {}
-
-  /**
-   * Detaches the tracer. Spans that have already been created are unaffected.
-   */
-  dispose() {
-    const lazyPromise = this.lazyPromise;
-    if (!lazyPromise) {
-      return;
-    }
-    this.lazyPromise = undefined;
-    if (this.previous) {
-      this.previous.next = this.next;
-    } else {
-      lazyPromise.tracers = this.next;
-    }
-    if (this.next) {
-      this.next.previous = this.previous;
-    }
-  }
-}
-
-export type { Tracing };
 
 export type Yieldable = {
   [`❌ Did you forget a star (*) after yield?`]: never;
@@ -298,7 +134,7 @@ class Subscription {
   // Spans to replay around the next producer run so that nesting is logical
   // rather than physical.
   /** @internal */
-  pendingSpans: SpanNode | undefined = activeSpans;
+  pendingSpans: SpanNode | undefined;
   // Created only once the producer has returned without settling, because
   // that's when the async context of `subscribe` can get lost.
   /** @internal */
@@ -316,7 +152,11 @@ class Subscription {
     },
     /** @internal */
     public dep?: any,
-  ) {}
+  ) {
+    // Not a field initializer: Vite's SSR transform (used by vitest) snapshots
+    // imported bindings referenced in class fields, losing the live binding.
+    this.pendingSpans = activeSpans;
+  }
 
   // Methods that run when there is no tracing must not contain closures (even
   // ones that are never created) because that would make V8 allocate a context
@@ -871,13 +711,7 @@ export class LazyPromise<out Value, in Dep = unknown> {
     // eslint-disable-next-line no-use-before-define
     tracer: Tracer<Unbox<This>, InferDep<This>>,
   ): Tracing {
-    const lazyPromise = this as unknown as LazyPromise<any, any>;
-    const tracing = new Tracing(tracer, lazyPromise, lazyPromise.tracers);
-    if (lazyPromise.tracers) {
-      lazyPromise.tracers.previous = tracing;
-    }
-    lazyPromise.tracers = tracing;
-    return tracing;
+    return new Tracing(tracer, this as unknown as LazyPromise<any, any>);
   }
 
   // Gives `Dep` a contravariant occurrence.
