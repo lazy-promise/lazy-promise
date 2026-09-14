@@ -239,7 +239,7 @@ Like type-safe errors, dependency injection is an optional feature. You can omit
 
 The library provides wrappers for browser and Node deferral APIs: `inTimeout`, `inMicrotask`, `inAnimationFrame`, `inIdleCallback`, `inImmediate`, `inNextTick`, `inMessageChannel`, `inScheduled`. Each of these returns a LazyPromise that fires, typically with a value of `undefined`, in respectively `setTimeout`, `queueMicrotask`, etc. Since these are non-imaginative convenience wrappers for native APIs, they don't add much complexity to the API surface, yet they remove the need for some extra constructs you'd normally find in libraries that deal with async. For example, to sleep for 1 second in the middle of a generator function, you would `yield* inTimeout(1000)`.
 
-The library also provides a `log` function that passes a LazyPromise through without changing its identity but adds logging of everything that happens to it: `lazyPromise.pipe(log("your label"))`. While callbacks are running, `log` patches `console.log` so that the arguments are prefixed with dots indicating sync stack depth, so
+The library also provides a `log` function that passes a LazyPromise through without changing its identity but adds logging of everything that happens to it: `lazyPromise.pipe(log("your label"))`. While callbacks are running, `log` patches `console.log` so that the arguments are prefixed with dots indicating causality, so
 
 ```ts
 box(1)
@@ -258,7 +258,7 @@ logs
 · · mapping
 ```
 
-The number in the second pair of brackets tells apart entries that share a label, and the value logged after `[subscribe]` is the dependency.
+Dots reset whenever an async boundary is crossed. The number in the second pair of brackets tells apart entries that share a label. The value logged after `[subscribe]` is the dependency.
 
 Under the hood, `log` calls the `trace` method of a LazyPromise, which you can use to plug in similar tooling of your own, like performance marks or OpenTelemetry spans. `trace` takes a tracer: an object with a `subscribe(dep, subscription)` method which is called each time the LazyPromise is subscribed. `subscribe` can return a span: an object with optional methods `resolve(value)`, `reject(error)`, `flatten(lazyPromise)` (called when you `sink.resolve` with a LazyPromise), `unsubscribe()`, and `run(work)`, the latter wrapping any synchronous work done on behalf of the subscription (running the producer, the consumer or the teardown logic). `trace` returns a `Tracing` object whose `dispose` method detaches the tracer.
 

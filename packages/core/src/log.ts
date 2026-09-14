@@ -74,18 +74,15 @@ class LogTracer implements Tracer<any, any>, Span<any> {
 /* eslint-enable no-console */
 
 /**
- * Passes a LazyPromise through but adds logging of everything that happens to
- * it.
+ * Passes a LazyPromise through without changing its identity but adds logging
+ * of everything that happens to it.
  *
  * ```
  * lazyPromise.pipe(log("optional label"))
  * ```
  *
- * Each log record includes the label and a 1-based index that lets you tell
- * apart multiple entries that have the same label.
- *
  * While running callbacks, patches `console.log` so that the arguments are
- * prefixed with dots indicating sync stack depth, so
+ * prefixed with dots indicating causality, so
  *
  * ```
  * box(1)
@@ -103,6 +100,10 @@ class LogTracer implements Tracer<any, any>, Span<any> {
  * · [a] [1] [resolve] 1
  * · · mapping
  * ```
+ *
+ * Dots reset whenever an async boundary is crossed. The number in the second
+ * pair of brackets tells apart entries that share a label. The value logged
+ * after `[subscribe]` is the dependency.
  */
 export const log =
   (label?: string | number) =>
