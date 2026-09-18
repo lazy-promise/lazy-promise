@@ -1,0 +1,32 @@
+---
+title: Interop with native promises
+---
+
+## fromEager
+
+This function converts an async function to a LazyPromise, and supports the AbortController API:
+
+```ts
+// Type inferred as LazyPromise<string>
+const lazyPromise = fromEager(async ({ signal }) => {
+  const response = await fetch("https://example.com", { signal });
+  return response.text();
+});
+```
+
+If the subscription is disposed before the returned promise settles, the signal is aborted with an `AbortError`. The abort controller is created lazily, so there's no cost if the callback does not read the `signal` property of the object passed to it. The callback can also be a regular (non-async) function, and any non-Promise values it returns are passed on synchronously.
+
+## toEager
+
+This is a method that converts a LazyPromise to a Promise, and it too supports AbortController.
+
+```ts
+const controller = new AbortController();
+
+// `signal` is optional.
+const promise = lazyPromise.toEager({ signal: controller.signal });
+
+// Disposes the subscription and rejects `promise` with
+// `controller.signal.reason`.
+controller.abort();
+```

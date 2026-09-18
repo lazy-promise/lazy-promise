@@ -1,0 +1,43 @@
+<!doctype html>
+<!--
+  Source for the PNG icons in public/. Renders the logo at the size given in
+  the `size` query parameter, with `square=1` for the unrounded variant that
+  iOS masks itself (apple-touch-icon). Regenerate with `pnpm render-assets`
+  (see scripts/render-assets.mjs).
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: transparent;
+      }
+      svg {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <svg id="icon" viewBox="0 0 128 128" aria-hidden="true">
+      <path
+        id="shape"
+        fill="#f43f5e"
+        d="M82.186 0c16.036 0 24.055 0 30.18 3.121a28.634 28.634 0 0 1 12.513 12.513C128 21.759 128 29.777 128 45.814v36.372c0 16.036 0 24.055-3.121 30.18a28.634 28.634 0 0 1-12.513 12.513C106.241 128 98.223 128 82.186 128H45.814c-16.036 0-24.055 0-30.18-3.121a28.634 28.634 0 0 1-12.513-12.513C0 106.241 0 98.223 0 82.186V45.814c0-16.036 0-24.055 3.121-30.18A28.634 28.634 0 0 1 15.634 3.121C21.759 0 29.777 0 45.814 0h36.372Z"
+      />
+      <rect x="38" y="32" width="18" height="64" rx="9" fill="#ffffff" />
+      <rect x="72" y="32" width="18" height="64" rx="9" fill="#ffffff" />
+    </svg>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const size = params.get("size") ?? "512";
+      const icon = document.getElementById("icon");
+      icon.setAttribute("width", size);
+      icon.setAttribute("height", size);
+      if (params.get("square") === "1") {
+        document.getElementById("shape").setAttribute("d", "M0 0h128v128H0z");
+      }
+    </script>
+  </body>
+</html>

@@ -1,3 +1,9 @@
-<!-- README for NPM; the one for GitHub is in .github directory. -->
+# LazyPromise
 
-Please see [GitHub README](https://github.com/lazy-promise/lazy-promise) for full documentation.
+- A single-shot Observable
+
+- A lazy and cancelable promise
+
+- A tiny alternative to Effect
+
+Documentation: [lazypromise.com](https://lazypromise.com)

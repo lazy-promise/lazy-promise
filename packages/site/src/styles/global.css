@@ -1,0 +1,323 @@
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+@import "@fontsource-variable/figtree";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-heading: "Figtree Variable", sans-serif;
+  --font-sans:
+    "Geist Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono:
+    "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-logo: #f43f5e;
+  --color-logo-bars: #ffffff;
+}
+
+:root {
+  color-scheme: light;
+  --canvas: #fcfbfa;
+  --surface: #f5f4f2;
+  --surface-raised: #ffffff;
+  --line: #e9e6e3;
+  --line-strong: #d6d3d1;
+  --ink: #1c1917;
+  --ink-muted: #6b6560;
+  --ink-faint: #a8a29e;
+  --accent: #e11d48;
+  --accent-soft: #fff1f2;
+}
+
+.dark {
+  color-scheme: dark;
+  --canvas: #0f0e0d;
+  --surface: #1f1c19;
+  --surface-raised: #272320;
+  --line: #36302a;
+  --line-strong: #4d4640;
+  --ink: #ebe8e4;
+  --ink-muted: #a39d96;
+  --ink-faint: #6b655f;
+  --accent: #fb7185;
+  --accent-soft: #2a1418;
+}
+
+@layer base {
+  html {
+    @apply bg-canvas font-sans text-ink antialiased;
+    scroll-padding-top: calc(var(--header-height) + 1.5rem);
+    -webkit-text-size-adjust: 100%;
+    font-feature-settings: "ss01", "cv11";
+    letter-spacing: 0;
+    view-transition-name: none;
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    @apply min-h-dvh;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  input[type="radio"]:not(:disabled),
+  input[type="checkbox"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  html:has(dialog[open]) {
+    overflow: hidden;
+  }
+
+  ::selection {
+    @apply bg-accent/20;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent;
+  }
+
+  code,
+  kbd,
+  pre,
+  samp {
+    @apply font-mono;
+    font-feature-settings: normal;
+  }
+}
+
+/* Header height is shared between the sticky header, scroll padding, and the
+   sticky sidebars. */
+:root {
+  --header-height: 4rem;
+}
+
+/* Rendered markdown. */
+.docs {
+  @apply text-base leading-7 text-ink;
+  overflow-wrap: break-word;
+}
+
+.docs > :first-child {
+  @apply mt-0;
+}
+
+.docs h2 {
+  @apply mt-9 mb-3 font-heading text-2xl leading-8 font-bold text-ink;
+}
+
+.docs h3 {
+  @apply mt-8 mb-2 font-heading text-xl leading-7 font-bold text-ink;
+}
+
+.docs :is(h2, h3) + :is(p, ul, ol) {
+  @apply mt-0;
+}
+
+.docs .heading-anchor {
+  @apply ml-2 text-ink-faint no-underline opacity-0 transition-opacity hover:text-accent;
+}
+
+.docs h2:hover .heading-anchor,
+.docs h3:hover .heading-anchor,
+.docs .heading-anchor:focus-visible {
+  @apply opacity-100;
+}
+
+.docs p {
+  @apply my-5;
+}
+
+.docs a:not(.heading-anchor) {
+  @apply text-accent underline decoration-accent/40 underline-offset-[0.2em] transition-colors hover:decoration-accent;
+}
+
+.docs strong {
+  @apply font-semibold text-ink;
+}
+
+.docs strong a:not(.heading-anchor),
+.docs a:not(.heading-anchor) strong {
+  @apply text-logo;
+}
+
+.docs ul,
+.docs ol {
+  @apply my-5 pl-6;
+}
+
+.docs ul {
+  list-style: disc;
+}
+
+.docs ol {
+  list-style: decimal;
+}
+
+.docs li {
+  @apply my-2 pl-1;
+}
+
+.docs li::marker {
+  @apply text-ink-faint;
+}
+
+.docs li > p {
+  @apply my-2;
+}
+
+.docs blockquote {
+  @apply my-6 border-l-2 border-line-strong pl-5 text-ink-muted;
+}
+
+.docs hr {
+  @apply my-12 border-line;
+}
+
+.docs :not(pre) > code {
+  @apply rounded-[0.3rem] bg-surface px-[0.35em] py-[0.15em] text-[0.875em] text-ink;
+}
+
+.docs a:not(.heading-anchor) > code {
+  @apply text-accent;
+}
+
+.docs pre {
+  @apply my-6 overflow-x-auto rounded-lg border border-line bg-surface px-5 py-4 text-sm leading-6;
+}
+
+.docs pre code {
+  @apply bg-transparent p-0 text-inherit;
+  counter-reset: line;
+}
+
+.docs > .code-block:first-child > pre {
+  @apply mt-0;
+}
+
+.docs .copy-code {
+  @apply absolute top-2 right-2 flex size-8 items-center justify-center rounded-md border border-line bg-surface text-ink-muted opacity-0 transition-[opacity,color] hover:text-ink focus-visible:opacity-100;
+}
+
+.docs .code-block:hover .copy-code,
+.docs .code-block:focus-within .copy-code {
+  @apply opacity-100;
+}
+
+@media (hover: none) {
+  .docs .copy-code {
+    @apply opacity-100;
+  }
+}
+
+.docs .copy-code svg {
+  @apply size-4;
+}
+
+.docs .copy-code .copied-icon,
+.docs .copy-code[data-copied] .copy-code-icon {
+  @apply hidden;
+}
+
+.docs .copy-code[data-copied] {
+  @apply text-ink opacity-100;
+}
+
+.docs .copy-code[data-copied] .copied-icon {
+  @apply block;
+}
+
+.docs table {
+  @apply my-6 block w-full border-collapse overflow-x-auto text-left text-base leading-7;
+}
+
+.docs thead th {
+  @apply border-b border-line pr-4 pb-2 font-heading font-semibold text-ink-muted;
+}
+
+.docs tbody td {
+  @apply border-b border-line py-2.5 pr-4 align-top;
+}
+
+.docs tbody tr:last-child td {
+  @apply border-b-0;
+}
+
+.docs .note {
+  @apply my-6 rounded-lg border border-line bg-surface px-5 py-4 text-[0.875rem] leading-6 text-ink-muted;
+}
+
+.docs .note > :first-child {
+  @apply mt-0;
+}
+
+.docs .note > :last-child {
+  @apply mb-0;
+}
+
+/* Shiki dual themes: the site background wins over the theme background. */
+.astro-code span {
+  background-color: transparent !important;
+}
+
+.dark .astro-code,
+.dark .astro-code span {
+  color: var(--shiki-dark) !important;
+  font-style: var(--shiki-dark-font-style) !important;
+  font-weight: var(--shiki-dark-font-weight) !important;
+  text-decoration: var(--shiki-dark-text-decoration) !important;
+}
+
+:root:not(.dark) .astro-code,
+:root:not(.dark) .astro-code span {
+  color: var(--shiki-light) !important;
+  font-style: var(--shiki-light-font-style) !important;
+  font-weight: var(--shiki-light-font-weight) !important;
+  text-decoration: var(--shiki-light-text-decoration) !important;
+}
+
+/* Pagefind highlights inside excerpts. */
+mark {
+  @apply rounded-[0.2rem] bg-accent/15 px-0.5 text-ink;
+}
+
+@keyframes nav-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes nav-out {
+  from {
+    transform: none;
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after,
+  *::backdrop {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

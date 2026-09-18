@@ -14,8 +14,7 @@ interface NodeLikeProcess {
   getBuiltinModule?: (
     id: string,
   ) =>
-    | { AsyncResource?: new (type: string) => AsyncContextResource }
-    | undefined;
+    { AsyncResource?: new (type: string) => AsyncContextResource } | undefined;
 }
 
 const getAsyncResource = () => {

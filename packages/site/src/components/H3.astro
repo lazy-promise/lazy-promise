@@ -1,0 +1,13 @@
+---
+import Heading from "./Heading.astro";
+
+interface Props {
+  id: string;
+}
+
+const { id } = Astro.props;
+---
+
+<Heading as="h3" id={id}>
+  <slot />
+</Heading>

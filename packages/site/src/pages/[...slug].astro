@@ -1,0 +1,37 @@
+---
+import { render } from "astro:content";
+
+import H2 from "../components/H2.astro";
+import H3 from "../components/H3.astro";
+import Pre from "../components/Pre.astro";
+import { getOrderedDocs, toNavItems } from "../docs";
+import DocsLayout from "../layouts/DocsLayout.astro";
+import { indexEntryId, pathForEntry } from "../site";
+
+export const getStaticPaths = async () => {
+  const docs = await getOrderedDocs();
+  return docs.map((doc) => ({
+    params: { slug: doc.id === indexEntryId ? undefined : doc.id },
+    props: { doc },
+  }));
+};
+
+const { doc } = Astro.props;
+const docs = await getOrderedDocs();
+const navItems = toNavItems(docs, doc.id);
+const index = docs.findIndex((candidate) => candidate.id === doc.id);
+const previous = navItems[index - 1];
+const next = navItems[index + 1];
+const { Content, headings } = await render(doc);
+---
+
+<DocsLayout
+  title={doc.data.title}
+  path={pathForEntry(doc.id)}
+  navItems={navItems}
+  headings={headings}
+  previous={previous}
+  next={next}
+>
+  <Content components={{ h2: H2, h3: H3, pre: Pre }} />
+</DocsLayout>

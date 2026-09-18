@@ -1,0 +1,13 @@
+{
+  "extends": [
+    "astro/tsconfigs/strict",
+    "@repo/typescript-config/tsconfig.base.json"
+  ],
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "incremental": false
+  },
+  "include": [".astro/types.d.ts", "src/**/*", "astro.config.mjs"],
+  "exclude": ["dist"]
+}

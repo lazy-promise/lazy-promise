@@ -1,0 +1,68 @@
+---
+import { githubUrl, playgroundUrl, siteName, xUrl } from "../site";
+import { ExternalIcon, GitHubIcon, XIcon } from "./icons";
+import Logo from "./Logo.astro";
+import { MobileNav, type NavItem } from "./MobileNav";
+import { Search } from "./Search";
+import { ThemeToggle } from "./ThemeToggle";
+
+interface Props {
+  navItems: NavItem[];
+}
+
+const { navItems } = Astro.props;
+
+const iconLinkClass =
+  "text-ink-muted hover:text-ink hover:bg-surface flex size-11 shrink-0 items-center justify-center rounded-md transition-colors sm:size-10";
+---
+
+<header class="border-line bg-canvas sticky top-0 z-40 h-(--header-height) border-b">
+  <div class="relative mx-auto flex h-full max-w-[90rem] items-center justify-between gap-2 px-4 sm:px-6">
+    <a
+      href="/"
+      aria-label={siteName}
+      class="text-logo font-heading flex shrink-0 items-center gap-[0.5em] rounded-md text-xl font-bold"
+    >
+      <Logo size={28} />
+      <span class="hidden min-[480px]:inline">{siteName}</span>
+    </a>
+    <div class="flex items-center sm:gap-1">
+      <div class="flex items-center lg:absolute lg:left-1/2 lg:-translate-x-1/2">
+        <Search client:load />
+      </div>
+      <nav aria-label="Header links" class="flex items-center sm:gap-1">
+        <a
+          href={playgroundUrl}
+          target="_blank"
+          rel="noopener"
+          class="text-ink-muted hover:text-ink hover:bg-surface font-heading hidden h-10 items-center gap-1.5 rounded-md px-3 text-sm font-bold tracking-[0.12em] uppercase transition-colors sm:flex"
+        >
+          Playground
+          <ExternalIcon className="size-4" />
+        </a>
+        <ThemeToggle client:load />
+        <a
+          href={xUrl}
+          target="_blank"
+          rel="noopener"
+          aria-label="Ivan on X"
+          title="Ivan on X"
+          class={iconLinkClass}
+        >
+          <XIcon className="size-5.5" />
+        </a>
+        <a
+          href={githubUrl}
+          target="_blank"
+          rel="noopener"
+          aria-label="GitHub repository"
+          title="GitHub repository"
+          class={iconLinkClass}
+        >
+          <GitHubIcon className="size-6" />
+        </a>
+      </nav>
+      <MobileNav client:load items={navItems} />
+    </div>
+  </div>
+</header>

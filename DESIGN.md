@@ -1,9 +1,9 @@
 # Design notes for coding agents
 
 Why `@lazy-promise/core` is built the way it is, and which alternatives were
-considered and rejected. Behavior is documented in the
-[README](.github/README.md); this file records the reasoning so it does not get
-re-litigated. There are no compatibility constraints from earlier designs.
+considered and rejected. Behavior is documented on the site
+(`packages/site/src/content/docs`, https://lazypromise.com); this file records
+the reasoning so it does not get re-litigated. There are no compatibility constraints from earlier designs.
 
 ## Settlement and teardown
 

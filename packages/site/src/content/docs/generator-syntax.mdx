@@ -1,0 +1,22 @@
+---
+title: Generator syntax
+---
+
+This syntax is the LazyPromise equivalent of async-await. It lets you take advantage of JavaScript control flow statements, and as with chained operators, you get automatic cancellation. Just use generator functions instead of async functions, and `yield*` instead of `await`:
+
+```ts
+// Type inferred as LazyPromise<number>
+const lazyPromise = fromGen(function* () {
+  while (true) {
+    // Type inferred as number | undefined
+    const value = yield* new LazyPromise<number | undefined>(...);
+    if (value !== undefined) {
+      return value;
+    }
+  }
+});
+```
+
+In the case of native promises, if you `await promise`, and `promise` rejects with `error`, it's as if in place of `await promise` you had `throw error`. It works in exactly the same way when you have `yield* lazyPromise` and `lazyPromise` rejects.
+
+If you `yield*` to a lazy promise inside a `try` or `catch` block, and the whole flow is canceled while waiting for that lazy promise, the `finally` block will not get executed. Similarly, the `.finally` method will run its callback if the lazy promise resolves or rejects, but not if it's unsubscribed before settling.

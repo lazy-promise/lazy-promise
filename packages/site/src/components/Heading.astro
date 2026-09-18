@@ -1,0 +1,22 @@
+---
+interface Props {
+  as: "h2" | "h3";
+  id: string;
+}
+
+const { as: Tag, id } = Astro.props as Props;
+---
+
+<Tag id={id}>
+  <slot />
+  <span data-pagefind-ignore>
+    {"\u2060"}
+    <a
+      href={`#${id}`}
+      class="heading-anchor align-middle text-xl font-normal leading-none"
+      aria-label="Link to this section"
+    >
+      #
+    </a>
+  </span>
+</Tag>

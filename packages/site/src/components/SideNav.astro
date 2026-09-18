@@ -1,0 +1,30 @@
+---
+import type { NavItem } from "./MobileNav";
+
+interface Props {
+  items: NavItem[];
+}
+
+const { items } = Astro.props;
+---
+
+<nav aria-label="Documentation" class="font-heading text-base leading-6">
+  <ul class="flex flex-col gap-1.5">
+    {items.map((item) => (
+      <li>
+        <a
+          href={item.href}
+          aria-current={item.current ? "page" : undefined}
+          class:list={[
+            "block rounded-md px-3 py-1.5 transition-colors leading-snug",
+            item.current
+              ? "text-logo font-bold"
+              : "text-ink-muted hover:text-ink hover:bg-surface",
+          ]}
+        >
+          {item.title}
+        </a>
+      </li>
+    ))}
+  </ul>
+</nav>

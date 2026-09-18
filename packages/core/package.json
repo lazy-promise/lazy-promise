@@ -1,7 +1,8 @@
 {
   "name": "@lazy-promise/core",
   "version": "0.0.39",
-  "description": "A Promise-like primitive which is lazy, cancelable, and emits synchronously instead of in a microtask",
+  "description": "LazyPromise is a single-shot Observable, a lazy and cancelable promise, and a tiny alternative to Effect.",
+  "homepage": "https://lazypromise.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/lazy-promise/lazy-promise.git",

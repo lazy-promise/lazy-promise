@@ -1,0 +1,11 @@
+{
+  "name": "LazyPromise",
+  "short_name": "LazyPromise",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "theme_color": "#f43f5e",
+  "background_color": "#fcfbfa",
+  "display": "browser"
+}

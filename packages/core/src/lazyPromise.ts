@@ -481,8 +481,8 @@ export interface Producer<Value, Dep = unknown> {
 }
 
 /**
- * A Promise-like primitive which is lazy, cancelable, and emits synchronously
- * instead of in a microtask.
+ * A Promise-like primitive which is lazy, cancelable, and does not defer
+ * notifications to microtasks.
  *
  * The first type parameter `Value` represents the values that the LazyPromise
  * can resolve to.

@@ -103,8 +103,7 @@ test("types", () => {
   promise2.subscribe<"error a">();
 
   const promise3 = never as
-    | LazyPromise<1 | ErrorBox<"error a">>
-    | LazyPromise<2 | ErrorBox<"error b">>;
+    LazyPromise<1 | ErrorBox<"error a">> | LazyPromise<2 | ErrorBox<"error b">>;
 
   promise3.subscribe<"error a" | "error b">({
     resolve: (value) =>

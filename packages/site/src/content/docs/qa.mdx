@@ -1,0 +1,52 @@
+---
+title: Q&A
+---
+
+## Why is the method `map` called `map`?
+
+It cannot be `then` since JavaScript has some built-in behaviors around that particular name, and as to `map` vs. `flatMap`, here we're taking advantage of the fact that there can be no higher-order lazy promises. If `map` gets a LazyPromise from its callback, it cannot return a `LazyPromise<LazyPromise<...>>` and has no choice but to flatten the result, so we don't need to disambiguate between `map` and `flatMap`. Similarly, we can just say `box` since we don't have to disambiguate between `box` (wrap in a LazyPromise) and `normalize` (coerce to a LazyPromise).
+
+## Why dot notation and not pipes-only like RxJS?
+
+Because unlike RxJS, there exists a small and well-defined set of operators that are comparable to language features and are more equal than others.
+
+## Why does `finally` not run when the lazy promise is canceled?
+
+This question applies to both the `finally` block in generator functions and the `.finally` method. There are three reasons:
+
+- That's how generator functions work in JavaScript: you only get the guarantee that the `finally` block gets executed if you don't `yield` or `yield*` in `try` or `catch`.
+
+- Using `finally` for cleanup would go against the "only one way to do it" principle since there is already teardown logic that you return from the LazyPromise constructor.
+
+- This enables a pattern `lazyPromise.finally(() => anotherLazyPromise)` which was discussed in the context of [`inTimeout`](/deferral-utilities/#intimeout).
+
+## Do `sink.resolve` and `sink.reject` fire synchronously?
+
+Not when called synchronously from the LazyPromise constructor callback: we first let that callback return any teardown logic, call that logic, and only then fire. Otherwise, yes. It's only an academic question though. Consider the synchronous case:
+
+```ts
+const lazyPromise = new LazyPromise<number>((sink) => {
+  sink.resolve(42);
+  // `foo` has not run.
+});
+lazyPromise.subscribe({ resolve: foo });
+// `foo` has run.
+```
+
+Once the constructor callback has settled the promise, its job is done, and in practice you wouldn't do anything in the no man's land after `sink.resolve(42)` and before the constructor callback returns. As to wrapping `sink.resolve(42)` in an AsyncContext/AsyncLocalStorage `run` call, this wouldn't have any effect whether we fire synchronously or asynchronously, since downstream code always runs in the context of the `.subscribe` call.
+
+## Why not have an equivalent of `Promise.allSettled`?
+
+LazyPromise is designed in such a way that all boxed errors must be either explicitly caught with `catchBoxed` or whitelisted when you call `subscribe`. `allSettled` implicitly catches errors by turning them into values that you can potentially discard without type system flagging it.
+
+## Why not have an equivalent of `Promise.withResolvers`?
+
+A native promise has a single `resolve, reject` pair, whereas a LazyPromise has a new `sink` for each subscription, so the concept does not carry over.
+
+## Why not have an affordance for sharing/caching the result?
+
+While this is achievable with userland operators like those in RxJS, it's not something you want to bake into the primitive, because how you do it depends on what you use for state. For example if it's Signals, you would [extend `computed`/`createMemo` so it knows what to do with lazy promises](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals#step-2-memos).
+
+## Why not a separate channel for typed errors like in Effect?
+
+Although `LazyPromise<"value" | ErrorBox<"error">>` is a little bit harder to read than `LazyPromise<"value", "error">`, an extra channel and type parameter would have introduced unnecessary complexity when it comes to using LazyPromise together with native promises and generator syntax. You wouldn't be able to produce typed errors in native async functions by returning error boxes, and try/catch/finally syntax in generator functions would have non-obvious behavior.

@@ -1,0 +1,50 @@
+---
+title: Logging and tracing
+---
+
+## log
+
+The library provides a `log` utility that passes a LazyPromise through without changing its identity but adds logging of everything that happens to it: `lazyPromise.pipe(log("your label"))`. While callbacks are running, `log` patches `console.log` so that the arguments are prefixed with dots indicating causality, so
+
+```ts
+box(1)
+  .pipe(log("a"))
+  .map(() => {
+    console.log("mapping");
+  })
+  .subscribe();
+```
+
+logs
+
+```
+[a] [1] [subscribe] undefined
+· [a] [1] [resolve] 1
+· · mapping
+```
+
+Dots reset whenever an async boundary is crossed. The number in the second pair of brackets tells apart entries that share a label. The value logged after `[subscribe]` is the dependency.
+
+## trace
+
+Under the hood, `log` calls the `trace` method of a LazyPromise. This method lets you observe a lazy promise without otherwise changing the behavior of the program, and you can use it to plug in tooling such as performance marks or OpenTelemetry spans. `trace` takes a `Tracer`: an object with a `subscribe(dep, subscription)` method which is called each time the LazyPromise is subscribed. `subscribe` can return a `Span`: an object with optional methods `resolve(value)`, `reject(error)`, `flatten(lazyPromise)` (called when you `sink.resolve` with a LazyPromise), and `unsubscribe()`. `trace` returns a `Tracing` object whose `dispose` method detaches the tracer.
+
+```ts
+const tracing = lazyPromise.trace({
+  subscribe() {
+    const start = performance.now();
+    return {
+      resolve() {
+        performance.measure("lazyPromise", { start });
+      },
+    };
+  },
+});
+
+// Later: stop tracing new subscriptions. Existing spans are unaffected.
+tracing.dispose();
+```
+
+When flattening, the `subscribe` notification for the inner promise is given the same `subscription` argument as the one for the outer promise.
+
+A `Span` can also have a method `run(work)` which wraps any synchronous work done on behalf of the subscription (running the producer, the consumer or the teardown logic). `run` calls are nested based on causality and until an async boundary is crossed, producing the same behavior as you see with `log`'s dots.

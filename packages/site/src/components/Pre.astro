@@ -1,0 +1,76 @@
+---
+// Wraps shiki's `<pre>` from MDX code blocks and adds a copy button.
+const props = Astro.props;
+---
+
+<div class="code-block group relative">
+  <pre {...props}><slot /></pre>
+  <button
+    type="button"
+    data-copy-code
+    data-pagefind-ignore
+    aria-label="Copy code"
+    title="Copy code"
+    class="copy-code"
+  >
+    <svg
+      class="copy-code-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.75"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+    </svg>
+    <svg
+      class="copied-icon"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M20 6 9 17l-5-5"></path>
+    </svg>
+  </button>
+</div>
+
+<script>
+  const resetTimers = new WeakMap<HTMLButtonElement, number>();
+
+  document.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) {
+      return;
+    }
+    const button = event.target.closest<HTMLButtonElement>(
+      "button[data-copy-code]",
+    );
+    if (!button) {
+      return;
+    }
+    const code = button.parentElement?.querySelector("pre")?.textContent ?? "";
+    navigator.clipboard.writeText(code).then(
+      () => {
+        button.dataset.copied = "";
+        button.setAttribute("aria-label", "Copied");
+        clearTimeout(resetTimers.get(button));
+        resetTimers.set(
+          button,
+          window.setTimeout(() => {
+            delete button.dataset.copied;
+            button.setAttribute("aria-label", "Copy code");
+          }, 1500),
+        );
+      },
+      () => undefined,
+    );
+  });
+</script>

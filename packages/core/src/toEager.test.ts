@@ -47,8 +47,7 @@ test("types", () => {
   expectTypeOf(promise2.toEager()).toEqualTypeOf<Promise<"value a">>();
 
   const promise3 = never as
-    | LazyPromise<1 | ErrorBox<"error a">>
-    | LazyPromise<2 | ErrorBox<"error b">>;
+    LazyPromise<1 | ErrorBox<"error a">> | LazyPromise<2 | ErrorBox<"error b">>;
 
   /** @ts-expect-error */
   promise3.toEager();

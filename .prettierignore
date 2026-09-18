@@ -4,3 +4,5 @@
 # specify package-specific exceptions here.
 /packages/*/build
 /packages/*/coverage
+/packages/site/dist
+/packages/site/.astro

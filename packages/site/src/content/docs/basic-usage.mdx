@@ -1,0 +1,97 @@
+---
+title: Basic usage
+---
+
+## Constructor
+
+You create a LazyPromise like you create a native promise, except you have a `sink` object instead of a `resolve, reject` pair, and you can optionally return a teardown function:
+
+```ts
+const lazyPromise = new LazyPromise<number>((sink) => {
+  const timeoutId = setTimeout(() => {
+    if (...) {
+      sink.resolve(42);
+    } else {
+      sink.reject(new Error("oops"));
+    }
+  }, 1000);
+
+  return () => {
+    clearTimeout(timeoutId);
+  };
+});
+```
+
+## Subscribing
+
+A LazyPromise doesn't do anything until you subscribe to it:
+
+```ts
+const subscription = lazyPromise.subscribe({
+  resolve: (value) => ...,
+  reject: (error) => ...,
+});
+```
+
+To cancel the subscription, you call
+
+```ts
+// This method is idempotent.
+subscription.dispose();
+```
+
+## Invariants
+
+Whereas a native promise executes eagerly and once, a LazyPromise behaves like an Observable, that is it runs the constructor callback each time someone subscribes. The way to think of it is if `foo` is a function like
+
+```ts
+<Value>(arg: {
+  resolve: (value: Value) => void;
+  reject: (error: unknown) => void;
+}) => {
+  ...
+  return () => {
+    ...
+  };
+};
+```
+
+then `new LazyPromise(foo)` is simply `foo` with a wrapper around it that's only there to enforce a few invariants:
+
+- If something gets emitted, that only happens once.
+
+- Nothing gets emitted after you unsubscribe.
+
+- The teardown logic is run at most once.
+
+- The teardown logic is run before something gets emitted.
+
+- There can be no higher-order LazyPromise (a LazyPromise that resolves to a LazyPromise). If you call the `resolve` handle of a native `Promise` with a `Promise<string>` as an argument, you'll end up with `Promise<string>`, not `Promise<Promise<string>>`, so it's physically impossible to create a higher-order Promise. LazyPromise is similarly flattened.
+
+## Microtasks
+
+Also like Observable, LazyPromise does not defer notifications to microtasks. A native promise guarantees that in `promise.then(foo); bar();`, `foo` runs after `bar`, but that guarantee comes at a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it. (It's jumping a bit ahead, but if you want a LazyPromise to fire in a microtask, add `.finally(inMicrotask)`.)
+
+## Promise-like API
+
+Aside from superficial differences, the LazyPromise API mirrors that of the native promise:
+
+| Promise API                       | LazyPromise equivalent     |
+| :-------------------------------- | :------------------------- |
+| `promise.then(foo)`               | `lazyPromise.map(foo)`     |
+| `promise.catch(foo)`              | `lazyPromise.catch(foo)`   |
+| `promise.finally(foo)`            | `lazyPromise.finally(foo)` |
+| `Promise.resolve(valueOrPromise)` | `box(valueOrLazyPromise)`  |
+| `Promise.reject(error)`           | `rejecting(error)`         |
+| `new Promise<never>(() => {})`    | `never`                    |
+| `Promise.all(...)`                | `all(...)`                 |
+| `Promise.race(...)`               | `race(...)`                |
+| `Awaited<T>`                      | `Unbox<T>`                 |
+
+([`any`](/type-safe-errors/#any), [`allSettled`](/qa/#why-not-have-an-equivalent-of-promiseallsettled) and [`withResolvers`](/qa/#why-not-have-an-equivalent-of-promisewithresolvers) are discussed separately in these docs.)
+
+Canceling a LazyPromise automatically cancels any upstream LazyPromise it was derived from via the operators above.
+
+## pipe
+
+LazyPromise has a method `pipe` that allows you to dot-chain custom operators or other functions that take a LazyPromise as a single parameter: `lazyPromise.pipe(foo)` is equivalent to `foo(lazyPromise)`.

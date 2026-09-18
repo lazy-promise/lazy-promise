@@ -1,0 +1,12 @@
+---
+import { getOrderedDocs, toNavItems } from "../docs";
+import DocsLayout from "../layouts/DocsLayout.astro";
+
+const navItems = toNavItems(await getOrderedDocs(), undefined);
+---
+
+<DocsLayout title="Page not found" path="/404/" navItems={navItems}>
+  <p>
+    Try the navigation on the left, or go back to <a href="/">the start</a>.
+  </p>
+</DocsLayout>

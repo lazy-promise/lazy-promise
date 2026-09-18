@@ -1,0 +1,41 @@
+name: Deploy site
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/site/**"
+      - ".github/workflows/site.yml"
+      - "pnpm-lock.yaml"
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+      - run: pnpm install
+      - run: pnpm exec turbo build --filter=@lazy-promise/site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/site/dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

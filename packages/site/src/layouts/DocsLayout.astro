@@ -1,0 +1,196 @@
+---
+import "../styles/global.css";
+import geistFont from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url";
+import figtreeFont from "@fontsource-variable/figtree/files/figtree-latin-wght-normal.woff2?url";
+
+import type { MarkdownHeading } from "astro";
+
+import Header from "../components/Header.astro";
+import type { NavItem } from "../components/MobileNav";
+import SideNav from "../components/SideNav.astro";
+import { Toc } from "../components/Toc";
+import { siteDescription, siteName, xUrl } from "../site";
+
+interface Props {
+  title: string;
+  path: string;
+  navItems: NavItem[];
+  headings?: MarkdownHeading[];
+  previous?: NavItem | undefined;
+  next?: NavItem | undefined;
+}
+
+const { title, path, navItems, headings = [], previous, next } = Astro.props;
+
+const isIndex = path === "/";
+const documentTitle = isIndex
+  ? `${siteName} - a tiny alternative to Effect`
+  : `${title} · ${siteName}`;
+const canonical = new URL(path, Astro.site);
+const ogImage = new URL("/og.png", Astro.site);
+const tocHeadings = headings.filter(
+  (heading) => heading.depth === 2 || heading.depth === 3,
+);
+const xHandle = `@${new URL(xUrl).pathname.slice(1)}`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{documentTitle}</title>
+    <meta name="description" content={siteDescription} />
+    {path === "/404/" && <meta name="robots" content="noindex" />}
+    <link
+      rel="preload"
+      href={geistFont}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="canonical" href={canonical} />
+    <link
+      rel="preload"
+      href={figtreeFont}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+    <meta
+      name="theme-color"
+      content="#fcfbfa"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#0f0e0d"
+      media="(prefers-color-scheme: dark)"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:title" content={isIndex ? documentTitle : title} />
+    <meta property="og:description" content={siteDescription} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={`${siteName} logo`} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:creator" content={xHandle} />
+    <meta name="twitter:title" content={isIndex ? documentTitle : title} />
+    <meta name="twitter:description" content={siteDescription} />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="generator" content={Astro.generator} />
+    <script is:inline>
+      (() => {
+        try {
+          const stored = localStorage.getItem("theme");
+          document.documentElement.classList.toggle(
+            "dark",
+            stored === "dark" ||
+              (stored !== "light" &&
+                matchMedia("(prefers-color-scheme: dark)").matches),
+          );
+        } catch {
+          document.documentElement.classList.toggle(
+            "dark",
+            matchMedia("(prefers-color-scheme: dark)").matches,
+          );
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <Header navItems={navItems} />
+    <div class="mx-auto max-w-[90rem] px-4 sm:px-6 lg:grid lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:gap-x-12 xl:grid-cols-[13.5rem_minmax(0,1fr)_13.5rem] xl:gap-x-16">
+      <aside
+        data-pagefind-ignore
+        class="sticky top-(--header-height) -ml-3 hidden h-[calc(100dvh-var(--header-height))] overflow-y-auto py-10 pr-2 lg:block"
+      >
+        <SideNav items={navItems} />
+      </aside>
+      <main class="min-w-0 py-10 lg:py-12">
+        <article
+          data-pagefind-body={path !== "/404/" || undefined}
+          data-pagefind-ignore={path === "/404/" || undefined}
+          class="mx-auto max-w-[44rem]"
+        >
+          <header class:list={isIndex ? "@container mb-8" : "mb-8"}>
+            {isIndex ? (
+              <h1 class="text-logo font-heading text-[clamp(2.25rem,10cqw,4.5rem)] leading-loose font-bold whitespace-nowrap border-b border-line">
+                {siteName}
+              </h1>
+            ) : (
+              <h1 class="text-logo font-heading text-3xl leading-tight font-bold wrap-break-word sm:text-[2.5rem]">
+                {title}
+              </h1>
+            )}
+          </header>
+          <div class="docs">
+            <slot />
+          </div>
+        </article>
+        {(previous || next) && (
+          <nav
+            data-pagefind-ignore
+            aria-label="Adjacent pages"
+            class:list={[
+              "mx-auto mt-16 flex max-w-[44rem] gap-4 text-base",
+              isIndex ? "justify-end" : "justify-between",
+            ]}
+          >
+            {previous ? (
+              <a
+                href={previous.href}
+                rel="prev"
+                class="text-ink hover:bg-surface flex min-w-0 flex-col gap-1 rounded-md px-4 py-3 transition-colors"
+              >
+                <span class="text-ink-muted text-sm">Previous</span>
+                <span class="font-heading font-semibold wrap-break-word">
+                  {previous.title}
+                </span>
+              </a>
+            ) : (
+              !isIndex && <span />
+            )}
+            {next && (
+              <a
+                href={next.href}
+                rel="next"
+                class="text-ink hover:bg-surface flex min-w-0 flex-col items-end gap-1 rounded-md px-4 py-3 text-right transition-colors"
+              >
+                <span class="text-ink-muted text-sm">Next</span>
+                <span class="font-heading font-semibold wrap-break-word">
+                  {next.title}
+                </span>
+              </a>
+            )}
+            {isIndex && (
+              <a
+                href="/basic-usage/"
+                class="text-ink hover:bg-surface flex min-w-0 flex-col items-end gap-1 rounded-md px-4 py-3 text-right transition-colors"
+              >
+                <span class="text-ink-muted text-sm">Skip to</span>
+                <span class="font-heading font-semibold">Basic usage</span>
+              </a>
+            )}
+          </nav>
+        )}
+      </main>
+      {tocHeadings.length > 1 && (
+        <aside
+          data-pagefind-ignore
+          class="sticky top-(--header-height) hidden h-[calc(100dvh-var(--header-height))] overflow-y-auto py-12 xl:block"
+        >
+          <Toc client:idle headings={tocHeadings} />
+        </aside>
+      )}
+    </div>
+  </body>
+</html>

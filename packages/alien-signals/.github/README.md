@@ -10,7 +10,7 @@ npm install @lazy-promise/alien-signals @lazy-promise/core
 
 ## Introduction
 
-With [LazyPromise](https://github.com/lazy-promise/lazy-promise) as an implementation of a single-shot Observable, we'll take [alien-signals](https://github.com/stackblitz/alien-signals) as the starting point, and then change the API in four steps, surfacing along the way a couple of reasons why the same cannot be implemented using the native Promise.
+With [LazyPromise](https://lazypromise.com) as an implementation of a single-shot Observable, we'll take [alien-signals](https://github.com/stackblitz/alien-signals) as the starting point, and then change the API in four steps, surfacing along the way a couple of reasons why the same cannot be implemented using the native Promise.
 
 ## Step 1: effects
 
