@@ -60,6 +60,21 @@ export const randomSymbol = Symbol("random");
 export interface RandomDep {
   [randomSymbol]: () => number;
 }
+
+export const nowSymbol = Symbol("now");
+export interface NowDep {
+  [nowSymbol]: () => number;
+}
+
+// Type inferred as LazyPromise<number, RandomDep & NowDep>
+const lazyPromise = fromGen(function* (dep: RandomDep & NowDep) {
+  return dep[nowSymbol]() + dep[randomSymbol]() * 1000;
+});
+
+lazyPromise.subscribe(
+  { resolve: console.log },
+  { [randomSymbol]: Math.random, [nowSymbol]: Date.now },
+);
 ```
 
 ## Optional dependencies
