@@ -1,5 +1,4 @@
 import type { LazyPromise, Subscription } from "./lazyPromise.js";
-import { throwInMicrotask } from "./utils.js";
 
 /**
  * Observes a single subscription. Returned by `Tracer.subscribe`.
@@ -8,9 +7,10 @@ export interface Span<Value, Dep = unknown> {
   /**
    * Wraps synchronous work done on behalf of the subscription: running the
    * producer, the consumer handlers, or the teardown logic. Must call `work`
-   * exactly once.
+   * exactly once. `depth` is the number of `run` calls that logically enclose
+   * the work, counting this one; `log` prints that many dots.
    */
-  run?(work: () => void): void;
+  run?(work: () => void, depth: number): void;
   resolve?(value: Value): void;
   reject?(error: unknown): void;
   /**
@@ -27,100 +27,95 @@ export class SpanNode {
   ) {}
 }
 
-/**
- * Linked list of spans whose `run` is on the stack, innermost first.
- */
-export let activeSpans: SpanNode | undefined;
+export const reverseSpans = (
+  node: SpanNode | undefined,
+): SpanNode | undefined => {
+  let reversed: SpanNode | undefined;
+  while (node) {
+    const next = node.next;
+    node.next = reversed;
+    reversed = node;
+    node = next;
+  }
+  return reversed;
+};
 
-const runSpan = (span: Span<any>, work: () => void) => {
-  if (!span.run) {
+/**
+ * A `run` call, either on the stack or to be re-entered.
+ */
+export class Frame {
+  constructor(
+    public span: Span<any>,
+    public depth: number,
+  ) {}
+}
+
+/**
+ * The frame of the innermost `run` call on the stack.
+ */
+export let activeFrame: Frame | undefined;
+
+const runFrame = (frame: Frame, work: () => void) => {
+  const previousFrame = activeFrame;
+  activeFrame = frame;
+  frame.span.run!(work, frame.depth);
+  activeFrame = previousFrame;
+};
+
+/**
+ * Runs `work` inside `frame`, re-entering the frame's `run` if the frame is
+ * not the active one.
+ */
+export const runInFrame = (
+  frame: Frame | undefined,
+  work: () => void,
+): void => {
+  if (frame === activeFrame) {
     work();
     return;
   }
-  const frame = new SpanNode(span, activeSpans);
-  activeSpans = frame;
-  let called = false;
-  const guardedWork = () => {
-    if (called) {
-      return;
+  runFrame(frame!, work);
+};
+
+/**
+ * Visits the nodes from `node` up to `end`, then does `work`, all inside
+ * `baseFrame`. Each visited span that has `run` wraps what follows it, up to
+ * and including the visit that yields the next such span, so that the `run`
+ * calls are siblings rather than nested.
+ */
+export class Chain<Node extends { next: Node | undefined }> {
+  // The span whose `run` is to wrap the next step.
+  span: Span<any> | undefined;
+
+  constructor(
+    public node: Node | undefined,
+    public end: Node | undefined,
+    public visit: (node: Node) => Span<any> | void,
+    public work: () => void,
+  ) {}
+
+  run(baseFrame: Frame | undefined) {
+    let depth = baseFrame ? baseFrame.depth : 0;
+    runInFrame(baseFrame, this.step);
+    while (this.span) {
+      runFrame(new Frame(this.span, ++depth), this.step);
     }
-    called = true;
-    work();
+  }
+
+  step = () => {
+    while (this.node !== this.end) {
+      const node = this.node!;
+      this.node = node.next;
+      const span = this.visit(node);
+      if (span && span.run) {
+        this.span = span;
+        return;
+      }
+    }
+    this.span = undefined;
+    this.work();
   };
-  try {
-    span.run(guardedWork);
-  } catch (error) {
-    throwInMicrotask(error);
-  } finally {
-    activeSpans = frame.next;
-  }
-  // In case the tracer failed to call it.
-  guardedWork();
-};
-
-/**
- * Runs `work` inside the `run` methods of the spans in the `node` linked list
- * up to and excluding `end`, with `node` innermost in the stack.
- */
-export const runSpans = (
-  node: SpanNode | undefined,
-  end: SpanNode | undefined,
-  work: () => void,
-): void => {
-  if (node === end) {
-    work();
-    return;
-  }
-  runSpans(node!.next, end, () => {
-    runSpan(node!.span, work);
-  });
-};
-
-/**
- * For each span in the `node` linked list, calls `notify` and then runs the
- * rest inside the span's `run` method, finishing with `work`, so that `node`
- * is outermost in the stack.
- */
-export const settleSpans = (
-  node: SpanNode | undefined,
-  notify: (span: Span<any>) => void,
-  work: () => void,
-): void => {
-  if (!node) {
-    work();
-    return;
-  }
-  try {
-    notify(node.span);
-  } catch (error) {
-    throwInMicrotask(error);
-  }
-  runSpan(node.span, () => {
-    settleSpans(node.next, notify, work);
-  });
-};
-
-/**
- * Same as `settleSpans` with `unsubscribe` as the notification, except that
- * the last node of the list is outermost in the stack.
- */
-export const unsubscribeSpans = (
-  node: SpanNode | undefined,
-  work: () => void,
-): void => {
-  if (!node) {
-    work();
-    return;
-  }
-  unsubscribeSpans(node.next, () => {
-    try {
-      node.span.unsubscribe?.();
-    } catch (error) {
-      throwInMicrotask(error);
-    }
-    runSpan(node.span, work);
-  });
-};
+}
 
 /**
  * Attached to a LazyPromise using its `trace` method.

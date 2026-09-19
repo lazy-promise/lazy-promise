@@ -67,40 +67,57 @@ fixes `all` leaking the context of whichever input resolved last.
 
 `lazyPromise.trace(tracer)` attaches a `Tracer` whose `subscribe(dep,
 subscription)` is called per subscription and may return a `Span` with optional
-`run(work)`, `resolve`, `reject`, `flatten`, `unsubscribe`. `log` is a tracer
-(`LogTracer`) attached to the same instance; attaching it twice reports an
-error in a microtask.
+`run(work, depth)`, `resolve`, `reject`, `flatten`, `unsubscribe`. `log` is a
+tracer (`LogTracer`) attached to the same instance; attaching it twice reports
+an error in a microtask.
 
 Decisions:
 
 - Spans observe the subscription from the outside. Redundant `sink` calls that
-  are no-ops are invisible to tracers; when a producer resolves with a
-  LazyPromise the outer span stays open and the inner LazyPromise's tracers add
-  their spans to the same subscription.
-- Ordering is causal. On settle, spans are notified newest first; on
-  unsubscribe, oldest first. Each notification is followed by that span's `run`
-  wrapping the consequent work (teardown, consumer, inner producer), so a
-  tracer using `run` to maintain ambient state (OpenTelemetry-style) sees a
-  consistent parent.
-- Nesting is logical, not physical. A module-level `activeSpans` chain records
-  which `run` frames are on the stack; the chain active when `sink.resolve`
-  was called is captured (`Sink.activeSpans`, `Subscription.pendingSpans`) and
-  replayed around the delivery or the next producer run in the trampoline
-  loop. Without this, the loop in `next()` would flatten all nesting away.
+  are no-ops are invisible to tracers. When a producer resolves with a
+  LazyPromise, the outer span stays open (its promise's value is the inner
+  promise's value) and the inner LazyPromise's tracers add their spans to the
+  same subscription. `flatten` goes only to the spans of the promise whose
+  producer resolved: what happens inside the inner promise is its own business.
+- The invariant to preserve: `sink.resolve(inner)` traces exactly like
+  `inner.subscribe(sink)` would, plus the `flatten` entry and the extra depth
+  it adds. That fixes the order of everything else: on settle, the spans of
+  the current (innermost) LazyPromise are notified and its job is torn down
+  inside their `run`, then the outer spans are notified and the consumer runs
+  inside their `run`; on unsubscribe, oldest first, teardown innermost.
+  `Subscription.olderSpans` marks where the current LazyPromise's spans end.
+- Depth instead of physical nesting. `run(work, depth)` is called with the
+  number of `run` frames logically enclosing the work. Within one event, a
+  `Chain` visits the spans one at a time, and each span's `run` wraps only the
+  part up to and including the next span's notification, the last one wrapping
+  the actual work, so the `run`s of a chain are siblings, not nested. An
+  event's chain does run inside whatever `run` is physically active when the
+  event happens (a synchronous `sink.resolve` inside the producer's `run`), but
+  that nesting is bounded because the trampoline loop unwinds it at each step.
+  Stack depth is bounded no matter how long the synchronous causal chain is
+  (see the "deep synchronous causality" test); the earlier design replayed the
+  whole chain of `run`s around every trampoline step and overflowed.
+- A single module-level `Frame` (innermost span + depth) is all the ambient
+  state. The frame active when `sink.resolve` was called is captured
+  (`Sink.frame`, `Subscription.pendingFrame`) and work that had to wait for the
+  producer to return (the trampoline step after a flatten, the consumer of an
+  untraced `map` over a traced promise) re-enters that one frame's `run`. So a
+  notification may be followed by more than one `run` call, each with the same
+  `depth`; a tracer must set up its state from `depth`, not by stacking on an
+  enclosing `run` (`log` keeps the original `console.log` while any `run` is
+  active). Passing `depth` to the notification handlers instead was rejected:
+  it still leaves the untraced-`map` consumer with no span to wrap it.
 - The `flatten` hook exists so that an asynchronous `sink.resolve(lazyPromise)`
   is treated like the other settlements: spans are notified, and the teardown
   plus the inner producer run inside their `run`. Without it that work ran
   outside any span. Re-entering `run` without a hook (a wrapped region with no
   cause visible to the tracer) and a separate wrapping `restore` hook were
   rejected as less legible.
-- Tracer failures never affect the traced program: exceptions from tracer
-  methods are rethrown in a microtask, and `run` is guarded so `work` executes
-  exactly once even if the tracer forgets to call it or calls it twice.
+- Tracers are trusted: no guards against `run` not calling `work` or handlers
+  throwing. A throwing tracer breaks the traced program, by design.
 - Untraced subscriptions take a separate code path with no closures (see
   AGENTS.md on V8 context allocation). The `...Traced` methods exist only for
   that reason.
-- Known limitation: stack depth grows with the number of traced steps in a
-  synchronous flatten chain (`runSpans`/`settleSpans` recurse).
 
 ## Type-level design
 

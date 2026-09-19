@@ -54,7 +54,7 @@ has the site's own operational notes.
   `@ts-expect-error` tests only fail under `tsc`.
 - Vite's SSR transform (vitest) snapshots imported bindings that are referenced
   in class field initializers into a `const` before the class, so a mutable
-  export (`activeSpans` in `trace.ts`) read there is stale under vitest but
+  export (`activeFrame` in `trace.ts`) read there is stale under vitest but
   fine in Node. Read such bindings in the constructor body instead.
 - `build/` is gitignored; deleting it is always safe.
 - Editor-only or CLI-only type errors are usually TS version skew (bundled VS

@@ -24,17 +24,13 @@ const formatOldLabel = (
       ? "no label"
       : "label " + JSON.stringify(oldLabel);
 
-const wrapLog =
-  (fn: typeof console.log): typeof console.log =>
-  (...args) => {
-    if (typeof args[0] === "string") {
-      fn("\u00B7 " + args[0], ...args.slice(1));
-      return;
-    }
-    fn("\u00B7", ...args);
-  };
-
 /* eslint-disable no-console */
+
+// `run` calls can be physically nested, so each patch has to wrap the
+// unpatched `console.log` rather than the current one. Valid while
+// `activeRuns` is positive.
+let originalLog = console.log;
+let activeRuns = 0;
 
 class LogTracer implements Tracer<any, any>, Span<any> {
   constructor(public prefix: string[]) {}
@@ -44,14 +40,22 @@ class LogTracer implements Tracer<any, any>, Span<any> {
     return this;
   }
 
-  run(work: () => void) {
-    const previousLog = console.log;
-    console.log = wrapLog(previousLog);
-    try {
-      work();
-    } finally {
-      console.log = previousLog;
+  run(work: () => void, depth: number) {
+    if (activeRuns++ === 0) {
+      originalLog = console.log;
     }
+    const previousLog = console.log;
+    const dots = "\u00B7 ".repeat(depth);
+    console.log = (...args) => {
+      if (typeof args[0] === "string") {
+        originalLog(dots + args[0], ...args.slice(1));
+        return;
+      }
+      originalLog(dots.trimEnd(), ...args);
+    };
+    work();
+    console.log = previousLog;
+    activeRuns--;
   }
 
   resolve(value: unknown) {

@@ -7,14 +7,14 @@ import { InjectProducer } from "./inject.js";
 import { log } from "./log.js";
 import { MapProducer } from "./map.js";
 import { ToEagerConsumerListener } from "./toEager.js";
-import type { Tracer } from "./trace.js";
+import type { Frame, Span, Tracer } from "./trace.js";
 import {
-  activeSpans,
-  runSpans,
-  settleSpans,
+  activeFrame,
+  Chain,
+  reverseSpans,
+  runInFrame,
   SpanNode,
   Tracing,
-  unsubscribeSpans,
 } from "./trace.js";
 import { throwInMicrotask } from "./utils.js";
 
@@ -69,7 +69,7 @@ class Sink<in Value, out Dep = unknown> {
   /** @internal */
   pending: any;
   /** @internal */
-  activeSpans: SpanNode | undefined;
+  frame: Frame | undefined;
 
   /** @internal */
   constructor(
@@ -90,7 +90,7 @@ class Sink<in Value, out Dep = unknown> {
     this.done = true;
     if (subscription.lazyPromise) {
       this.pending = value;
-      this.activeSpans = activeSpans;
+      this.frame = activeFrame;
       return;
     }
     // eslint-disable-next-line no-use-before-define
@@ -110,7 +110,7 @@ class Sink<in Value, out Dep = unknown> {
     if (subscription.lazyPromise) {
       this.rejected = true;
       this.pending = error;
-      this.activeSpans = activeSpans;
+      this.frame = activeFrame;
       return;
     }
     subscription.runInContext(subscription.reject, error);
@@ -130,12 +130,17 @@ class Subscription {
   settled: boolean = false;
   /** @internal */
   disposed: boolean = false;
+  // The spans of all the LazyPromises in the flattening chain, newest first.
+  // Those of the current LazyPromise (the last one in the chain) come before
+  // `olderSpans`, which is what `spans` was before its tracers were subscribed.
   /** @internal */
   spans: SpanNode | undefined;
-  // Spans to replay around the next producer run so that nesting is logical
-  // rather than physical.
   /** @internal */
-  pendingSpans: SpanNode | undefined;
+  olderSpans: SpanNode | undefined;
+  // The frame to run the next producer in: the one active when the run was
+  // caused, so that nesting is logical rather than physical.
+  /** @internal */
+  pendingFrame: Frame | undefined;
   // Created only once the producer has returned without settling, because
   // that's when the async context of `subscribe` can get lost.
   /** @internal */
@@ -156,7 +161,7 @@ class Subscription {
   ) {
     // Not a field initializer: Vite's SSR transform (used by vitest) snapshots
     // imported bindings referenced in class fields, losing the live binding.
-    this.pendingSpans = activeSpans;
+    this.pendingFrame = activeFrame;
   }
 
   // Methods that run when there is no tracing must not contain closures (even
@@ -165,13 +170,12 @@ class Subscription {
 
   /** @internal */
   next() {
-    const baseSpans = activeSpans;
     // `lazyPromise` stays set while the producer resolves with LazyPromises,
     // and is cleared when the subscription gets disposed.
     while (this.lazyPromise) {
       const sink = new Sink(this);
-      if (this.lazyPromise.tracers || this.pendingSpans !== baseSpans) {
-        this.runProducerTraced(sink, baseSpans);
+      if (this.lazyPromise.tracers || this.pendingFrame !== activeFrame) {
+        this.runProducerTraced(sink);
       } else {
         this.runProducer(sink);
       }
@@ -182,30 +186,22 @@ class Subscription {
   }
 
   /** @internal */
-  runProducerTraced(sink: Sink<any, any>, baseSpans: SpanNode | undefined) {
-    const lazyPromise = this.lazyPromise!;
-    runSpans(this.pendingSpans, baseSpans, () => {
-      const previousSpans = this.spans;
-      this.subscribeTracers(lazyPromise.tracers);
-      runSpans(this.spans, previousSpans, () => {
+  runProducerTraced(sink: Sink<any, any>) {
+    this.olderSpans = this.spans;
+    new Chain(
+      this.lazyPromise!.tracers,
+      undefined,
+      (tracing) => {
+        const span = tracing.tracer.subscribe(this.dep, this);
+        if (span) {
+          this.spans = new SpanNode(span, this.spans);
+        }
+        return span;
+      },
+      () => {
         this.runProducer(sink);
-      });
-    });
-  }
-
-  /** @internal */
-  subscribeTracers(tracers: Tracing | undefined) {
-    for (let tracing = tracers; tracing; tracing = tracing.next) {
-      let span;
-      try {
-        span = tracing.tracer.subscribe(this.dep, this);
-      } catch (error) {
-        throwInMicrotask(error);
-      }
-      if (span) {
-        this.spans = new SpanNode(span, this.spans);
-      }
-    }
+      },
+    ).run(this.pendingFrame);
   }
 
   /** @internal */
@@ -223,7 +219,7 @@ class Subscription {
     }
     this.lazyPromise = undefined;
     // For GC purposes.
-    this.pendingSpans = undefined;
+    this.pendingFrame = undefined;
     this.job = job;
     if (this.disposed) {
       this.disposeJob();
@@ -233,17 +229,17 @@ class Subscription {
       return;
     }
     const pending = sink.pending;
-    const spans = sink.activeSpans;
+    const frame = sink.frame;
     // In case the producer holds on to the sink.
     sink.pending = undefined;
-    sink.activeSpans = undefined;
+    sink.frame = undefined;
     // eslint-disable-next-line no-use-before-define
     if (!sink.rejected && pending instanceof LazyPromise) {
-      this.flatten(pending, spans);
+      this.flatten(pending, frame);
       return;
     }
-    if (spans !== activeSpans) {
-      this.settleTraced(spans, sink.rejected, pending);
+    if (frame !== activeFrame) {
+      this.settleInFrame(frame, sink.rejected, pending);
     } else if (sink.rejected) {
       this.reject(pending);
     } else {
@@ -252,17 +248,13 @@ class Subscription {
   }
 
   /**
-   * Runs the settlement inside the spans that were active when the sink was
+   * Runs the settlement inside the frame that was active when the sink was
    * used, so that nesting is logical rather than physical.
    *
    * @internal
    */
-  settleTraced(
-    spans: SpanNode | undefined,
-    rejected: boolean,
-    pending: unknown,
-  ) {
-    runSpans(spans, activeSpans, () => {
+  settleInFrame(frame: Frame | undefined, rejected: boolean, pending: unknown) {
+    runInFrame(frame, () => {
       if (rejected) {
         this.reject(pending);
       } else {
@@ -278,15 +270,15 @@ class Subscription {
    * @internal
    */
   // eslint-disable-next-line no-use-before-define
-  flatten(lazyPromise: LazyPromise<any, any>, spans: SpanNode | undefined) {
+  flatten(lazyPromise: LazyPromise<any, any>, frame: Frame | undefined) {
     // Set before the teardown runs, which may dispose the subscription and
     // clear it.
     this.lazyPromise = lazyPromise;
     if (this.spans) {
-      this.flattenTraced(lazyPromise, spans);
+      this.flattenTraced(lazyPromise, frame);
       return;
     }
-    this.pendingSpans = spans;
+    this.pendingFrame = frame;
     this.disposeJob();
   }
 
@@ -294,27 +286,27 @@ class Subscription {
   flattenTraced(
     // eslint-disable-next-line no-use-before-define
     lazyPromise: LazyPromise<any, any>,
-    spans: SpanNode | undefined,
+    frame: Frame | undefined,
   ) {
-    runSpans(spans, activeSpans, () => {
-      settleSpans(
-        this.spans,
-        (span) => {
-          span.flatten?.(lazyPromise);
-        },
-        () => {
-          // The next producer run is nested in the spans' `run` calls.
-          this.pendingSpans = activeSpans;
-          this.disposeJob();
-        },
-      );
-    });
+    new Chain(
+      this.spans,
+      this.olderSpans,
+      (node) => {
+        node.span.flatten?.(lazyPromise);
+        return node.span;
+      },
+      () => {
+        // The inner producer runs from the loop in `next`, but in this frame.
+        this.pendingFrame = activeFrame;
+        this.disposeJob();
+      },
+    ).run(frame);
   }
 
   /** @internal */
   // eslint-disable-next-line no-use-before-define
   resolveWithLazyPromise(lazyPromise: LazyPromise<any, any>) {
-    this.flatten(lazyPromise, activeSpans);
+    this.flatten(lazyPromise, activeFrame);
     this.next();
   }
 
@@ -335,15 +327,11 @@ class Subscription {
 
   /** @internal */
   resolveTraced(value: any) {
-    const spans = this.spans;
-    this.spans = undefined;
-    settleSpans(
-      spans,
+    this.settleSpans(
       (span) => {
         span.resolve?.(value);
       },
       () => {
-        this.disposeJob();
         this.consumeValue(value);
       },
     );
@@ -366,18 +354,34 @@ class Subscription {
 
   /** @internal */
   rejectTraced(error: unknown) {
-    const spans = this.spans;
-    this.spans = undefined;
-    settleSpans(
-      spans,
+    this.settleSpans(
       (span) => {
         span.reject?.(error);
       },
       () => {
-        this.disposeJob();
         this.consumeError(error);
       },
     );
+  }
+
+  /**
+   * Notifies the spans of the current LazyPromise, tears down its job inside
+   * their `run`, and only then notifies the spans of the outer LazyPromises,
+   * running `consume` inside their `run`: the same order as when the current
+   * LazyPromise is subscribed manually by the outer producer.
+   *
+   * @internal
+   */
+  settleSpans(notify: (span: Span<any>) => void, consume: () => void) {
+    const olderSpans = this.olderSpans;
+    const visit = (node: SpanNode) => {
+      notify(node.span);
+      return node.span;
+    };
+    new Chain(this.takeSpans(), olderSpans, visit, () => {
+      this.disposeJob();
+      new Chain(olderSpans, undefined, visit, consume).run(activeFrame);
+    }).run(activeFrame);
   }
 
   /** @internal */
@@ -418,7 +422,7 @@ class Subscription {
     // Ends the loop in `next` if the producer is running.
     this.lazyPromise = undefined;
     // For GC purposes.
-    this.pendingSpans = undefined;
+    this.pendingFrame = undefined;
     // For GC purposes.
     this.consumer = undefined;
     // For GC purposes.
@@ -439,11 +443,26 @@ class Subscription {
 
   /** @internal */
   disposeTraced() {
+    // Oldest first, so that the teardown is innermost.
+    new Chain(
+      reverseSpans(this.takeSpans()),
+      undefined,
+      (node) => {
+        node.span.unsubscribe?.();
+        return node.span;
+      },
+      () => {
+        this.disposeJob();
+      },
+    ).run(activeFrame);
+  }
+
+  /** @internal */
+  takeSpans() {
     const spans = this.spans;
     this.spans = undefined;
-    unsubscribeSpans(spans, () => {
-      this.disposeJob();
-    });
+    this.olderSpans = undefined;
+    return spans;
   }
 
   /** @internal */

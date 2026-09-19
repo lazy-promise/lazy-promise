@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, expectTypeOf, test } from "vitest";
 
 const mockMicrotaskQueue: (() => void)[] = [];
 const originalQueueMicrotask = queueMicrotask;
-const logContents: unknown[] = [];
+const logContents: unknown[][] = [];
 let depth = 0;
 
 const log = (...args: unknown[]) => {
@@ -28,13 +28,11 @@ const processMockMicrotaskQueue = () => {
 class LogSpan implements Span<unknown> {
   constructor(public label: string) {}
 
-  run(work: () => void) {
-    depth++;
-    try {
-      work();
-    } finally {
-      depth--;
-    }
+  run(work: () => void, runDepth: number) {
+    const previousDepth = depth;
+    depth = runDepth;
+    work();
+    depth = previousDepth;
   }
 
   resolve(value: unknown) {
@@ -366,6 +364,7 @@ test("multiple tracers", () => {
         undefined,
       ],
       [
+        "·",
         "a",
         "subscribe",
         undefined,
@@ -410,11 +409,13 @@ test("detach", () => {
         undefined,
       ],
       [
+        "·",
         "b",
         "subscribe",
         undefined,
       ],
       [
+        "· ·",
         "a",
         "subscribe",
         undefined,
@@ -452,6 +453,7 @@ test("detach", () => {
         undefined,
       ],
       [
+        "·",
         "a",
         "subscribe",
         undefined,
@@ -537,144 +539,6 @@ test("tracer that returns no span", () => {
       [
         "subscribe",
         undefined,
-      ],
-      [
-        "consume",
-        1,
-      ],
-    ]
-  `);
-});
-
-test("errors thrown by tracer", () => {
-  const promise = new LazyPromise<never>(() => () => {
-    log("teardown");
-  });
-  promise.trace({
-    subscribe: () => {
-      throw "subscribe error";
-    },
-  });
-  promise.trace({
-    subscribe: () => ({
-      run: () => {
-        throw "run error";
-      },
-      unsubscribe: () => {
-        throw "unsubscribe error";
-      },
-    }),
-  });
-  promise.subscribe().dispose();
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "teardown",
-      ],
-    ]
-  `);
-  expect(mockMicrotaskQueue.length).toBe(4);
-  expect(processMockMicrotaskQueue).toThrow("subscribe error");
-  expect(processMockMicrotaskQueue).toThrow("run error");
-  expect(processMockMicrotaskQueue).toThrow("unsubscribe error");
-  expect(processMockMicrotaskQueue).toThrow("run error");
-});
-
-test("errors thrown by tracer when settling", () => {
-  const throwingSpan: Span<unknown> = {
-    run: (work) => {
-      work();
-      throw "run error";
-    },
-    resolve: () => {
-      throw "resolve error";
-    },
-    reject: () => {
-      throw "reject error";
-    },
-    flatten: () => {
-      throw "flatten error";
-    },
-  };
-  const inner = box(1);
-  inner.trace({ subscribe: () => throwingSpan });
-  const outer = new LazyPromise<number>((sink) => {
-    sink.resolve(inner);
-  });
-  outer.trace({ subscribe: () => throwingSpan });
-  outer.subscribe({
-    resolve: (value) => {
-      log("consume", value);
-    },
-  });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "consume",
-        1,
-      ],
-    ]
-  `);
-  // Flatten of outer and its run, producer run of outer, then, nested: resolve
-  // of inner, resolve of outer, and the five remaining runs unwinding.
-  expect(mockMicrotaskQueue.length).toBe(10);
-  expect(processMockMicrotaskQueue).toThrow("flatten error");
-  expect(processMockMicrotaskQueue).toThrow("run error");
-  expect(processMockMicrotaskQueue).toThrow("run error");
-  expect(processMockMicrotaskQueue).toThrow("resolve error");
-  expect(processMockMicrotaskQueue).toThrow("resolve error");
-  expect(processMockMicrotaskQueue).toThrow("run error");
-  expect(processMockMicrotaskQueue).toThrow("run error");
-  expect(processMockMicrotaskQueue).toThrow("run error");
-  expect(processMockMicrotaskQueue).toThrow("run error");
-  expect(processMockMicrotaskQueue).toThrow("run error");
-
-  rejecting("oops")
-    .pipe((promise) => {
-      promise.trace({ subscribe: () => throwingSpan });
-      return promise;
-    })
-    .subscribe({
-      reject: (error) => {
-        log("consume", error);
-      },
-    });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "consume",
-        "oops",
-      ],
-    ]
-  `);
-  expect(mockMicrotaskQueue.length).toBe(3);
-  expect(processMockMicrotaskQueue).toThrow("reject error");
-  expect(processMockMicrotaskQueue).toThrow("run error");
-  expect(processMockMicrotaskQueue).toThrow("run error");
-});
-
-test("work is run exactly once", () => {
-  const promise = new LazyPromise<number>((sink) => {
-    log("produce");
-    sink.resolve(1);
-  });
-  promise.trace({
-    subscribe: () => ({
-      run: (work) => {
-        work();
-        work();
-      },
-    }),
-  });
-  promise.subscribe({
-    resolve: (value) => {
-      log("consume", value);
-    },
-  });
-  expect(readLog()).toMatchInlineSnapshot(`
-    [
-      [
-        "produce",
       ],
       [
         "consume",
@@ -923,4 +787,389 @@ test("nesting is preserved across the flattening loop for untraced promises", ()
       ],
     ]
   `);
+});
+
+test("flatten is only reported to the spans of the resolving promise", () => {
+  const inner = box(1);
+  inner.trace(new LogTracer("inner"));
+  const mid = new LazyPromise<number>((sink) => {
+    sink.resolve(inner);
+  });
+  mid.trace(new LogTracer("mid"));
+  const outer = new LazyPromise<number>((sink) => {
+    sink.resolve(mid);
+  });
+  outer.trace(new LogTracer("outer"));
+  outer.subscribe({
+    resolve: (value) => {
+      log("consume", value);
+    },
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "outer",
+        "subscribe",
+        undefined,
+      ],
+      [
+        "·",
+        "outer",
+        "flatten",
+      ],
+      [
+        "· ·",
+        "mid",
+        "subscribe",
+        undefined,
+      ],
+      [
+        "· · ·",
+        "mid",
+        "flatten",
+      ],
+      [
+        "· · · ·",
+        "inner",
+        "subscribe",
+        undefined,
+      ],
+      [
+        "· · · · ·",
+        "inner",
+        "resolve",
+        1,
+      ],
+      [
+        "· · · · · ·",
+        "mid",
+        "resolve",
+        1,
+      ],
+      [
+        "· · · · · · ·",
+        "outer",
+        "resolve",
+        1,
+      ],
+      [
+        "· · · · · · · ·",
+        "consume",
+        1,
+      ],
+    ]
+  `);
+});
+
+test("resolving with a LazyPromise traces like subscribing to it manually", () => {
+  const getInner = () => {
+    const inner = new LazyPromise<number>((sink) => {
+      log("produce inner");
+      sink.resolve(1);
+      return () => {
+        log("teardown inner");
+      };
+    });
+    inner.trace(new LogTracer("inner"));
+    return inner;
+  };
+  const manual = new LazyPromise<number>((sink) => getInner().subscribe(sink));
+  manual.trace(new LogTracer("outer"));
+  manual.subscribe({
+    resolve: (value) => {
+      log("consume", value);
+    },
+  });
+  const manualLog = readLog();
+  expect(manualLog).toMatchInlineSnapshot(`
+    [
+      [
+        "outer",
+        "subscribe",
+        undefined,
+      ],
+      [
+        "·",
+        "inner",
+        "subscribe",
+        undefined,
+      ],
+      [
+        "· ·",
+        "produce inner",
+      ],
+      [
+        "· ·",
+        "inner",
+        "resolve",
+        1,
+      ],
+      [
+        "· · ·",
+        "teardown inner",
+      ],
+      [
+        "· · ·",
+        "outer",
+        "resolve",
+        1,
+      ],
+      [
+        "· · · ·",
+        "consume",
+        1,
+      ],
+    ]
+  `);
+
+  const flattened = new LazyPromise<number>((sink) => {
+    sink.resolve(getInner());
+  });
+  flattened.trace(new LogTracer("outer"));
+  flattened.subscribe({
+    resolve: (value) => {
+      log("consume", value);
+    },
+  });
+  const flattenedLog = readLog();
+  expect(flattenedLog).toMatchInlineSnapshot(`
+    [
+      [
+        "outer",
+        "subscribe",
+        undefined,
+      ],
+      [
+        "·",
+        "outer",
+        "flatten",
+      ],
+      [
+        "· ·",
+        "inner",
+        "subscribe",
+        undefined,
+      ],
+      [
+        "· · ·",
+        "produce inner",
+      ],
+      [
+        "· · ·",
+        "inner",
+        "resolve",
+        1,
+      ],
+      [
+        "· · · ·",
+        "teardown inner",
+      ],
+      [
+        "· · · ·",
+        "outer",
+        "resolve",
+        1,
+      ],
+      [
+        "· · · · ·",
+        "consume",
+        1,
+      ],
+    ]
+  `);
+  // Same as the manual log, except for the flatten entry and the extra dot it
+  // adds to what follows.
+  expect(
+    flattenedLog
+      .slice(2)
+      .map(([dots, ...rest]) => [(dots as string).slice(2), ...rest]),
+  ).toEqual(manualLog.slice(1));
+});
+
+test("unsubscribing after resolving with a LazyPromise traces like unsubscribing manually", () => {
+  const getInner = () => {
+    const inner = new LazyPromise<never>(() => () => {
+      log("teardown inner");
+    });
+    inner.trace(new LogTracer("inner"));
+    return inner;
+  };
+  const manual = new LazyPromise<never>((sink) => getInner().subscribe(sink));
+  manual.trace(new LogTracer("outer"));
+  manual.subscribe().dispose();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "outer",
+        "subscribe",
+        undefined,
+      ],
+      [
+        "·",
+        "inner",
+        "subscribe",
+        undefined,
+      ],
+      [
+        "outer",
+        "unsubscribe",
+      ],
+      [
+        "·",
+        "inner",
+        "unsubscribe",
+      ],
+      [
+        "· ·",
+        "teardown inner",
+      ],
+    ]
+  `);
+
+  const flattened = new LazyPromise<never>((sink) => {
+    sink.resolve(getInner());
+  });
+  flattened.trace(new LogTracer("outer"));
+  flattened.subscribe().dispose();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "outer",
+        "subscribe",
+        undefined,
+      ],
+      [
+        "·",
+        "outer",
+        "flatten",
+      ],
+      [
+        "· ·",
+        "inner",
+        "subscribe",
+        undefined,
+      ],
+      [
+        "outer",
+        "unsubscribe",
+      ],
+      [
+        "·",
+        "inner",
+        "unsubscribe",
+      ],
+      [
+        "· ·",
+        "teardown inner",
+      ],
+    ]
+  `);
+});
+
+test("run is called with the work in pieces when it is deferred", () => {
+  // The consumer of `map` is caused by the resolve of `traced`, but can only
+  // run once the producer of `map` has returned.
+  const traced = box(1);
+  traced.trace({
+    subscribe: () => ({
+      run: (work, depth) => {
+        log("run", depth);
+        work();
+      },
+    }),
+  });
+  traced
+    .map((value) => value + 1)
+    .subscribe({
+      resolve: (value) => {
+        log("consume", value);
+      },
+    });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "run",
+        1,
+      ],
+      [
+        "run",
+        2,
+      ],
+      [
+        "run",
+        2,
+      ],
+      [
+        "consume",
+        2,
+      ],
+    ]
+  `);
+});
+
+test("deep synchronous causality does not grow the stack", () => {
+  const getMaxStackDepth = (stackDepth = 1): number => {
+    try {
+      return getMaxStackDepth(stackDepth + 1);
+    } catch {
+      return stackDepth;
+    }
+  };
+  const count = getMaxStackDepth() + 10;
+  let maxDepth = 0;
+  const depthTracer: Tracer<unknown> = {
+    subscribe: () => ({
+      run: (work, runDepth) => {
+        maxDepth = Math.max(maxDepth, runDepth);
+        work();
+      },
+    }),
+  };
+
+  // A single traced promise in a recursion.
+  const traced = box(undefined);
+  traced.trace(depthTracer);
+  const loop = (remaining: number): LazyPromise<string> =>
+    traced.map(() => (remaining === 0 ? "value" : loop(remaining - 1)));
+  loop(count).subscribe({
+    resolve: (value) => {
+      log("consume", value);
+    },
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "consume",
+        "value",
+      ],
+    ]
+  `);
+  expect(maxDepth).toBe(2 * count + 2);
+
+  // Every promise in a flatten chain traced.
+  maxDepth = 0;
+  const getInner = (remaining: number): LazyPromise<string> => {
+    const inner = new LazyPromise<string>((sink) => {
+      sink.resolve(remaining === 0 ? "value" : getInner(remaining - 1));
+    });
+    inner.trace(depthTracer);
+    return inner;
+  };
+  getInner(count).subscribe({
+    resolve: (value) => {
+      log("consume", value);
+    },
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "consume",
+        "value",
+      ],
+    ]
+  `);
+  // Two runs per level (producer, teardown), then the settle chain over all
+  // the levels.
+  expect(maxDepth).toBe(3 * count + 2);
+  getInner(count).subscribe().dispose();
 });

@@ -47,4 +47,4 @@ tracing.dispose();
 
 When flattening, the `subscribe` notification for the inner promise is given the same `subscription` argument as the one for the outer promise.
 
-A `Span` can also have a method `run(work)` which wraps any synchronous work done on behalf of the subscription (running the producer, the consumer or the teardown logic). `run` calls are nested based on causality and until an async boundary is crossed, producing the same behavior as you see with `log`'s dots.
+A `Span` can also have a method `run(work, depth)` which wraps synchronous work done on behalf of the subscription (running the producer, the consumer or the teardown logic). `depth` is the number of `run` calls that logically enclose the work, counting this one, based on causality and until an async boundary is crossed; it is what `log` turns into dots. Physical nesting of `run` calls does not follow `depth`. A `run` implementation should therefore set up its state from `depth` rather than from the state of an enclosing `run`.
