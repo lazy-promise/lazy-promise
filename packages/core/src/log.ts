@@ -73,59 +73,22 @@ class LogTracer implements Tracer<any, any>, Span<any> {
 
 /* eslint-enable no-console */
 
-/**
- * Passes a LazyPromise through without changing its identity but adds logging
- * of everything that happens to it.
- *
- * ```
- * lazyPromise.pipe(log("optional label"))
- * ```
- *
- * While running callbacks, patches `console.log` so that the arguments are
- * prefixed with dots indicating causality, so
- *
- * ```
- * box(1)
- *   .pipe(log("a"))
- *   .map(() => {
- *     console.log("mapping");
- *   })
- *   .subscribe();
- * ```
- *
- * will log
- *
- * ```
- * [a] [1] [subscribe] undefined
- * · [a] [1] [resolve] 1
- * · · mapping
- * ```
- *
- * Dots reset whenever an async boundary is crossed. The number in the second
- * pair of brackets tells apart entries that share a label. The value logged
- * after `[subscribe]` is the dependency.
- */
-export const log =
-  (label?: string | number) =>
-  <Value, Dep>(
-    lazyPromise: LazyPromise<Value, Dep>,
-  ): LazyPromise<Value, Dep> => {
-    if (labelMap.has(lazyPromise)) {
-      throwInMicrotask(
-        new Error(
-          `The log(...) call (${formatNewLabel(label)}) was ignored because the LazyPromise is already being logged (${formatOldLabel(labelMap.get(lazyPromise), label)}).`,
-        ),
-      );
-      return lazyPromise;
-    }
-    labelMap.set(lazyPromise, label);
-    const id = (instanceCountMap.get(label) ?? 0) + 1;
-    instanceCountMap.set(label, id);
-    lazyPromise.trace(
-      new LogTracer([
-        ...(label === undefined ? [] : [`[${label}]`]),
-        `[${id}]`,
-      ]),
+export const log = (
+  lazyPromise: LazyPromise<any, any>,
+  label: string | number | undefined,
+): void => {
+  if (labelMap.has(lazyPromise)) {
+    throwInMicrotask(
+      new Error(
+        `The .log(...) call (${formatNewLabel(label)}) was ignored because the LazyPromise is already being logged (${formatOldLabel(labelMap.get(lazyPromise), label)}).`,
+      ),
     );
-    return lazyPromise;
-  };
+    return;
+  }
+  labelMap.set(lazyPromise, label);
+  const id = (instanceCountMap.get(label) ?? 0) + 1;
+  instanceCountMap.set(label, id);
+  lazyPromise.trace(
+    new LogTracer([...(label === undefined ? [] : [`[${label}]`]), `[${id}]`]),
+  );
+};

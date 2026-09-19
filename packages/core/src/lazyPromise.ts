@@ -4,6 +4,7 @@ import { CatchProducer } from "./catch.js";
 import { CatchBoxedProducer } from "./catchBoxed.js";
 import { FinallyProducer } from "./finally.js";
 import { InjectProducer } from "./inject.js";
+import { log } from "./log.js";
 import { MapProducer } from "./map.js";
 import { ToEagerConsumerListener } from "./toEager.js";
 import type { Tracer } from "./trace.js";
@@ -712,6 +713,39 @@ export class LazyPromise<out Value, in Dep = unknown> {
     tracer: Tracer<Unbox<This>, InferDep<This>>,
   ): Tracing {
     return new Tracing(tracer, this as unknown as LazyPromise<any, any>);
+  }
+
+  /**
+   * Returns the LazyPromise itself but adds logging of everything that
+   * happens to it.
+   *
+   * While running callbacks, patches `console.log` so that the arguments are
+   * prefixed with dots indicating causality, so
+   *
+   * ```
+   * box(1)
+   *   .log("a")
+   *   .map(() => {
+   *     console.log("mapping");
+   *   })
+   *   .subscribe();
+   * ```
+   *
+   * will log
+   *
+   * ```
+   * [a] [1] [subscribe] undefined
+   * · [a] [1] [resolve] 1
+   * · · mapping
+   * ```
+   *
+   * Dots reset whenever an async boundary is crossed. The number in the second
+   * pair of brackets tells apart entries that share a label. The value logged
+   * after `[subscribe]` is the dependency.
+   */
+  log(label?: string | number): this {
+    log(this, label);
+    return this;
   }
 
   // Gives `Dep` a contravariant occurrence.

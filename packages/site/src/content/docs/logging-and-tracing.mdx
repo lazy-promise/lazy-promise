@@ -4,11 +4,11 @@ title: Logging and tracing
 
 ## log
 
-The library provides a `log` utility that passes a LazyPromise through without changing its identity but adds logging of everything that happens to it: `lazyPromise.pipe(log("your label"))`. While callbacks are running, `log` patches `console.log` so that the arguments are prefixed with dots indicating causality, so
+The `log` method passes the LazyPromise along without changing its identity but adds logging of everything that happens to it: `lazyPromise.log("your label")`. While callbacks are running, `log` patches `console.log` so that the arguments are prefixed with dots indicating causality, so
 
 ```ts
 box(1)
-  .pipe(log("a"))
+  .log("a")
   .map(() => {
     console.log("mapping");
   })
