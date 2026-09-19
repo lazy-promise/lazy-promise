@@ -23,7 +23,7 @@ logs
 · · mapping
 ```
 
-Dots reset whenever an async boundary is crossed. The number in the second pair of brackets tells apart entries that share a label. The value logged after `[subscribe]` is the dependency.
+Dots reset whenever an async boundary is crossed. Past 10 of them, the prefix is abbreviated to `· * 11`, `· * 12` and so on. The number in the second pair of brackets tells apart entries that share a label. The value logged after `[subscribe]` is the dependency.
 
 ## trace
 
@@ -47,4 +47,4 @@ tracing.dispose();
 
 When flattening, the `subscribe` notification for the inner promise is given the same `subscription` argument as the one for the outer promise.
 
-A `Span` can also have a method `run(work, depth)` which wraps synchronous work done on behalf of the subscription (running the producer, the consumer or the teardown logic). `depth` is the number of `run` calls that logically enclose the work, counting this one, based on causality and until an async boundary is crossed; it is what `log` turns into dots. Physical nesting of `run` calls does not follow `depth`. A `run` implementation should therefore set up its state from `depth` rather than from the state of an enclosing `run`.
+A `Span` can also have a method `run(work, depth)` which wraps synchronous work done on behalf of the subscription (running the producer, the consumer or the teardown logic). `depth` lets you trace causality within async boundaries: it is what `log` turns into dots (actual nesting of `run` calls does not follow `depth` and should not be relied on). You can also trace causality across async boundaries by writing to async context (currently Node's `AsyncLocalStorage`) in `run` and reading from it in the other methods of `Span`, as demonstrated in [traceAsync.test.ts](https://github.com/lazy-promise/lazy-promise/blob/main/packages/core/src/traceAsync.test.ts).

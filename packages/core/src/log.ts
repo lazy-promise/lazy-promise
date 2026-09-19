@@ -32,6 +32,9 @@ const formatOldLabel = (
 let originalLog = console.log;
 let activeRuns = 0;
 
+const formatDots = (depth: number) =>
+  depth > 10 ? `\u00B7 * ${depth} ` : "\u00B7 ".repeat(depth);
+
 class LogTracer implements Tracer<any, any>, Span<any> {
   constructor(public prefix: string[]) {}
 
@@ -45,7 +48,7 @@ class LogTracer implements Tracer<any, any>, Span<any> {
       originalLog = console.log;
     }
     const previousLog = console.log;
-    const dots = "\u00B7 ".repeat(depth);
+    const dots = formatDots(depth);
     console.log = (...args) => {
       if (typeof args[0] === "string") {
         originalLog(dots + args[0], ...args.slice(1));

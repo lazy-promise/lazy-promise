@@ -40,6 +40,19 @@ async context of the `subscribe` call. Implementation (`asyncResource.ts`):
   subscription, but only when the producer returned without settling (a
   synchronous settlement cannot lose context). `Subscription.runInContext(
 method, arg)` wraps delivery, flattening and teardown in `runInAsyncScope`.
+- Tracing interplay: span notifications run in the context of the code that
+  caused them (the settle or dispose call), and only then is the context of
+  `subscribe` restored, for the `run` calls and the work (`Chain.start`). This
+  is what lets a tracer that sets up an `AsyncLocalStorage` store in `run`
+  follow causality across async boundaries (`traceAsync.test.ts`). After
+  restoring, the library re-enters the `run` of the frame that was active, if
+  any, so that the context set up by `run` wins over the restored one
+  everywhere, not just for the traced promise's direct consumer: an untraced
+  `map` between two traced promises settles inside the upstream span's `run`
+  and would otherwise cut the tracer's context chain
+  (`Subscription.runInContextAndFrame`, `Chain.finishInFrame`). Skipping the
+  restore whenever a `run` is active was rejected because attaching a tracer
+  would then change the user's context in unrelated consumers.
 - In browsers (`process.versions.node` absent) it is a no-op. In a Node-like
   runtime without `getBuiltinModule` the module throws at import: silent loss
   of context is worse than a loud failure. This sets `engines` to Node
@@ -115,6 +128,11 @@ Decisions:
   rejected as less legible.
 - Tracers are trusted: no guards against `run` not calling `work` or handlers
   throwing. A throwing tracer breaks the traced program, by design.
+- Tests: `log.test.ts` and `traceAsync.test.ts` pin behavior through logger
+  output (the latter with an `AsyncLocalStorage`-based logger that shows the
+  causal chain after async boundaries); `trace.test.ts` keeps only what a
+  logger cannot show (types, partial spans, multiple tracers, detaching, `run`
+  called in pieces, bounded stack depth).
 - Untraced subscriptions take a separate code path with no closures (see
   AGENTS.md on V8 context allocation). The `...Traced` methods exist only for
   that reason.

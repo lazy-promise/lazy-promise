@@ -12,6 +12,7 @@ import {
   activeFrame,
   Chain,
   reverseSpans,
+  runFrame,
   runInFrame,
   SpanNode,
   Tracing,
@@ -174,7 +175,13 @@ class Subscription {
     // and is cleared when the subscription gets disposed.
     while (this.lazyPromise) {
       const sink = new Sink(this);
-      if (this.lazyPromise.tracers || this.pendingFrame !== activeFrame) {
+      // `this.spans`: even an untraced inner producer of a traced subscription
+      // goes through the chain, which restores the context of `subscribe`.
+      if (
+        this.lazyPromise.tracers ||
+        this.spans ||
+        this.pendingFrame !== activeFrame
+      ) {
         this.runProducerTraced(sink);
       } else {
         this.runProducer(sink);
@@ -201,7 +208,7 @@ class Subscription {
       () => {
         this.runProducer(sink);
       },
-    ).run(this.pendingFrame);
+    ).run(this.pendingFrame, this.asyncResource);
   }
 
   /** @internal */
@@ -300,7 +307,7 @@ class Subscription {
         this.pendingFrame = activeFrame;
         this.disposeJob();
       },
-    ).run(frame);
+    ).run(frame, this.asyncResource);
   }
 
   /** @internal */
@@ -315,12 +322,12 @@ class Subscription {
     this.settled = true;
     // For GC purposes.
     this.dep = undefined;
-    // For GC purposes.
-    this.asyncResource = undefined;
     if (this.spans) {
       this.resolveTraced(value);
       return;
     }
+    // For GC purposes.
+    this.asyncResource = undefined;
     this.disposeJob();
     this.consumeValue(value);
   }
@@ -342,12 +349,12 @@ class Subscription {
     this.settled = true;
     // For GC purposes.
     this.dep = undefined;
-    // For GC purposes.
-    this.asyncResource = undefined;
     if (this.spans) {
       this.rejectTraced(error);
       return;
     }
+    // For GC purposes.
+    this.asyncResource = undefined;
     this.disposeJob();
     this.consumeError(error);
   }
@@ -381,7 +388,9 @@ class Subscription {
     new Chain(this.takeSpans(), olderSpans, visit, () => {
       this.disposeJob();
       new Chain(olderSpans, undefined, visit, consume).run(activeFrame);
-    }).run(activeFrame);
+    }).run(activeFrame, this.asyncResource);
+    // For GC purposes.
+    this.asyncResource = undefined;
   }
 
   /** @internal */
@@ -432,13 +441,13 @@ class Subscription {
 
   /** @internal */
   teardown() {
-    // For GC purposes.
-    this.asyncResource = undefined;
     if (this.spans) {
       this.disposeTraced();
-    } else {
-      this.disposeJob();
+      return;
     }
+    // For GC purposes.
+    this.asyncResource = undefined;
+    this.disposeJob();
   }
 
   /** @internal */
@@ -454,7 +463,9 @@ class Subscription {
       () => {
         this.disposeJob();
       },
-    ).run(activeFrame);
+    ).run(activeFrame, this.asyncResource);
+    // For GC purposes.
+    this.asyncResource = undefined;
   }
 
   /** @internal */
@@ -481,16 +492,36 @@ class Subscription {
   }
 
   /**
-   * Calls the method in the async context of `subscribe`.
+   * Calls the method in the async context of `subscribe`. Not when traced:
+   * the spans are notified in the context of whatever caused the call, and
+   * the chain restores the context of `subscribe` for the `run` calls and
+   * the work.
    *
    * @internal
    */
   runInContext<Arg>(method: (this: this, arg: Arg) => void, arg: Arg) {
-    if (this.asyncResource) {
-      this.asyncResource.runInAsyncScope(method, this, arg);
-    } else {
+    if (!this.asyncResource || this.spans) {
       method.call(this, arg);
+    } else if (activeFrame) {
+      this.runInContextAndFrame(method, arg);
+    } else {
+      this.asyncResource.runInAsyncScope(method, this, arg);
     }
+  }
+
+  /**
+   * Re-enters the active frame after restoring the context, so that the
+   * context set up by its `run` wins over the restored one.
+   *
+   * @internal
+   */
+  runInContextAndFrame<Arg>(method: (this: this, arg: Arg) => void, arg: Arg) {
+    const frame = activeFrame!;
+    this.asyncResource!.runInAsyncScope(() => {
+      runFrame(frame, () => {
+        method.call(this, arg);
+      });
+    }, undefined);
   }
 }
 
@@ -758,9 +789,10 @@ export class LazyPromise<out Value, in Dep = unknown> {
    * · · mapping
    * ```
    *
-   * Dots reset whenever an async boundary is crossed. The number in the second
-   * pair of brackets tells apart entries that share a label. The value logged
-   * after `[subscribe]` is the dependency.
+   * Dots reset whenever an async boundary is crossed. Past 10 of them, the
+   * prefix is abbreviated to `· * 11`, `· * 12` and so on. The number in the
+   * second pair of brackets tells apart entries that share a label. The value
+   * logged after `[subscribe]` is the dependency.
    */
   log(label?: string | number): this {
     log(this, label);

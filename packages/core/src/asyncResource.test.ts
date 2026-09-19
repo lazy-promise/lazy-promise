@@ -324,6 +324,223 @@ test("the context set up by a span's `run` wins over the restored one", async ()
   `);
 });
 
+test("spans are notified in the context of the settle call, before the context of subscribe is restored", () => {
+  const logTracer = {
+    subscribe: () => ({
+      resolve: () => {
+        log("span resolve");
+      },
+      reject: () => {
+        log("span reject");
+      },
+      flatten: () => {
+        log("span flatten");
+      },
+      unsubscribe: () => {
+        log("span unsubscribe");
+      },
+    }),
+  };
+  let sink: Sink<number>;
+  const promise = new LazyPromise<number>((sinkLocal) => {
+    sink = sinkLocal;
+    return () => {
+      log("teardown");
+    };
+  });
+  promise.trace(logTracer);
+  als.run("subscriber", () => {
+    promise.subscribe(logConsumer);
+  });
+  als.run("resolver", () => {
+    sink.resolve(1);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "span resolve",
+        "context: resolver",
+      ],
+      [
+        "teardown",
+        "context: subscriber",
+      ],
+      [
+        "resolve",
+        1,
+        "context: subscriber",
+      ],
+    ]
+  `);
+
+  als.run("subscriber", () => {
+    promise.subscribe(logConsumer);
+  });
+  als.run("rejecter", () => {
+    sink.reject("oops");
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "span reject",
+        "context: rejecter",
+      ],
+      [
+        "teardown",
+        "context: subscriber",
+      ],
+      [
+        "reject",
+        "oops",
+        "context: subscriber",
+      ],
+    ]
+  `);
+
+  const inner = new LazyPromise<number>((innerSink) => {
+    log("produce inner");
+    innerSink.resolve(2);
+  });
+  inner.trace({
+    subscribe: () => {
+      log("inner span subscribe");
+    },
+  });
+  als.run("subscriber", () => {
+    promise.subscribe(logConsumer);
+  });
+  als.run("flattener", () => {
+    sink.resolve(inner);
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "span flatten",
+        "context: flattener",
+      ],
+      [
+        "teardown",
+        "context: subscriber",
+      ],
+      [
+        "inner span subscribe",
+        "context: flattener",
+      ],
+      [
+        "produce inner",
+        "context: subscriber",
+      ],
+      [
+        "span resolve",
+        "context: subscriber",
+      ],
+      [
+        "resolve",
+        2,
+        "context: subscriber",
+      ],
+    ]
+  `);
+
+  const subscription = als.run("subscriber", () =>
+    promise.subscribe(logConsumer),
+  );
+  als.run("disposer", () => {
+    subscription.dispose();
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "span unsubscribe",
+        "context: disposer",
+      ],
+      [
+        "teardown",
+        "context: subscriber",
+      ],
+    ]
+  `);
+});
+
+test("a span's `run` context survives the restore done by an untraced subscription settling inside it", async () => {
+  const contextTracer = (label: string) => ({
+    subscribe: () => {
+      log(`${label} subscribe`);
+      return {
+        run: (work: () => void) => {
+          als.run(label, work);
+        },
+      };
+    },
+  });
+  const traced = new LazyPromise<number>((sink) => {
+    resolveLaterIn("producer", sink, 1);
+  });
+  traced.trace(contextTracer("outer"));
+  const inner = new LazyPromise<number>((sink) => {
+    log("produce inner");
+    resolveLaterIn("inner producer", sink, 2);
+  });
+  inner.trace(contextTracer("inner"));
+  als.run("subscriber", () => {
+    traced
+      .map(() => {
+        log("map");
+        return inner;
+      })
+      .subscribe(logConsumer);
+  });
+  await flushMicrotasks();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "outer subscribe",
+        "context: subscriber",
+      ],
+      [
+        "map",
+        "context: outer",
+      ],
+      [
+        "inner subscribe",
+        "context: outer",
+      ],
+      [
+        "produce inner",
+        "context: inner",
+      ],
+      [
+        "resolve",
+        2,
+        "context: inner",
+      ],
+    ]
+  `);
+
+  // The consumer of the untraced `map` itself.
+  const traced2 = new LazyPromise<number>((sink) => {
+    resolveLaterIn("producer", sink, 1);
+  });
+  traced2.trace(contextTracer("outer"));
+  als.run("subscriber", () => {
+    traced2.map((value) => value + 1).subscribe(logConsumer);
+  });
+  await flushMicrotasks();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "outer subscribe",
+        "context: subscriber",
+      ],
+      [
+        "resolve",
+        2,
+        "context: outer",
+      ],
+    ]
+  `);
+});
+
 test("in a browser-like runtime, handlers run in the context of the settle call", async () => {
   // Shape of the `process` polyfill that bundlers provide for browsers.
   const core = await importCoreWithProcessPatched({ versions: {} });

@@ -1,3 +1,4 @@
+import type { AsyncContextResource } from "./asyncResource.js";
 import type { LazyPromise, Subscription } from "./lazyPromise.js";
 
 /**
@@ -55,7 +56,12 @@ export class Frame {
  */
 export let activeFrame: Frame | undefined;
 
-const runFrame = (frame: Frame, work: () => void) => {
+/**
+ * Calls the frame's `run`. Also used to re-enter the active frame after the
+ * library has restored the async context of `subscribe`, so that the context
+ * set up by `run` wins over the restored one.
+ */
+export const runFrame = (frame: Frame, work: () => void): void => {
   const previousFrame = activeFrame;
   activeFrame = frame;
   frame.span.run!(work, frame.depth);
@@ -82,10 +88,18 @@ export const runInFrame = (
  * `baseFrame`. Each visited span that has `run` wraps what follows it, up to
  * and including the visit that yields the next such span, so that the `run`
  * calls are siblings rather than nested.
+ *
+ * The notifications preceding the first `run` call happen in the async
+ * context of whatever caused them; `asyncResource`, if provided, restores the
+ * context of `subscribe` for the `run` calls and the work.
  */
 export class Chain<Node extends { next: Node | undefined }> {
   // The span whose `run` is to wrap the next step.
   span: Span<any> | undefined;
+  // The base frame, re-entered after the context of `subscribe` is restored.
+  frame: Frame | undefined;
+  depth = 0;
+  asyncResource: AsyncContextResource | undefined;
 
   constructor(
     public node: Node | undefined,
@@ -94,15 +108,47 @@ export class Chain<Node extends { next: Node | undefined }> {
     public work: () => void,
   ) {}
 
-  run(baseFrame: Frame | undefined) {
-    let depth = baseFrame ? baseFrame.depth : 0;
-    runInFrame(baseFrame, this.step);
-    while (this.span) {
-      runFrame(new Frame(this.span, ++depth), this.step);
-    }
+  run(baseFrame: Frame | undefined, asyncResource?: AsyncContextResource) {
+    this.frame = baseFrame;
+    this.depth = baseFrame ? baseFrame.depth : 0;
+    this.asyncResource = asyncResource;
+    runInFrame(baseFrame, this.start);
   }
 
+  start = () => {
+    this.advance();
+    if (this.asyncResource) {
+      this.asyncResource.runInAsyncScope(this.finishInFrame, undefined);
+    } else {
+      this.finish();
+    }
+  };
+
+  finishInFrame = () => {
+    if (this.frame) {
+      runFrame(this.frame, this.finish);
+    } else {
+      this.finish();
+    }
+  };
+
+  finish = () => {
+    if (!this.span) {
+      this.work();
+    }
+    while (this.span) {
+      runFrame(new Frame(this.span, ++this.depth), this.step);
+    }
+  };
+
   step = () => {
+    this.advance();
+    if (!this.span) {
+      this.work();
+    }
+  };
+
+  advance() {
     while (this.node !== this.end) {
       const node = this.node!;
       this.node = node.next;
@@ -113,8 +159,7 @@ export class Chain<Node extends { next: Node | undefined }> {
       }
     }
     this.span = undefined;
-    this.work();
-  };
+  }
 }
 
 /**

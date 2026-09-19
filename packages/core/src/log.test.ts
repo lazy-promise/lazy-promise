@@ -242,6 +242,42 @@ test("patched console.log", () => {
   `);
 });
 
+test("more than 10 dots are abbreviated", () => {
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
+
+  const nest = (remaining: number): LazyPromise<string> =>
+    box(remaining)
+      .log("nest")
+      .map(() => (remaining === 0 ? "value" : nest(remaining - 1)));
+  nest(5).subscribe({
+    resolve: () => {
+      console.log("handleValue");
+      console.log(1);
+    },
+  });
+
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "[nest] [1] [subscribe] undefined",
+      "· [nest] [1] [resolve] 5",
+      "· · [nest] [2] [subscribe] undefined",
+      "· · · [nest] [2] [resolve] 4",
+      "· · · · [nest] [3] [subscribe] undefined",
+      "· · · · · [nest] [3] [resolve] 3",
+      "· · · · · · [nest] [4] [subscribe] undefined",
+      "· · · · · · · [nest] [4] [resolve] 2",
+      "· · · · · · · · [nest] [5] [subscribe] undefined",
+      "· · · · · · · · · [nest] [5] [resolve] 1",
+      "· · · · · · · · · · [nest] [6] [subscribe] undefined",
+      "· * 11 [nest] [6] [resolve] 0",
+      "· * 12 handleValue",
+      "· * 12 1",
+    ]
+  `);
+});
+
 test("downstream is nested under upstream resolve", () => {
   vi.spyOn(console, "log").mockImplementation((...args) =>
     logContents.push(args.map(String).join(" ")),
