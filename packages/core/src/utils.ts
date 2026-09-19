@@ -1,3 +1,5 @@
+import type { ErrorBox } from "./lazyPromise.js";
+
 export const throwInMicrotask = (error: unknown) => {
   queueMicrotask(() => {
     throw error;
@@ -18,3 +20,7 @@ export type NeverIfObjectContainsNever<T> = true extends {
 }[keyof T]
   ? never
   : T;
+
+export type ErrorBoxOrNever<Error> = Error extends never
+  ? never
+  : ErrorBox<Error>;

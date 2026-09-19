@@ -60,7 +60,7 @@ It's sometimes convenient to use LazyPromise in some parts of your codebase (e.g
 
 ## any
 
-Typed errors are optional in the sense that you can pretend that the concept does not exist as long as you don't use the `ErrorBox` class. There's one exception to this which is the `any` operator, but this is only because that operator isn't very ergonomic without typed errors anyway. When one of the promises passed to the native `Promise.any` rejects because of a bug, the bug passes undetected if some other input promise resolves. The LazyPromise version of `any` works like `Promise.any` with respect to boxed errors, but rejects if just one input rejects:
+Unlike other operators, `any` does not behave like its native promise counterpart, but this is only because that operator isn't very ergonomic without typed errors anyway. When one of the promises passed to `Promise.any` rejects because of a bug, the bug passes undetected if some other input promise resolves. The LazyPromise version of `any` works like `Promise.any` with respect to boxed errors, but rejects if just one input rejects:
 
 ```ts
 declare const promiseA: LazyPromise<string | ErrorBox<"a">>;
@@ -68,6 +68,18 @@ declare const promiseB: LazyPromise<number | ErrorBox<"b">>;
 
 // Type inferred as LazyPromise<string | number | ErrorBox<["a", "b"]>>
 const lazyPromise = any([promiseA, promiseB]);
+```
+
+## anyKeyed
+
+`anyKeyed` is to `any` what `allKeyed` is to `all`: it takes an object instead of an iterable, and if every input resolves with a boxed error, the errors are collected into an object with the same keys. There is no native counterpart because `Promise.any` collects errors into an `AggregateError`.
+
+```ts
+declare const promiseA: LazyPromise<string | ErrorBox<"a">>;
+declare const promiseB: LazyPromise<number | ErrorBox<"b">>;
+
+// Type inferred as LazyPromise<string | number | ErrorBox<{ a: "a"; b: "b" }>>
+const lazyPromise = anyKeyed({ a: promiseA, b: promiseB });
 ```
 
 ## UnboxError
