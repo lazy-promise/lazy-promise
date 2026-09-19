@@ -26,9 +26,11 @@ Dependencies bubble up through the type system when you use the operators or the
 
 ## Using dependencies in callbacks
 
-The `dep` parameter is made available not only to the LazyPromise constructor callback, but also to all other lazily executed callbacks, namely those you pass to `map`, `catch`, `catchBoxed`, `finally`, and `fromGen`:
+The `dep` parameter is made available not only to the LazyPromise constructor callback, but also to all other lazily executed callbacks, namely those you pass to `defer`, `map`, `catch`, `catchBoxed`, `finally`, and `fromGen`:
 
 ```ts
+defer((dep: MyDep) => ...);
+
 lazyPromise.map((value, dep: MyDep) => ...);
 
 fromGen(function* (dep: MyDep) {
@@ -67,9 +69,9 @@ export interface NowDep {
 }
 
 // Type inferred as LazyPromise<number, RandomDep & NowDep>
-const lazyPromise = fromGen(function* (dep: RandomDep & NowDep) {
-  return dep[nowSymbol]() + dep[randomSymbol]() * 1000;
-});
+const lazyPromise = defer(
+  (dep: RandomDep & NowDep) => dep[nowSymbol]() + dep[randomSymbol]() * 1000,
+);
 
 lazyPromise.subscribe(
   { resolve: console.log },
@@ -88,9 +90,9 @@ export interface RandomDep {
 }
 
 // Type inferred as LazyPromise<number, RandomDep | undefined>
-const lazyPromise = fromGen(function* (dep?: RandomDep) {
-  return (dep?.[randomSymbol] ?? Math.random)();
-});
+const lazyPromise = defer((dep?: RandomDep) =>
+  (dep?.[randomSymbol] ?? Math.random)(),
+);
 
 // No typechecking error even though RandomDep is not provided.
 lazyPromise.subscribe({ resolve: console.log });

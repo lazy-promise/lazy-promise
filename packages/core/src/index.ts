@@ -1,5 +1,6 @@
 export { all } from "./all.js";
 export { any } from "./any.js";
+export { defer } from "./defer.js";
 export { fromEager } from "./fromEager.js";
 export { fromGen } from "./fromGen.js";
 export { inAnimationFrame } from "./inAnimationFrame.js";

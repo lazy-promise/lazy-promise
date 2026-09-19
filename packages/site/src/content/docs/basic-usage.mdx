@@ -74,7 +74,7 @@ Also like Observable, LazyPromise does not defer notifications to microtasks. A 
 
 ## Promise-like API
 
-Aside from superficial differences, the LazyPromise API mirrors that of the native promise:
+Aside from superficial differences, the LazyPromise API mirrors [that of the native promise](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise):
 
 | Promise API                       | LazyPromise equivalent     |
 | :-------------------------------- | :------------------------- |
@@ -86,6 +86,7 @@ Aside from superficial differences, the LazyPromise API mirrors that of the nati
 | `new Promise<never>(() => {})`    | `never`                    |
 | `Promise.all(...)`                | `all(...)`                 |
 | `Promise.race(...)`               | `race(...)`                |
+| `Promise.try(foo)`                | `defer(foo)`               |
 | `Awaited<T>`                      | `Unbox<T>`                 |
 
 ([`any`](/type-safe-errors/#any), [`allSettled`](/qa/#why-not-have-an-equivalent-of-promiseallsettled) and [`withResolvers`](/qa/#why-not-have-an-equivalent-of-promisewithresolvers) are discussed separately in these docs.)
