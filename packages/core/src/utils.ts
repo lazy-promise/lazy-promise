@@ -12,3 +12,9 @@ export type NeverIfArrayContainsNever<T extends unknown[]> = T extends [
     ? never
     : [First, ...NeverIfArrayContainsNever<Rest>]
   : T;
+
+export type NeverIfObjectContainsNever<T> = true extends {
+  [Key in keyof T]: [T[Key]] extends [never] ? true : false;
+}[keyof T]
+  ? never
+  : T;

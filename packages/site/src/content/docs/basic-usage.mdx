@@ -85,11 +85,12 @@ Aside from superficial differences, the LazyPromise API mirrors [that of the nat
 | `Promise.reject(error)`           | `rejecting(error)`         |
 | `new Promise<never>(() => {})`    | `never`                    |
 | `Promise.all(...)`                | `all(...)`                 |
+| `Promise.allKeyed(...)`           | `allKeyed(...)`            |
 | `Promise.race(...)`               | `race(...)`                |
 | `Promise.try(foo)`                | `defer(foo)`               |
 | `Awaited<T>`                      | `Unbox<T>`                 |
 
-([`any`](/type-safe-errors/#any), [`allSettled`](/qa/#why-not-have-an-equivalent-of-promiseallsettled) and [`withResolvers`](/qa/#why-not-have-an-equivalent-of-promisewithresolvers) are discussed separately in these docs.)
+([`any`](/type-safe-errors/#any), [`allSettled`](/qa/#why-not-have-an-equivalent-of-promiseallsettled) and [`withResolvers`](/qa/#why-not-have-an-equivalent-of-promisewithresolvers) are discussed elsewhere in these docs.)
 
 Canceling a LazyPromise automatically cancels any upstream LazyPromise it was derived from via the operators above.
 

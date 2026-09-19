@@ -1,4 +1,5 @@
 export { all } from "./all.js";
+export { allKeyed } from "./allKeyed.js";
 export { any } from "./any.js";
 export { defer } from "./defer.js";
 export { fromEager } from "./fromEager.js";
