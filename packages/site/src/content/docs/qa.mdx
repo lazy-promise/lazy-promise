@@ -18,7 +18,7 @@ This question applies to both the `finally` block in generator functions and the
 
 - Using `finally` for cleanup would go against the "only one way to do it" principle since there is already teardown logic that you return from the LazyPromise constructor.
 
-- This enables a pattern `lazyPromise.finally(() => anotherLazyPromise)` which was discussed in the context of [`inTimeout`](/deferral-utilities/#intimeout).
+- This enables a [pattern](/recipes/#delaying-a-lazy-promise) `lazyPromise.finally(() => anotherLazyPromise)`.
 
 ## Do `sink.resolve` and `sink.reject` fire synchronously?
 

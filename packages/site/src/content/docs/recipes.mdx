@@ -2,6 +2,39 @@
 title: Recipes
 ---
 
+## Delaying a lazy promise
+
+With native promises, you could do the following:
+
+```ts
+try {
+  return await promise;
+} finally {
+  // Wait for `anotherPromise`, then pass on result of `promise`.
+  await anotherPromise;
+}
+```
+
+You can use the same pattern to delay a lazy promise:
+
+{/* prettier-ignore */}
+```ts
+try {
+  return yield* lazyPromise;
+} finally {
+  // Wait for a second, then pass on the result of `lazyPromise`.
+  yield* inTimeout(1000);
+}
+```
+
+or equivalently,
+
+```ts
+lazyPromise.finally(() => inTimeout(1000));
+```
+
+In the same way, you can make a lazy promise fire in a microtask like a native promise by adding `.finally(inMicrotask)`.
+
 ## Timing out
 
 ```ts

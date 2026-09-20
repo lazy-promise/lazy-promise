@@ -6,47 +6,16 @@ title: Deferral utilities
 
 `inTimeout(ms)` returns a lazy promise that fires with a value of type `void` in a `setTimeout` callback. If unsubscribed before it fires, calls `clearTimeout`.
 
-To sleep for 1 second in the middle of a generator function, you would
+For example, to sleep for 1 second in the middle of a generator function, you would
 
 {/* prettier-ignore */}
 ```ts
 yield* inTimeout(1000);
 ```
 
-With native promises, you could do the following:
-
-```ts
-try {
-  return await promise;
-} finally {
-  // Wait for `anotherPromise`, then pass on result of `promise`.
-  await anotherPromise;
-}
-```
-
-You can use the same pattern to delay a lazy promise:
-
-{/* prettier-ignore */}
-```ts
-try {
-  return yield* lazyPromise;
-} finally {
-  // Wait for a second, then pass on the result of `lazyPromise`.
-  yield* inTimeout(1000);
-}
-```
-
-or equivalently,
-
-```ts
-lazyPromise.finally(() => inTimeout(1000));
-```
-
 ## inMicrotask
 
 `inMicrotask()` returns a lazy promise that fires with a value of type `void` in a `queueMicrotask` callback. If the lazy promise is unsubscribed before firing, the callback cannot be un-scheduled, but becomes a no-op.
-
-If you want a LazyPromise to fire in a microtask like a native promise, add `.finally(inMicrotask)`, similarly to what we did above with `inTimeout`.
 
 ## inAnimationFrame
 
