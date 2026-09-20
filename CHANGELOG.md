@@ -1,5 +1,13 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.40](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.40)
+
+- `log` becomes a method.
+
+- Improvements to `trace` API.
+
+- New operators `defer`, `allKeyed`, `anyKeyed`.
+
 ## [@lazy-promise/core@0.0.39](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.39)
 
 - Call teardown logic before settling.
