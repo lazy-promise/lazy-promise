@@ -228,7 +228,7 @@ export const Search = () => {
         onClick={() => {
           setOpen(true);
         }}
-        className="hidden h-10 w-[min(44rem,calc(100vw-42rem))] items-center gap-2.5 rounded-md border border-line bg-surface/60 pr-2 pl-3 text-ink-muted transition-colors hover:border-line-strong hover:text-ink lg:flex"
+        className="hidden h-10 w-[min(45rem,calc(100vw-42rem))] items-center gap-2.5 rounded-md border border-line bg-surface/60 pr-2 pl-3 text-ink-muted transition-colors hover:border-line-strong hover:text-ink lg:flex"
       >
         <SearchIcon className="size-5" />
         <span className="flex-1 text-left">Search</span>
@@ -248,7 +248,7 @@ export const Search = () => {
           }
         }}
         aria-label="Search the docs"
-        className="mx-auto mt-[12vh] w-[min(40rem,calc(100vw-2rem))] rounded-lg border border-line bg-surface-raised p-0 text-ink backdrop:bg-transparent"
+        className="mx-auto mt-[12vh] w-[min(40rem,calc(100vw-2rem))] rounded-lg border border-line bg-surface-raised p-0 text-ink backdrop:bg-transparent dark:bg-surface"
       >
         <div className="flex items-center gap-3 border-b border-line px-4">
           <SearchIcon className="size-5 shrink-0 text-ink-faint" />
@@ -278,7 +278,7 @@ export const Search = () => {
             onClick={() => {
               setOpen(false);
             }}
-            className="flex size-11 shrink-0 items-center justify-center rounded-md text-ink-muted hover:bg-surface hover:text-ink"
+            className="flex size-11 shrink-0 items-center justify-center rounded-md text-ink-muted hover:bg-surface hover:text-ink dark:hover:bg-surface-raised"
           >
             <CloseIcon className="size-5" />
           </button>
@@ -329,7 +329,7 @@ export const Search = () => {
                             }}
                             className={[
                               "flex gap-3 rounded-lg px-3 py-2.5 transition-colors",
-                              active ? "bg-surface" : "",
+                              active ? "bg-surface dark:bg-surface-raised" : "",
                             ].join(" ")}
                           >
                             {hit.isPage ? (

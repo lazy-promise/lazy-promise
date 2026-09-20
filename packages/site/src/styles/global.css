@@ -188,7 +188,7 @@
 }
 
 .docs :not(pre) > code {
-  @apply rounded-[0.3rem] bg-surface px-[0.35em] py-[0.15em] text-[0.875em] text-ink;
+  @apply rounded-[0.3rem] bg-surface px-[0.35em] py-[0.15em] text-[0.875em] text-ink dark:bg-line;
 }
 
 .docs a:not(.heading-anchor) > code {
