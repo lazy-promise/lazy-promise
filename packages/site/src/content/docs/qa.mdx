@@ -37,26 +37,7 @@ Once the constructor callback has settled the promise, its job is done, and in p
 
 ## Why not have the `subscribe` method return a function instead of a subscription object?
 
-To avoid the overhead of creating and garbage-collecting a function. Here's how you can build a `toDisposeFn` utility that subscribes and returns a teardown function when you call `.pipe(toDisposeFn)`:
-
-```ts
-// Using an interface so that TS would only show the error message when it's
-// applicable.
-interface UnhandledBoxedErrorMessage {
-  "❌ Unhandled boxed errors detected. Catch them before calling toDisposeFn.": never;
-}
-
-export const toDisposeFn = <Value>(
-  source: UnboxError<Value> extends never
-    ? LazyPromise<Value>
-    : UnhandledBoxedErrorMessage,
-) => {
-  const subscription = (source as LazyPromise<any>).subscribe<any>();
-  return () => {
-    subscription.dispose();
-  };
-};
-```
+To avoid the overhead of creating and garbage-collecting a function. On the Recipes page you can find a [utility](/recipes/#teardown-functions-instead-of-subscription-objects) that subscribes and returns a teardown function when you pipe a lazy promise through it.
 
 ## Why not have an equivalent of `Promise.allSettled`?
 

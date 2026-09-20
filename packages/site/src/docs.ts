@@ -16,6 +16,7 @@ const pageOrder = [
   "async-context",
   "class-based-api",
   "qa",
+  "recipes",
 ];
 
 export const getOrderedDocs = async () => {

@@ -1,0 +1,327 @@
+---
+title: Recipes
+---
+
+## Timing out
+
+```ts
+const result = race([
+  source,
+  // Or `.map(() => new ErrorBox("timeout"))`.
+  inTimeout(ms).map(() => {
+    throw new Error(`Timed out.`);
+  }),
+]);
+```
+
+## Exponential backoff
+
+```ts
+const result = fromGen(function* () {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return yield* source;
+    } catch (error) {
+      if (attempt === 3) {
+        throw error;
+      }
+    }
+    yield* inTimeout(1000 * 2 ** (attempt - 1));
+  }
+});
+```
+
+## Usage with EventTarget API
+
+When dealing with EventTarget, it's convenient to have a lower-level utility `listen` that's not even specific to lazy promises, and which adds a listener and returns a teardown function.
+
+```ts
+export const listen = <DispatchedEvent extends Event = Event>(
+  target: EventTarget,
+  type: string,
+  listener: (event: DispatchedEvent) => void,
+  options?: AddEventListenerOptions,
+) => {
+  target.addEventListener(type, listener as EventListener, options);
+  return () => {
+    target.removeEventListener(type, listener as EventListener, options);
+  };
+};
+```
+
+Then you can use the LazyPromise constructor to wait for an event, or wait for the first event that matches a condition:
+
+```ts
+declare const socket: WebSocket;
+
+const opened = new LazyPromise<void>((sink) =>
+  listen(socket, "open", () => {
+    sink.resolve();
+  }),
+);
+
+const reply = new LazyPromise<MessageEvent>((sink) =>
+  listen<MessageEvent>(socket, "message", (event) => {
+    if (JSON.parse(event.data).id === id) {
+      sink.resolve(event);
+    }
+  }),
+);
+```
+
+## Teardown functions instead of subscription objects
+
+In some use-cases it's convenient to have a `toDisposeFn` utility that subscribes and returns a teardown function when you call `.pipe(toDisposeFn)`. You'll get a typechecking error if the lazy promise has boxed errors or dependencies.
+
+```ts
+// Using an interface so that TS would only show the error message when it's
+// applicable.
+interface UnhandledBoxedErrorMessage {
+  "❌ Unhandled boxed errors detected. Catch them before calling toDisposeFn.": never;
+}
+
+export const toDisposeFn = <Value>(
+  source: UnboxError<Value> extends never
+    ? LazyPromise<Value>
+    : UnhandledBoxedErrorMessage,
+) => {
+  const subscription = (source as LazyPromise<any>).subscribe<any>();
+  return () => {
+    subscription.dispose();
+  };
+};
+```
+
+## Usage with React
+
+LazyPromise can be used wherever the native promise can be used, but it's not that many places because React's `Suspense` expects promises to be externally cached. LazyPromise works great however with the basic `useEffect` pattern—all you need is the `toDisposeFn` utility discussed above:
+
+```ts
+const [state, setState] = useState<State>();
+
+// You get automatic cancellation and type-safe errors.
+useEffect(
+  () =>
+    callApi(id)
+      .catchBoxed((error) => ...)
+      .map((value) => setState(value))
+      .pipe(toDisposeFn),
+  [id],
+);
+```
+
+Another helpful utility is `usePending`. This hook returns a pair `[pending, withPending]`, you pipe lazy promises through `withPending`, and `pending` is a boolean value telling you whether any of those lazy promises is currently being waited for. In the following example, we're disabling the button while the API call is in progress:
+
+```tsx
+const [state, setState] = useState<State>();
+const [refreshing, withRefreshing] = usePending();
+
+return (
+  <button
+    disabled={refreshing}
+    onClick={() =>
+      callApi()
+        .map((value) => setState(value))
+        .pipe(withRefreshing)
+        .subscribe()
+    }
+  >
+    Refresh state
+  </button>
+);
+```
+
+The implementation of `usePending` is as follows:
+
+```ts
+export const usePending = () => {
+  const [count, setCount] = useState(0);
+  return [
+    count > 0,
+    useCallback(
+      <Value, Dep>(source: LazyPromise<Value, Dep>) =>
+        new LazyPromise<Value, Dep>((sink, dep) => {
+          setCount((count) => count + 1);
+          const subscription = source.subscribe<any>(sink, dep);
+          return () => {
+            setCount((count) => count - 1);
+            subscription.dispose();
+          };
+        }),
+      [],
+    ),
+  ] as const;
+};
+```
+
+## Periodically yielding to the event loop
+
+Here to keep the UI responsive during heavy synchronous work, we yield to the event loop every few milliseconds.
+
+```ts
+let deadline = 0;
+
+const maybeYield = defer(() => {
+  if (performance.now() < deadline) {
+    return;
+  }
+  return inMessageChannel().map(() => {
+    deadline = performance.now() + 5;
+  });
+});
+
+export const longRunningTask = fromGen(function* () {
+  for (const item of items) {
+    // Do work...
+
+    yield* maybeYield;
+  }
+});
+```
+
+## Limiting concurrency
+
+Suppose you want to limit all API calls to 6 at a time. You can create a utility `createConcurrencyLimit` that would be used like this:
+
+```ts
+// All lazy promises wrapped in `apiConcurrencyLimit` will be limited to 6 at a
+// time: when the wrapped lazy promise is subscribed, the original one isn't
+// subscribed until a slot is available.
+export const apiConcurrencyLimit = createConcurrencyLimit(6);
+
+declare const sources: LazyPromise<Data>[];
+
+// Type inferred as LazyPromise<Data[]>
+const results = all(sources.map(apiConcurrencyLimit));
+```
+
+`createConcurrencyLimit(1)` gives you sequential execution.
+
+The implementation:
+
+```ts
+export const createConcurrencyLimit = (concurrent: number) => {
+  let running = 0;
+  // Subscriptions waiting for a slot.
+  const queue: (() => void)[] = [];
+
+  return <Value, Dep>(source: LazyPromise<Value, Dep>) =>
+    new LazyPromise<Value, Dep>((sink, dep) => {
+      let subscription: Subscription | undefined;
+
+      const start = () => {
+        running++;
+        subscription = source.subscribe<any>(sink, dep);
+      };
+
+      if (running < concurrent) {
+        start();
+      } else {
+        queue.push(start);
+      }
+
+      return () => {
+        const index = queue.indexOf(start);
+        if (index !== -1) {
+          queue.splice(index, 1);
+          return;
+        }
+        subscription?.dispose();
+        running--;
+        queue.shift()?.();
+      };
+    });
+};
+```
+
+## Rate-limiting
+
+Suppose an API allows 10 calls per second. `createRateLimit` uses the same pattern as `createConcurrencyLimit`:
+
+```ts
+export const apiRateLimit = createRateLimit(10, 1000);
+
+declare const sources: LazyPromise<Data>[];
+
+// Type inferred as LazyPromise<Data[]>
+const results = all(sources.map(apiRateLimit));
+```
+
+The implementation:
+
+```ts
+export const createRateLimit = (count: number, intervalMs: number) => {
+  // Start times in the last `intervalMs`, including scheduled ones, oldest
+  // first.
+  const startTimes: number[] = [];
+
+  return <Value, Dep>(source: LazyPromise<Value, Dep>) =>
+    new LazyPromise<Value, Dep>((sink, dep) => {
+      const now = Date.now();
+      while ((startTimes[0] ?? Infinity) <= now - intervalMs) {
+        startTimes.shift();
+      }
+      const startTime = Math.max(
+        now,
+        (startTimes.at(-count) ?? -Infinity) + intervalMs,
+      );
+      startTimes.push(startTime);
+      // To fail instead of waiting, check `startTime > now` here.
+      const subscription = (
+        startTime > now ? inTimeout(startTime - now).map(() => source) : source
+      ).subscribe<any>(sink, dep);
+      return () => {
+        subscription.dispose();
+        // Disposed while waiting: give the slot back.
+        if (startTime > Date.now()) {
+          startTimes.splice(startTimes.indexOf(startTime), 1);
+        }
+      };
+    });
+};
+```
+
+## Token refresh on 401
+
+Suppose the access token lives in a cookie and an API call resolves with `ErrorBox<"unauthorized">` because the token has expired. `withAuth` catches the error, calls an API endpoint that sets a fresh one, and retries the call once. Concurrent failures share a single refresh, and a call that failed while a refresh was in progress is retried without another refresh.
+
+```ts
+declare const apiCall: LazyPromise<
+  Data | ErrorBox<"unauthorized" | "not-found">
+>;
+
+const result = apiCall.pipe(withAuth);
+```
+
+The implementation:
+
+```ts
+let refreshing: Promise<void> | undefined;
+let refreshCount = 0;
+
+// Shared between concurrent callers, so it's deliberately not cancellable.
+const refreshToken = fromEager(async () => {
+  refreshing ??= fetch("https://example.com/refresh-token", {
+    method: "POST",
+  }).then(() => {
+    refreshCount++;
+  });
+  try {
+    await refreshing;
+  } finally {
+    refreshing = undefined;
+  }
+});
+
+export const withAuth = <Value, Dep>(source: LazyPromise<Value, Dep>) =>
+  defer(() => {
+    const localRefreshCount = refreshCount;
+    return source.catchBoxed((error) =>
+      error === "unauthorized"
+        ? (refreshCount === localRefreshCount ? refreshToken : box()).map(
+            () => source,
+          )
+        : new ErrorBox(error),
+    );
+  });
+```

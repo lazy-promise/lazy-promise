@@ -4,7 +4,7 @@ title: Dependency injection
 
 ## What is a dependency
 
-We've [talked](/basic-usage/#invariantspi) about how `new LazyPromise(foo)` is really just a wrapper around `foo`. Dependency injection is about being less restrictive about what kind of functions LazyPromise can wrap: namely, in addition to the first parameter of the shape `{ resolve, reject }`, we also allow a second parameter called "dependency" that can be of any type:
+We've [talked](/basic-usage/#invariants) about how `new LazyPromise(foo)` is really just a wrapper around `foo`. Dependency injection is about being less restrictive about what kind of functions LazyPromise can wrap: namely, in addition to the first parameter of the shape `{ resolve, reject }`, we also allow a second parameter called "dependency" that can be of any type:
 
 ```ts
 const lazyPromise = new LazyPromise<MyValue, MyDep>(
