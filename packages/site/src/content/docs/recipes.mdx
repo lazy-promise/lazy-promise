@@ -283,7 +283,7 @@ export const createRateLimit = (count: number, intervalMs: number) => {
 
 ## Token refresh on 401
 
-Suppose the access token lives in a cookie and an API call resolves with `ErrorBox<"unauthorized">` because the token has expired. `withAuth` catches the error, calls an API endpoint that sets a fresh one, and retries the call once. Concurrent failures share a single refresh, and a call that failed while a refresh was in progress is retried without another refresh.
+Suppose the access token lives in a cookie and an API call resolves with `ErrorBox<"unauthorized">` because the token has expired. `withAuth` catches the error, calls an API endpoint that sets a cookie with a fresh token, and retries the call once. Concurrent failures share a single refresh, and a call that failed while a refresh was in progress is retried without another refresh.
 
 ```ts
 declare const apiCall: LazyPromise<
