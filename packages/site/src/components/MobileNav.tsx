@@ -128,7 +128,7 @@ export const MobileNav = ({ items }: MobileNavProps) => {
             href={playgroundUrl}
             target="_blank"
             rel="noopener"
-            className="flex items-center gap-2 rounded-md px-3 py-2.5 text-base leading-6 text-ink-muted transition-colors hover:bg-surface hover:text-ink sm:hidden"
+            className="flex items-center gap-2 rounded-md px-3 py-2.5 text-base leading-6 text-ink-muted transition-colors hover:bg-surface hover:text-ink"
           >
             Playground
             <ExternalIcon className="size-4" />
