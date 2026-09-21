@@ -5,7 +5,7 @@ title: Logging
 The `log` method passes the LazyPromise along without changing its identity but adds logging of everything that happens to it: `lazyPromise.log("your label")`. While callbacks are running, `log` patches `console.log` so that the arguments are prefixed with dots indicating causality, so
 
 ```ts
-box(1)
+box(42)
   .log("a")
   .map(() => {
     console.log("mapping");
@@ -17,7 +17,7 @@ logs
 
 ```
 [a] [1] [subscribe] undefined
-· [a] [1] [resolve] 1
+· [a] [1] [resolve] 42
 · · mapping
 ```
 

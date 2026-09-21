@@ -773,7 +773,7 @@ export class LazyPromise<out Value, in Dep = unknown> {
    * prefixed with dots indicating causality, so
    *
    * ```
-   * box(1)
+   * box(42)
    *   .log("a")
    *   .map(() => {
    *     console.log("mapping");
@@ -785,12 +785,11 @@ export class LazyPromise<out Value, in Dep = unknown> {
    *
    * ```
    * [a] [1] [subscribe] undefined
-   * · [a] [1] [resolve] 1
+   * · [a] [1] [resolve] 42
    * · · mapping
    * ```
    *
-   * Dots reset whenever an async boundary is crossed. Past 10 of them, the
-   * prefix is abbreviated to `· * 11`, `· * 12` and so on. The number in the
+   * Dots reset whenever an async boundary is crossed. The number in the
    * second pair of brackets tells apart entries that share a label. The value
    * logged after `[subscribe]` is the dependency.
    */
