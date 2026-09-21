@@ -1,4 +1,7 @@
+import corePackage from "../../core/package.json";
+
 export const siteName = "LazyPromise";
+export const coreVersion = corePackage.version;
 export const siteDescription =
   "LazyPromise is a single-shot Observable, a lazy and cancelable promise, and a tiny alternative to Effect.";
 export const githubUrl = "https://github.com/lazy-promise/lazy-promise";

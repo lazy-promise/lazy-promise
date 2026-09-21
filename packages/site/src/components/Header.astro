@@ -1,5 +1,5 @@
 ---
-import { githubUrl, playgroundUrl, siteName, xUrl } from "../site";
+import { coreVersion, githubUrl, playgroundUrl, siteName, xUrl } from "../site";
 import { ExternalIcon, GitHubIcon, XIcon } from "./icons";
 import Logo from "./Logo.astro";
 import { MobileNav, type NavItem } from "./MobileNav";
@@ -24,7 +24,10 @@ const iconLinkClass =
       class="text-logo font-heading flex shrink-0 items-center gap-[0.5em] rounded-md text-xl font-bold"
     >
       <Logo size={28} />
-      <span class="hidden min-[480px]:inline">{siteName}</span>
+      <span class="hidden items-baseline gap-[0.5em] min-[480px]:flex">
+        {siteName}
+        <span class="text-xs">v{coreVersion}</span>
+      </span>
     </a>
     <div class="flex items-center sm:gap-1">
       <div class="flex items-center lg:absolute lg:left-1/2 lg:-translate-x-1/2">
