@@ -1,0 +1,61 @@
+---
+title: For library authors
+---
+
+## Class-based API
+
+To get the best performance, for instance when working on a library, you can avoid the overhead of creating and garbage-collecting functions by using objects in their place. Instead of passing a callback to the `LazyPromise` constructor, you can pass an object with a `.produce` method (a `Producer`), and instead of returning a teardown function, you can return an object with a `.dispose` method (a `Job`).
+
+## AsyncContext and AsyncLocalStorage
+
+If LazyPromise naively ignored the Node's AsyncLocalStorage (the same will apply to the upcoming cross-platform version [AsyncContext](https://github.com/tc39/proposal-async-context)), then in
+
+```ts
+all([lazyPromiseA, lazyPromiseB]).subscribe({ resolve: foo });
+```
+
+`foo` could run in a different async context depending on which lazy promise resolves first. Instead, LazyPromise runs the constructor callback, the consumer's `resolve`/`reject` handlers, and the teardown logic in the context where `subscribe` was called. As a consequence, async context propagates upstream but not downstream, and generator functions behave the same way as async-await:
+
+```ts
+const als = new AsyncLocalStorage<string>();
+
+const lazyPromise = fromGen(function* () {
+  console.log(als.getStore()); // "a"
+  yield* new LazyPromise<void>((sink) => {
+    als.run("b", () => {
+      sink.resolve();
+    });
+  });
+  console.log(als.getStore()); // Still "a"
+});
+
+als.run("a", () => {
+  lazyPromise.subscribe();
+});
+```
+
+One way to think of async context is as an implicit counterpart of dependency injection.
+
+## Tracing
+
+Under the hood, the [`log` method](/logging/) of a LazyPromise calls another method called `trace`. That method lets you observe a lazy promise without otherwise changing the behavior of the program, and you can use it to plug in tooling such as performance marks or OpenTelemetry spans. `trace` takes a `Tracer`: an object with a `subscribe(dep, subscription)` method which is called each time the LazyPromise is subscribed. `subscribe` can return a `Span`: an object with optional methods `resolve(value)`, `reject(error)`, `flatten(lazyPromise)` (called when you `sink.resolve` with a LazyPromise), and `unsubscribe()`. `trace` returns a `Tracing` object whose `dispose` method detaches the tracer.
+
+```ts
+const tracing = lazyPromise.trace({
+  subscribe() {
+    const start = performance.now();
+    return {
+      resolve() {
+        performance.measure("lazyPromise", { start });
+      },
+    };
+  },
+});
+
+// Later: stop tracing new subscriptions. Existing spans are unaffected.
+tracing.dispose();
+```
+
+When flattening, the `subscribe` notification for the inner promise is given the same `subscription` argument as the one for the outer promise.
+
+A `Span` can also have a method `run(work, depth)` which wraps synchronous work done on behalf of the subscription (running the producer, the consumer or the teardown logic). `depth` lets you trace causality within async boundaries: it is what `log` turns into dots (actual nesting of `run` calls does not follow `depth` and should not be relied on). You can also trace causality across async boundaries by writing to async context (currently Node's `AsyncLocalStorage`) in `run` and reading from it in the other methods of `Span`, as demonstrated in [traceAsync.test.ts](https://github.com/lazy-promise/lazy-promise/blob/main/packages/core/src/traceAsync.test.ts).
