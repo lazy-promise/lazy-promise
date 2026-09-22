@@ -45,7 +45,7 @@ subscription.dispose();
 Whereas a native promise executes eagerly and once, a LazyPromise behaves like an Observable, that is it runs the constructor callback each time someone subscribes. The way to think of it is if `foo` is a function like
 
 ```ts
-<Value>(arg: {
+const foo = <Value>(arg: {
   resolve: (value: Value) => void;
   reject: (error: unknown) => void;
 }) => {
