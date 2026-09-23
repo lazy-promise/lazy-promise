@@ -36,9 +36,9 @@ als.run("a", () => {
 
 One way to think of async context is as an implicit counterpart of dependency injection.
 
-## Tracing
+## Observability
 
-Under the hood, the [`log` method](/logging/) of a LazyPromise calls another method called `trace`. That method lets you observe a lazy promise without otherwise changing the behavior of the program, and you can use it to plug in tooling such as performance marks or OpenTelemetry spans. `trace` takes a `Tracer`: an object with a `subscribe(dep, subscription)` method which is called each time the LazyPromise is subscribed. `subscribe` can return a `Span`: an object with optional methods `resolve(value)`, `reject(error)`, `flatten(lazyPromise)` (called when you `sink.resolve` with a LazyPromise), and `unsubscribe()`. `trace` returns a `Tracing` object whose `dispose` method detaches the tracer.
+Under the hood, the [`log` method](/logging/) of a LazyPromise calls another method called `trace`. That method lets you observe a lazy promise without otherwise changing the behavior of the program, and you can use it to plug in tooling such as another logger, performance marks, or OpenTelemetry spans. `trace` takes a `Tracer`: an object with a `subscribe(dep, subscription)` method which is called each time the LazyPromise is subscribed. `subscribe` can return a `Span`: an object with optional methods `resolve(value)`, `reject(error)`, `flatten(lazyPromise)` (called when you `sink.resolve` with a LazyPromise), and `unsubscribe()`. `trace` returns a `Tracing` object whose `dispose` method detaches the tracer.
 
 ```ts
 const tracing = lazyPromise.trace({
