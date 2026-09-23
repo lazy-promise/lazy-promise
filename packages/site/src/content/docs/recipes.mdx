@@ -64,7 +64,7 @@ const maybeYield = defer(() => {
   });
 });
 
-export const longRunningTask = fromGen(function* () {
+const longRunningTask = fromGen(function* () {
   for (const item of items) {
     // Do work...
 
@@ -78,7 +78,7 @@ export const longRunningTask = fromGen(function* () {
 When dealing with EventTarget, it's convenient to have a lower-level utility `listen` that's not even specific to lazy promises, and which adds a listener and returns a teardown function.
 
 ```ts
-export const listen = <DispatchedEvent extends Event = Event>(
+const listen = <DispatchedEvent extends Event = Event>(
   target: EventTarget,
   type: string,
   listener: (event: DispatchedEvent) => void,
@@ -122,7 +122,7 @@ interface UnhandledBoxedErrorMessage {
   "❌ Unhandled boxed errors detected. Catch them before calling toDisposeFn.": never;
 }
 
-export const toDisposeFn = <Value>(
+const toDisposeFn = <Value>(
   source: UnboxError<Value> extends never
     ? LazyPromise<Value>
     : UnhandledBoxedErrorMessage,
@@ -176,7 +176,7 @@ return (
 The implementation of `usePending` is as follows:
 
 ```ts
-export const usePending = () => {
+const usePending = () => {
   const [count, setCount] = useState(0);
   return [
     count > 0,
@@ -204,7 +204,7 @@ Suppose you want to limit all API calls to 6 at a time. You can create a utility
 // All lazy promises wrapped in `apiConcurrencyLimit` will be limited to 6 at a
 // time: when the wrapped lazy promise is subscribed, the original one isn't
 // subscribed until a slot is available.
-export const apiConcurrencyLimit = createConcurrencyLimit(6);
+const apiConcurrencyLimit = createConcurrencyLimit(6);
 
 declare const sources: LazyPromise<Data>[];
 
@@ -217,7 +217,7 @@ const results = all(sources.map(apiConcurrencyLimit));
 The implementation:
 
 ```ts
-export const createConcurrencyLimit = (concurrent: number) => {
+const createConcurrencyLimit = (concurrent: number) => {
   let running = 0;
   // Subscriptions waiting for a slot.
   const queue: (() => void)[] = [];
@@ -256,7 +256,7 @@ export const createConcurrencyLimit = (concurrent: number) => {
 Suppose an API allows 10 calls per second. `createRateLimit` uses the same pattern as `createConcurrencyLimit`:
 
 ```ts
-export const apiRateLimit = createRateLimit(10, 1000);
+const apiRateLimit = createRateLimit(10, 1000);
 
 declare const sources: LazyPromise<Data>[];
 
@@ -267,7 +267,7 @@ const results = all(sources.map(apiRateLimit));
 The implementation:
 
 ```ts
-export const createRateLimit = (count: number, intervalMs: number) => {
+const createRateLimit = (count: number, intervalMs: number) => {
   // Start times in the last `intervalMs`, including scheduled ones, oldest
   // first.
   const startTimes: number[] = [];
@@ -330,7 +330,7 @@ const refreshToken = fromEager(async () => {
   }
 });
 
-export const withAuth = <Value, Dep>(source: LazyPromise<Value, Dep>) =>
+const withAuth = <Value, Dep>(source: LazyPromise<Value, Dep>) =>
   defer(() => {
     const localRefreshCount = refreshCount;
     return source.catchBoxed((error) =>
