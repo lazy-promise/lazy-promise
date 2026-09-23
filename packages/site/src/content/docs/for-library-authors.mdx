@@ -8,7 +8,7 @@ To get the best performance, for instance when working on a library, you can avo
 
 ## AsyncContext and AsyncLocalStorage
 
-If LazyPromise naively ignored the Node's AsyncLocalStorage (the same will apply to the upcoming cross-platform version [AsyncContext](https://github.com/tc39/proposal-async-context)), then in
+If LazyPromise naively ignored Node's AsyncLocalStorage (the same will apply to the upcoming cross-platform version [AsyncContext](https://github.com/tc39/proposal-async-context)), then in
 
 ```ts
 all([lazyPromiseA, lazyPromiseB]).subscribe({ resolve: foo });

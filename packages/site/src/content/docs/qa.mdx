@@ -41,7 +41,7 @@ To avoid the overhead of creating and garbage-collecting a function. On the Reci
 
 ## Why not have an equivalent of `Promise.allSettled`?
 
-LazyPromise is designed in such a way that all boxed errors must be either explicitly caught with `catchBoxed` or whitelisted when you call `subscribe`. `allSettled` implicitly catches errors by turning them into values that you can potentially discard without type system flagging it.
+LazyPromise is designed in such a way that all boxed errors must be either explicitly caught with `catchBoxed` or whitelisted when you call `subscribe`. `allSettled` implicitly catches errors by turning them into values that you can potentially discard without the type system flagging it.
 
 ## Why not have an equivalent of `Promise.withResolvers`?
 

@@ -7,7 +7,7 @@ title: Recipes
 With native promises, you can do the following:
 
 ```ts
-// Wait for `anotherPromise`, then pass on result of `promise`.
+// Wait for `anotherPromise`, then pass on the result of `promise`.
 promise.finally(() => anotherPromise);
 ```
 
@@ -316,7 +316,7 @@ The implementation:
 let refreshing: Promise<void> | undefined;
 let refreshCount = 0;
 
-// Shared between concurrent callers, so it's deliberately not cancellable.
+// Shared between concurrent callers, so it's deliberately not cancelable.
 const refreshToken = fromEager(async () => {
   refreshing ??= fetch("https://example.com/refresh-token", {
     method: "POST",
