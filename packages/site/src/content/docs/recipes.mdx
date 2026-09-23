@@ -48,6 +48,31 @@ const result = fromGen(function* () {
 });
 ```
 
+## Periodically yielding to the event loop
+
+Here to keep the UI responsive during heavy synchronous work, we yield to the event loop every few milliseconds.
+
+```ts
+let deadline = 0;
+
+const maybeYield = defer(() => {
+  if (performance.now() < deadline) {
+    return;
+  }
+  return inMessageChannel().map(() => {
+    deadline = performance.now() + 5;
+  });
+});
+
+export const longRunningTask = fromGen(function* () {
+  for (const item of items) {
+    // Do work...
+
+    yield* maybeYield;
+  }
+});
+```
+
 ## Usage with EventTarget API
 
 When dealing with EventTarget, it's convenient to have a lower-level utility `listen` that's not even specific to lazy promises, and which adds a listener and returns a teardown function.
@@ -169,31 +194,6 @@ export const usePending = () => {
     ),
   ] as const;
 };
-```
-
-## Periodically yielding to the event loop
-
-Here to keep the UI responsive during heavy synchronous work, we yield to the event loop every few milliseconds.
-
-```ts
-let deadline = 0;
-
-const maybeYield = defer(() => {
-  if (performance.now() < deadline) {
-    return;
-  }
-  return inMessageChannel().map(() => {
-    deadline = performance.now() + 5;
-  });
-});
-
-export const longRunningTask = fromGen(function* () {
-  for (const item of items) {
-    // Do work...
-
-    yield* maybeYield;
-  }
-});
 ```
 
 ## Limiting concurrency
