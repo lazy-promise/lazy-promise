@@ -83,6 +83,27 @@ test("types", () => {
   ).toEqualTypeOf<
     LazyPromise<void, { outer: null } & { inner: null } & { callback: null }>
   >();
+
+  // Generic code can annotate the result using `Extract`/`Exclude`.
+  <Value, Dep>(
+    source: LazyPromise<Value, Dep>,
+  ): LazyPromise<string | Extract<Value, ErrorBox<any>>, Dep> =>
+    source.map(String);
+
+  <Value, Dep>(
+    source: LazyPromise<Value, Dep>,
+  ): LazyPromise<
+    Exclude<Value, ErrorBox<any>>[] | Extract<Value, ErrorBox<any>>,
+    Dep
+  > => source.map((value) => [value]);
+
+  <Value, Dep>(source: LazyPromise<Value, Dep>): LazyPromise<Value, Dep> =>
+    box(1).map(() => source);
+
+  // Boxed errors in `Value` pass through.
+  <Value, Dep>(source: LazyPromise<Value, Dep>): LazyPromise<string, Dep> =>
+    // @ts-expect-error
+    source.map(String);
 });
 
 test("value of this", () => {

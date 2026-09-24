@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.41](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.41)
+
+- A minor type refactor.
+
 ## [@lazy-promise/core@0.0.40](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.40)
 
 - `log` becomes a method.

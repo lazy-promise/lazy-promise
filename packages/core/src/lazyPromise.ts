@@ -605,14 +605,10 @@ export class LazyPromise<out Value, in Dep = unknown> {
    * The LazyPromise equivalent of `promise.then(...)`.
    */
   map<NewValue, ExtraDep = unknown>(
-    callback: (
-      value: Value extends ErrorBox<any> ? never : Value,
-      dep: ExtraDep,
-    ) => NewValue,
+    callback: (value: Exclude<Value, ErrorBox<any>>, dep: ExtraDep) => NewValue,
   ): LazyPromise<
     // eslint-disable-next-line no-use-before-define
-    | Unbox<NewValue>
-    | (Value extends ErrorBox<infer Error> ? ErrorBox<Error> : never),
+    Unbox<NewValue> | Extract<Value, ErrorBox<any>>,
     // eslint-disable-next-line no-use-before-define
     Dep & ExtraDep & InferDep<NewValue>
   > {
@@ -637,13 +633,10 @@ export class LazyPromise<out Value, in Dep = unknown> {
    * The LazyPromise equivalent of `promise.catch(...)` for boxed errors.
    */
   catchBoxed<NewValue, ExtraDep = unknown>(
-    callback: (
-      error: Value extends ErrorBox<infer Error> ? Error : never,
-      dep: ExtraDep,
-    ) => NewValue,
+    callback: (error: UnboxError<Value>, dep: ExtraDep) => NewValue,
   ): LazyPromise<
     // eslint-disable-next-line no-use-before-define
-    (Value extends ErrorBox<any> ? never : Value) | Unbox<NewValue>,
+    Exclude<Value, ErrorBox<any>> | Unbox<NewValue>,
     // eslint-disable-next-line no-use-before-define
     Dep & ExtraDep & InferDep<NewValue>
   > {

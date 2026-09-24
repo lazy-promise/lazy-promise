@@ -83,6 +83,12 @@ test("types", () => {
   ).toEqualTypeOf<
     LazyPromise<void, { outer: null } & { inner: null } & { callback: null }>
   >();
+
+  // Generic code can annotate the result using `Exclude`.
+  <Value, Dep>(
+    source: LazyPromise<Value, Dep>,
+  ): LazyPromise<Exclude<Value, ErrorBox<any>> | undefined, Dep> =>
+    source.catchBoxed(() => undefined);
 });
 
 test("value of this", () => {

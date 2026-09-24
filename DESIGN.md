@@ -188,6 +188,31 @@ null` detects `strictNullChecks: false`, where `dep` is optional for any
   implementation-specific and the JS language-service API will not exist in
   the Go-based TypeScript 7. `expectTypeOf` pins semantics; hovers are checked
   manually after a rebuild.
+- Generic round-tripping. For a bare type parameter `V`, `Unbox<LazyPromise<V,
+D>>` resolves to `V` (matches on shape), but any conditional whose check type
+  is `V` itself (`Unbox<V>`, `Exclude<V, ErrorBox<any>>`, `UnboxError<V>
+extends ...`) stays deferred and is then assignable neither to nor from `V`.
+  Consequences: pass-through operators (`catch`, `finally`, `race`, `defer`,
+  `x.map(() => source)`) must return a naked `Value`, which every recipe relies
+  on (`new LazyPromise<V, D>((sink, dep) => ....subscribe<any>(sink, dep))`);
+  `box(v)`, `x.map(() => v)`, `subscribe()`, `toEager()`, `all([...])`, and
+  `fromGen` pass-through cannot be expressed in generic code without a cast
+  (plain `as LazyPromise<...>` is accepted and sound). A user constraint
+  (`V extends Boxless`) does not make a deferred conditional resolve; TS only
+  consults constraints when selecting overloads. A deferred result is accepted
+  by an annotation only if it is spelled identically, so `map`/`catchBoxed`
+  use `Extract`/`Exclude`/`UnboxError` rather than hand-written conditionals,
+  letting users write `LazyPromise<string | Extract<V, ErrorBox<any>>, D>`.
+- Rejected: normalizing `ErrorBox<"a"> | ErrorBox<"b">` to `ErrorBox<"a" |
+"b">` in operator results (a `Result<V, E>` alias behaves the same). The two
+  forms are mutually assignable, so the gain is cosmetic, and any such
+  normalization is a conditional over `Value` that breaks the pass-through
+  round-tripping above. A class constraint `Value extends Boxless` (brand key
+  typed `never`) or a separate `Error` type parameter would remove the problem
+  class but is a breaking redesign; a `resolve(value: Value | ErrorBox<Error>)`
+  sink alone does not enforce box-free `Value` (the box is accepted through
+  `Value`), and a tuple-guarded sink that does enforce it breaks
+  `sink.resolve(genericValue)`.
 
 ## API scope
 
