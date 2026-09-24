@@ -12,6 +12,7 @@ on:
       - main
     paths:
       - "packages/site/**"
+      - "packages/core/package.json"
       - ".github/workflows/site.yml"
       - "pnpm-lock.yaml"
   workflow_dispatch:
