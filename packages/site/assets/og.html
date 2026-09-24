@@ -25,6 +25,9 @@
         src: url("../node_modules/@fontsource-variable/figtree/files/figtree-latin-wght-normal.woff2")
           format("woff2");
       }
+      * {
+        box-sizing: border-box;
+      }
       html,
       body {
         margin: 0;
@@ -33,120 +36,64 @@
         overflow: hidden;
       }
       body {
-        box-sizing: border-box;
-        padding: 80px 96px 72px;
-        position: relative;
-        background: #f43f5e;
-        color: #fff;
-        font-family: Geist, sans-serif;
-        -webkit-font-smoothing: antialiased;
         display: flex;
         flex-direction: column;
-        text-shadow: 0 2px 14px rgba(159, 18, 57, 0.28);
-      }
-      .swirl {
-        position: absolute;
-        inset: -25%;
-        z-index: -1;
-        filter: blur(90px);
-        background:
-          radial-gradient(
-            ellipse 40% 55% at 22% 30%,
-            #fb7185 0%,
-            transparent 70%
-          ),
-          radial-gradient(
-            ellipse 45% 45% at 80% 22%,
-            #ec4899 0%,
-            transparent 70%
-          ),
-          radial-gradient(
-            ellipse 50% 40% at 70% 85%,
-            #e11d48 0%,
-            transparent 70%
-          ),
-          radial-gradient(
-            ellipse 35% 45% at 15% 85%,
-            #f54c4c 0%,
-            transparent 70%
-          ),
-          conic-gradient(
-            from 210deg at 55% 50%,
-            #f43f5e,
-            #f0507a,
-            #e8365c,
-            #fb5a6e,
-            #db2777,
-            #f43f5e
-          );
-      }
-      .swirl::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: conic-gradient(
-          from 30deg at 40% 60%,
-          transparent 0deg,
-          rgba(255, 255, 255, 0.18) 90deg,
-          transparent 180deg,
-          rgba(136, 19, 55, 0.22) 270deg,
-          transparent 360deg
-        );
+        padding: 54px 72px 46px;
+        background: #f43f5e;
+        color: #fff;
+        font-family: Figtree, sans-serif;
+        -webkit-font-smoothing: antialiased;
       }
       .top {
         display: flex;
         align-items: center;
-        gap: 36px;
+        justify-content: space-between;
       }
       .name {
         font-family: Figtree, sans-serif;
-        font-size: 84px;
+        font-size: 92px;
         font-weight: 700;
         line-height: 1;
-        color: #fff;
       }
       .logo {
-        filter: drop-shadow(0 4px 18px rgba(159, 18, 57, 0.28));
+        display: block;
+        width: 150px;
+        height: 150px;
       }
       .points {
-        margin: auto 0;
+        display: grid;
+        gap: 19px;
+        margin-top: 43px;
+        margin-bottom: auto;
         padding: 0;
         list-style: none;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        font-size: 38px;
-        line-height: 1.25;
-        letter-spacing: -0.01em;
-        color: rgba(255, 255, 255, 0.86);
+        font-size: 45px;
+        font-weight: 500;
+        line-height: 1.18;
+        color: rgba(255, 255, 255);
       }
       .points li {
-        position: relative;
-        padding-left: 34px;
+        display: grid;
+        grid-template-columns: 14px 1fr;
+        align-items: center;
+        gap: 22px;
+        width: 100%;
       }
-      .points li::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 0.5em;
-        width: 10px;
-        height: 10px;
+      .bullet {
+        width: 11px;
+        height: 11px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.7);
-      }
-      .points strong {
-        font-weight: 700;
-        color: #fff;
+        background: #fff;
       }
       .footer {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding-top: 30px;
+        padding-top: 20px;
         border-top: 1px solid rgba(255, 255, 255, 0.55);
         font-family: "Geist Mono", monospace;
-        font-size: 28px;
-        color: rgba(255, 255, 255, 0.86);
+        font-size: 31px;
+        color: rgba(255, 255, 255);
       }
       .footer code {
         font-family: inherit;
@@ -154,15 +101,9 @@
     </style>
   </head>
   <body>
-    <div class="swirl"></div>
-    <div class="top">
-      <svg
-        class="logo"
-        width="132"
-        height="132"
-        viewBox="0 0 128 128"
-        aria-hidden="true"
-      >
+    <header class="top">
+      <div class="name">LazyPromise</div>
+      <svg class="logo" viewBox="0 0 128 128" aria-hidden="true">
         <path
           fill="#ffffff"
           d="M82.186 0c16.036 0 24.055 0 30.18 3.121a28.634 28.634 0 0 1 12.513 12.513C128 21.759 128 29.777 128 45.814v36.372c0 16.036 0 24.055-3.121 30.18a28.634 28.634 0 0 1-12.513 12.513C106.241 128 98.223 128 82.186 128H45.814c-16.036 0-24.055 0-30.18-3.121a28.634 28.634 0 0 1-12.513-12.513C0 106.241 0 98.223 0 82.186V45.814c0-16.036 0-24.055 3.121-30.18A28.634 28.634 0 0 1 15.634 3.121C21.759 0 29.777 0 45.814 0h36.372Z"
@@ -170,16 +111,19 @@
         <rect x="38" y="32" width="18" height="64" rx="9" fill="#f43f5e" />
         <rect x="72" y="32" width="18" height="64" rx="9" fill="#f43f5e" />
       </svg>
-      <div class="name">LazyPromise</div>
-    </div>
+    </header>
     <ul class="points">
-      <li>A single-shot <strong>Observable</strong></li>
-      <li>A lazy and cancelable <strong>promise</strong></li>
-      <li>A tiny alternative to <strong>Effect</strong></li>
+      <li><span class="bullet"></span><span>A single-shot Observable</span></li>
+      <li>
+        <span class="bullet"></span><span>A lazy and cancelable promise</span>
+      </li>
+      <li>
+        <span class="bullet"></span><span>A tiny alternative to Effect</span>
+      </li>
     </ul>
-    <div class="footer">
+    <footer class="footer">
       <span>lazypromise.com</span>
       <code>npm i @lazy-promise/core</code>
-    </div>
+    </footer>
   </body>
 </html>
