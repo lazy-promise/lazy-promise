@@ -45,7 +45,7 @@ LazyPromise is designed in such a way that all boxed errors must be either expli
 
 ## Why not have an equivalent of `Promise.withResolvers`?
 
-A native promise has a single `resolve, reject` pair, whereas a LazyPromise has a new `sink` for each subscription, so the concept does not carry over.
+A native promise has a single `resolve, reject` pair, whereas a LazyPromise has a new `sink` for each subscription.
 
 ## Why not have an affordance for sharing/caching the result?
 
@@ -53,4 +53,4 @@ While this is achievable with userland operators like those in RxJS, it's not so
 
 ## Why not a separate channel for typed errors like in Effect?
 
-Error boxes are part of what makes LazyPromise simple. Although `LazyPromise<"value" | ErrorBox<"error">>` is a little bit harder to read than `LazyPromise<"value", "error">`, an extra channel and type parameter would have introduced unnecessary complexity when it comes to using LazyPromise together with native promises and generator syntax. You wouldn't be able to produce typed errors in native async functions by returning error boxes, and try/catch/finally syntax in generator functions would have non-obvious behavior.
+Error boxes are part of what makes LazyPromise simple. Although `LazyPromise<"value" | ErrorBox<"error">>` is more verbose than `LazyPromise<"value", "error">`, an extra channel and type parameter would have introduced unnecessary complexity when it comes to using LazyPromise together with native promises and generator syntax. You wouldn't be able to produce typed errors in native async functions by returning error boxes, and try/catch/finally syntax in generator functions would have non-obvious behavior. Also, LazyPromise does not attempt to collapse types like `ErrorBox<"a"> | ErrorBox<"b">` into `ErrorBox<"a" | "b">` or to enforce a specific order of elements in the union. Large TS types have always been hard to read, and there is little LazyPromise can do about that: instead it focuses on correctness and simplicity.
