@@ -2,6 +2,14 @@
 title: Dependency injection
 ---
 
+import Note from "../../components/Note.astro";
+
+<Note>
+
+If you don't plan to use dependency injection, feel free to skip this page. LazyPromise has a second type parameter that represents a dependency, but this parameter is optional. If you omit it, it defaults to `unknown`, indicating that there are no dependencies.
+
+</Note>
+
 ## What is a dependency
 
 We've [talked](/basic-usage/#invariants) about how `new LazyPromise(foo)` is really just a wrapper around `foo`. Dependency injection is about being less restrictive about what kind of functions LazyPromise can wrap: namely, in addition to the first parameter of the shape `{ resolve, reject }`, we also allow a second parameter called "dependency" that can be of any type:
@@ -19,8 +27,6 @@ lazyPromise.subscribe(
   dep, // Must satisfy `MyDep`.
 );
 ```
-
-The dependency type parameter is optional. If you omit it, it will default to `unknown`, indicating that there are no dependencies.
 
 Dependencies bubble up through the type system when you use the operators or the generator syntax, so for example if `promiseA` has dependency `A` and `promiseB` has dependency `B`, `all([promiseA, promiseB])` will have dependency `A & B`, in other words `all` needs a dependency that it'll be able to pass to both `promiseA` and `promiseB`. This is useful for testing since you can gather up a bunch of dependencies needed by your async logic, and then satisfy them with either production implementations or mocks.
 

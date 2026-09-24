@@ -2,6 +2,14 @@
 title: Type-safe errors
 ---
 
+import Note from "../../components/Note.astro";
+
+<Note>
+
+If you don't plan to use type-safe errors, feel free to skip this page. The feature only manifests itself when there is `ErrorBox` class involved. Just know that when you subscribe to a LazyPromise that's generically typed and so can technically resolve with an `ErrorBox`, you can avoid a type error by passing `any` as a type parameter: `.subscribe<any>(...)`.
+
+</Note>
+
 ## ErrorBox
 
 The way that LazyPromise supports type-safe errors reflects the JavaScript reality that you cannot typecheck errors that you throw and have to represent typed errors with return values. Instead of having an extra channel in addition to `resolve` and `reject`, we pass typed errors through the `resolve` channel, wrapping them in `ErrorBox` class to differentiate them from other values. `new ErrorBox(error)` simply stores `error` in its `.error` property.

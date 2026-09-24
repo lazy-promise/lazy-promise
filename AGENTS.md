@@ -127,7 +127,8 @@ has the site's own operational notes.
   `src/content/docs/*.mdx`, ordered by the `pageOrder` slug list in `src/docs.ts`;
   `about` is served at `/`. Contributing stays in the root README. Rendered by
   `src/pages/[...slug].astro`; `h2`/`h3` are swapped for `H2`/`H3` components
-  to add anchors.
+  to add anchors. Callouts are `<Note>` from `src/components/Note.astro`,
+  imported per page; styles are the `.docs .note*` rules in `global.css`.
 - `pnpm dev` / `pnpm build` / `pnpm preview` in the package. `astro check` and
   eslint (ts/tsx only) run under `turbo test`; `turbo build` builds `dist/`.
   Search is Pagefind, indexed post-build by `astro-pagefind`; in dev it serves

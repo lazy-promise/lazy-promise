@@ -257,15 +257,27 @@
 }
 
 .docs .note {
-  @apply my-6 rounded-lg border border-line bg-surface px-5 py-4 text-[0.875rem] leading-6 text-ink-muted;
+  @apply my-8 rounded-xl border border-line bg-surface px-5 py-4 text-ink;
 }
 
-.docs .note > :first-child {
+.docs .note-title {
+  @apply mb-3 flex items-center gap-2.5 font-heading text-xl leading-7 font-bold text-accent;
+}
+
+.docs .note-icon {
+  @apply size-6 shrink-0;
+}
+
+.docs .note-body > :first-child {
   @apply mt-0;
 }
 
-.docs .note > :last-child {
+.docs .note-body > :last-child {
   @apply mb-0;
+}
+
+.docs .note :not(pre) > code {
+  @apply bg-line dark:bg-line-strong;
 }
 
 /* Shiki dual themes: the site background wins over the theme background. */
