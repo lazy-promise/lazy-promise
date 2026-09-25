@@ -113,21 +113,11 @@ const reply = new LazyPromise<MessageEvent>((sink) =>
 
 ## Teardown functions instead of subscription objects
 
-In some use-cases it's convenient to have a `toDisposeFn` utility that subscribes and returns a teardown function when you call `.pipe(toDisposeFn)`. You'll get a typechecking error if the lazy promise has boxed errors or dependencies.
+In some use-cases it's convenient to have a `toDisposeFn` utility that subscribes and returns a teardown function when you call `.pipe(toDisposeFn)`. `LazyPromise<NotAnErrorBox, undefined>` only accepts lazy promises that don't resolve to boxed errors and whose dependency, if any, is satisfied by `undefined`. You'll get a typechecking error otherwise.
 
 ```ts
-// Using an interface so that TS would only show the error message when it's
-// applicable.
-interface UnhandledBoxedErrorMessage {
-  "❌ Unhandled boxed errors detected. Catch them before calling toDisposeFn.": never;
-}
-
-const toDisposeFn = <Value>(
-  source: UnboxError<Value> extends never
-    ? LazyPromise<Value>
-    : UnhandledBoxedErrorMessage,
-) => {
-  const subscription = (source as LazyPromise<any>).subscribe<any>();
+const toDisposeFn = (source: LazyPromise<NotAnErrorBox, undefined>) => {
+  const subscription = source.subscribe();
   return () => {
     subscription.dispose();
   };

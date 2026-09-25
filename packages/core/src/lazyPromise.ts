@@ -21,10 +21,27 @@ import { throwInMicrotask } from "./utils.js";
 
 export class ErrorBox<const Error> {
   constructor(public readonly error: Error) {}
-  declare private brand: any;
+  // `NotAnErrorBox` has a public optional property of the same name, and a
+  // private property never satisfies a public one.
+  declare private __errorBoxBrand: never;
 }
 
 export type UnboxError<T> = T extends ErrorBox<infer Error> ? Error : never;
+
+// An interface, not `{}`: an empty anonymous object type is dropped from
+// intersections, and without the intersection `{ __errorBoxBrand?: ... }` is a
+// weak type that rejects primitives and unrelated objects.
+interface NonNullish {}
+
+/**
+ * Any value except an ErrorBox. `LazyPromise<NotAnErrorBox>` is the type of
+ * LazyPromises that don't resolve to boxed errors.
+ */
+export type NotAnErrorBox =
+  | ({ readonly __errorBoxBrand?: "NotAnErrorBox" } & NonNullish)
+  | null
+  | undefined
+  | void;
 
 export type Yieldable = {
   [`❌ Did you forget a star (*) after yield?`]: never;
@@ -571,11 +588,14 @@ export class LazyPromise<out Value, in Dep = unknown> {
    * `resolve` and `reject` are called with `consumer` object as `this`.
    */
   subscribe<WhitelistedError = never>(
-    this: UnboxError<Value> extends WhitelistedError
-      ? unknown
-      : {
-          [`❌ Unhandled boxed errors detected. Either catch them before subscribing, or whitelist them using the type parameter of the .subscribe method.`]: never;
-        },
+    // `unknown`/`any` whitelist bypasses the check even for
+    // `LazyPromise<unknown>`. Without `NoInfer`, `WhitelistedError` would be
+    // inferred from `this` (and garbled in error messages).
+    this: NoInfer<
+      unknown extends WhitelistedError
+        ? unknown
+        : LazyPromise<NotAnErrorBox | ErrorBox<WhitelistedError>, any>
+    >,
     consumer?: Consumer<Value>,
     // Equivalent to `undefined extends Dep ? [dep?: Dep] : [dep: Dep]`, but
     // with `Dep` only in check positions, so that TS can verify the `in Dep`
@@ -679,24 +699,14 @@ export class LazyPromise<out Value, in Dep = unknown> {
    * dependencies and not resolve to boxed errors. You can pass an AbortSignal
    * in the options object.
    */
-  toEager<This>(
-    // Depending on position, occurrence of `Value` or `Dep` in this signature
-    // could change measured variance (breaking `InferDep`) or break
-    // assignability between LazyPromise instantiations.
-    this: This &
-      // eslint-disable-next-line no-use-before-define
-      (UnboxError<Unbox<This>> extends never
-        ? // eslint-disable-next-line no-use-before-define
-          undefined extends InferDep<This>
-          ? unknown
-          : "❌ You cannot call .toEager on a LazyPromise that has dependencies."
-        : "❌ Unhandled boxed errors detected. Catch them before calling the .toEager method."),
+  toEager(
+    this: LazyPromise<NotAnErrorBox, undefined>,
     options?: { readonly signal?: AbortSignal },
   ): Promise<Value> {
     return new Promise((resolve, reject) => {
       const signal = options?.signal;
       if (!signal) {
-        (this as LazyPromise<Value>).subscribe<any>({ resolve, reject });
+        (this as LazyPromise<any>).subscribe<any>({ resolve, reject });
         return;
       }
       signal.throwIfAborted();
@@ -705,7 +715,7 @@ export class LazyPromise<out Value, in Dep = unknown> {
         reject,
         signal,
       );
-      const subscription = (this as LazyPromise<Value>).subscribe<any>(
+      const subscription = (this as LazyPromise<any>).subscribe<any>(
         consumerListener,
       );
       if (consumerListener.settled) {

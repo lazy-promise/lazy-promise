@@ -275,7 +275,7 @@ test("rejection of one of the sources should reject result", () => {
     new LazyPromise<"a">(() => () => {
       log("dispose a");
     }),
-    new LazyPromise((sink) => {
+    new LazyPromise<never>((sink) => {
       setTimeout(() => {
         sink.reject("oops");
       }, 1000);

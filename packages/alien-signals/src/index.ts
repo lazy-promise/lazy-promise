@@ -1,9 +1,8 @@
 import type {
-  ErrorBox,
   Job,
+  NotAnErrorBox,
   Sink,
   Subscription,
-  UnboxError,
 } from "@lazy-promise/core";
 import { LazyPromise } from "@lazy-promise/core";
 import type { ReactiveNode } from "alien-signals/system";
@@ -15,7 +14,7 @@ const rejectedSymbol = Symbol("rejected");
 interface EffectScopeNode extends ReactiveNode {}
 
 interface EffectNode extends ReactiveNode {
-  fn(): (() => void) | LazyPromise<any> | void;
+  fn(): (() => void) | LazyPromise<NotAnErrorBox, undefined> | void;
   cleanup: (() => void) | void;
 }
 
@@ -598,7 +597,14 @@ export function signal<T>(initialValue?: T): {
   }) as () => T | undefined;
 }
 
-export const computed = <T>(getter: (previousValue?: T) => T): (() => T) =>
+export const computed = <T>(
+  // Lazy promises must not resolve to boxed errors or need a dependency.
+  getter: (
+    previousValue?: T,
+  ) => T extends LazyPromise<any, any>
+    ? LazyPromise<NotAnErrorBox, undefined>
+    : T,
+): (() => T) =>
   computedOper.bind({
     value: undefined,
     subs: undefined,
@@ -609,14 +615,11 @@ export const computed = <T>(getter: (previousValue?: T) => T): (() => T) =>
     getter: getter as (previousValue?: unknown) => unknown,
   }) as () => T;
 
-export const effect = <T>(
-  fn: () =>
-    | void
-    | (() => void)
-    | (Extract<T, ErrorBox<any>> extends never ? LazyPromise<T> : never),
+export const effect = (
+  fn: () => void | (() => void) | LazyPromise<NotAnErrorBox, undefined>,
 ): (() => void) => {
   const e: EffectNode = {
-    fn: fn as () => (() => void) | LazyPromise<any> | void,
+    fn,
     cleanup: undefined,
     subs: undefined,
     subsTail: undefined,
@@ -699,19 +702,19 @@ export const trigger = (fn: () => void) => {
   }
 };
 
-export const unbox = <T>(
-  // Errors are expected to have been handled, so do not accept
-  // promises that can resolve to typed errors.
-  getter: UnboxError<T> extends never ? () => LazyPromise<T> : never,
+export const unbox = <T extends NotAnErrorBox>(
+  getter: () => LazyPromise<T, undefined>,
 ): (() => T | undefined) => {
   let returnValue: T | undefined, returnValuePromise: unknown;
   const memoizedGetter = computed(getter);
   // A signal we'll use to trigger downstream updates in the case
   // when the promise resolves asynchronously.
   const tokenSignal = signal();
-  return computed(() => {
+  // `computed`'s gate is a conditional over its type parameter, which stays
+  // deferred for the generic `T`, so instantiate it with the constraint.
+  return computed<NotAnErrorBox>(() => {
     const promise = memoizedGetter();
-    effect<any>(() =>
+    effect(() =>
       promise.map((value) => {
         returnValue = value;
         if (returnValuePromise === promise) {
@@ -728,5 +731,5 @@ export const unbox = <T>(
     }
     returnValuePromise = promise;
     tokenSignal();
-  });
+  }) as () => T | undefined;
 };

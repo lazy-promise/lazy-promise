@@ -1,6 +1,6 @@
 {
   "name": "@lazy-promise/core",
-  "version": "0.0.41",
+  "version": "0.0.42",
   "description": "LazyPromise is a single-shot Observable, a lazy and cancelable promise, and a tiny alternative to Effect.",
   "homepage": "https://lazypromise.com",
   "repository": {

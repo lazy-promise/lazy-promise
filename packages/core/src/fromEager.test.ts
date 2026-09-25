@@ -253,7 +253,7 @@ test("callback throws after unsubscribed", () => {
 test("cancelation with abort signal", () => {
   const promise = fromEager(
     (options) =>
-      new Promise((resolve, reject) => {
+      new Promise<never>((resolve, reject) => {
         log("produce");
         const { signal } = options;
         expect(signal).toBe(options.signal);

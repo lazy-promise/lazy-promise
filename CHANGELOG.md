@@ -1,5 +1,11 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.42](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.42)
+
+- Helper type `NotAnErrorBox`.
+
+- Types require TypeScript 5.4 or later (`NoInfer`).
+
 ## [@lazy-promise/core@0.0.41](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.41)
 
 - A minor type refactor.

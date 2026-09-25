@@ -81,7 +81,7 @@ the Promise constructor callback would execute synchronously, so as long as you 
 
 When AsyncContext becomes available, this will not change the picture. Even when you can track signals inside an async function (or the LazyPromise's generator-based equivalent), you still have no way to re-run just the part of the function after the read of a signal that changed. So the approach "build a lazy promise in a tracked context, subscribe to it in untracked context" will remain valid, the only thing that will need to change is the context will need to be captured where `effect` was called, and applied to all re-runs.
 
-Since LazyPromise supports typed errors, there's one more twist which you can ignore if you're not interested in that functionality: we'll make `effect(...)` show a typechecking error if the LazyPromise returned by the callback can resolve to an ErrorBox. This makes sure that if, for example, there is a new typed error that a server endpoint can return, you don't forget to handle it in all the relevant places on the client.
+Since LazyPromise supports type-safe errors and dependency injection, there's one more twist which you can ignore if you're not interested in that functionality: we'll make `effect(...)` show a typechecking error if the LazyPromise returned by the callback can resolve to an ErrorBox (the user has forgot to handle an error) or has dependencies (so we can't subscribe).
 
 ## Step 2: memos
 
@@ -97,7 +97,7 @@ const lazyPromise = new LazyPromise(foo);
 
 - As long as the memo is in the dependency graph, it should either be subscribed to the original lazy promise and waiting for it to settle, or hold on to the result once the promise does settle.
 
-- As with the effects, we run the callback in a tracked context (with AsyncContext applied), subscribe in an untracked context and unsubscribe as needed.
+- As with the effects, we run the callback in a tracked context (with AsyncContext applied), subscribe in an untracked context and unsubscribe as needed, and reject lazy promises that can resolve to an ErrorBox or have dependencies.
 
 Let's take a look at the following example:
 
@@ -160,10 +160,8 @@ You can see why auto-batching is necessary: to implement `unbox`, we need to set
 One more subtlety: we need to take care not to write (or `trigger`) signals synchronously in `computed` callbacks. If we did that, we'd get redundant updates even with auto-batching. If the promise resolves synchronously, we use only memos, and only trigger a signal if the promise settles asynchronously:
 
 ```ts
-const unbox = <T>(
-  // Errors are expected to have been handled, so do not accept
-  // promises that can resolve to typed errors.
-  getter: UnboxError<T> extends never ? () => LazyPromise<T> : never,
+const unbox = <T extends NotAnErrorBox>(
+  getter: () => LazyPromise<T, undefined>,
 ): (() => T | undefined) => {
   let returnValue: T | undefined, returnValuePromise: unknown;
   const memoizedGetter = computed(getter);

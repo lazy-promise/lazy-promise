@@ -18,6 +18,7 @@ export type {
   Consumer,
   InferDep,
   Job,
+  NotAnErrorBox,
   Producer,
   Sink,
   Subscription,

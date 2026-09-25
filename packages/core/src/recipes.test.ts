@@ -1,4 +1,4 @@
-import type { Consumer, Subscription } from "@lazy-promise/core";
+import type { Consumer, NotAnErrorBox, Subscription } from "@lazy-promise/core";
 import {
   all,
   box,
@@ -297,6 +297,18 @@ const createAuth = (fetchRefreshToken: () => Promise<void>) => {
   return withAuth;
 };
 
+//
+// Teardown functions instead of subscription objects
+//
+
+// The docs snippet.
+const toDisposeFn = (source: LazyPromise<NotAnErrorBox, undefined>) => {
+  const subscription = source.subscribe();
+  return () => {
+    subscription.dispose();
+  };
+};
+
 test("types", () => {
   () => {
     expectTypeOf(
@@ -335,6 +347,15 @@ test("types", () => {
   expectTypeOf(
     new LazyPromise<number | ErrorBox<"oops">>(() => {}).pipe(withBackoff),
   ).toEqualTypeOf<LazyPromise<number | ErrorBox<"oops">>>();
+
+  expectTypeOf(
+    new LazyPromise<number>(() => {}).pipe(toDisposeFn),
+  ).toEqualTypeOf<() => void>();
+  new LazyPromise<number, undefined>(() => {}).pipe(toDisposeFn);
+  // @ts-expect-error Unhandled boxed errors.
+  new LazyPromise<number | ErrorBox<"oops">>(() => {}).pipe(toDisposeFn);
+  // @ts-expect-error Unsatisfied dependency.
+  new LazyPromise<number, { a: null }>(() => {}).pipe(toDisposeFn);
 
   const concurrencyLimit = createConcurrencyLimit(2);
   expectTypeOf(

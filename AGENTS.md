@@ -96,10 +96,11 @@ has the site's own operational notes.
   load-bearing (see DESIGN.md). `protected`, not `private`: private members
   lose their types in `.d.ts`.
 - Methods whose type check depends on `Value` or `Dep` use `this: This` with
-  `Unbox<This>` / `InferDep<This>` (`inject`, `toEager`, `trace`, `pipe`).
-  Putting `Dep` directly in a method signature changes its measured variance
-  and breaks `InferDep` or assignability between instantiations. `this`
-  parameters are compared strictly even on methods.
+  `Unbox<This>` / `InferDep<This>` (`inject`, `trace`, `pipe`), or gate `this`
+  as a LazyPromise instantiation that mentions neither (`subscribe`,
+  `toEager`; see DESIGN.md). Putting `Dep` directly in a method signature
+  changes its measured variance and breaks `InferDep` or assignability between
+  instantiations. `this` parameters are compared strictly even on methods.
 - Type-level behavior can differ between live `src` (relative import) and
   `.d.ts` consumption (package alias). Validate type fixes through the package
   alias; a relative-import probe proves nothing.

@@ -156,16 +156,41 @@ infer Dep> ? Dep : unknown`. `LazyPromise<any, never>` is the type every
   LazyPromise is assignable to under contravariant `Dep`; `LazyPromise<any,
 any>` is not (`any` is not assignable to `never`) and would drop
   never-dep promises, hiding unsatisfiable dependency sets.
-- Methods whose checks depend on `Value`/`Dep` (`inject`, `toEager`, `trace`)
-  take `this: This` and express everything via `Unbox<This>`/`InferDep<This>`.
+- Methods whose checks depend on `Value`/`Dep` (`inject`, `trace`) take
+  `this: This` and express everything via `Unbox<This>`/`InferDep<This>`.
   A gate written directly in terms of `Dep` makes the resolved `this` types of
   different instantiations unrelated and breaks `LazyPromise<V, SomeDep>`
   assignability to `LazyPromise<any, any>` (surfacing far away, e.g. in
-  `fromGen`'s constraint). Alternatives tested: non-generic `this` gates (fail
-  assignability and trigger TS2636), `this`-conditional return types (illegal,
-  TS2577), gates in rest-args or return types (fail or lose the message), a
-  weak-type gate (`{} | {msg?: never}`; works but forces a single merged error
-  message). Only the `This` form keeps distinct messages.
+  `fromGen`'s constraint). Alternatives tested: non-generic `this` gates in
+  terms of `Value`/`Dep` (fail assignability and trigger TS2636),
+  `this`-conditional return types (illegal, TS2577), gates in rest-args or
+  return types (fail or lose the message), a weak-type gate
+  (`{} | {msg?: never}`; works but forces a single merged error message).
+- `subscribe` and `toEager` gate `this` as a LazyPromise instantiation
+  instead: `LazyPromise<NotAnErrorBox | ErrorBox<WhitelistedError>, any>` and
+  `LazyPromise<NotAnErrorBox, undefined>`. Neither mentions `Value` or `Dep`,
+  so variance is unaffected, and the error reads `Type 'ErrorBox<"oops">' is
+not assignable to type 'NotAnErrorBox'`. Consequences: `LazyPromise<unknown>`
+  is rejected (it may be a box; the old `UnboxError<unknown> = never` gate let
+  it through) and `LazyPromise<any>` is accepted (the old gate rejected it).
+  `subscribe` wraps the gate in `unknown extends WhitelistedError ? unknown :
+...` so `<unknown>`/`<any>` bypasses even `LazyPromise<unknown>`, and in
+  `NoInfer`, because TS otherwise infers `WhitelistedError` from `this`, and
+  with a conditional `this` plus a `Value`-typed parameter the inferred type
+  is garbled in messages (`ErrorBox<NoInfer<LazyPromise<...>>>`).
+- `NotAnErrorBox` = `({ __errorBoxBrand?: "NotAnErrorBox" } & NonNullish) |
+null | undefined | void`. `ErrorBox` has `declare private __errorBoxBrand`,
+  and a private property never satisfies a public one, so boxes are rejected
+  by the private/public rule (independent of the property's type, which the
+  `.d.ts` erases) while everything else passes via optionality. The
+  intersection with an empty _interface_ is what disables weak-type detection
+  on the all-optional object type; an anonymous `{}` is removed from
+  intersections and an explicit primitive union is not future-proof. TS does
+  not elaborate the private/public mismatch, so the slot literal is never
+  shown. Rejected: a symbol-keyed brand (structurally airtight and gives a
+  leaf line, but changes the public `ErrorBox` API), and payload-as-brand
+  (`{ [sym]: Error }`; `ErrorBox<undefined>` leaks through an optional slot
+  without `exactOptionalPropertyTypes`).
 - `subscribe`'s dep arity is a conditional chain with `Dep` only in check
   positions. `undefined extends Dep ? ... : ...` puts `Dep` in the extends
   position, and TS's variance-annotation validator cannot relate two such
@@ -176,9 +201,8 @@ null` detects `strictNullChecks: false`, where `dep` is optional for any
 - Error messages are string literal types (`This & "❌ ..."`) rather than
   object types with a message key: the full sentence renders in both simple
   and union-receiver errors. Wrapping in a named alias was rejected because
-  the alias name replaced the sentence in union errors. `subscribe` and
-  `Yieldable` still use the object-key style; `Yieldable`'s key is a real
-  property.
+  the alias name replaced the sentence in union errors. `Yieldable` still uses
+  the object-key style; its key is a real property.
 - `fromGen`: `TYield extends LazyPromise<any, any> & Yieldable = never`. The
   default matters when the generator has no `yield`: TS then falls back to the
   constraint, and an `any`-containing constraint poisons the whole return type.

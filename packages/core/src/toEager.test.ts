@@ -65,6 +65,13 @@ test("types", () => {
   /** @ts-expect-error */
   new LazyPromise<void, never>(() => {}).toEager();
 
+  // `unknown` may be an ErrorBox.
+  /** @ts-expect-error */
+  new LazyPromise<unknown>(() => {}).toEager();
+  expectTypeOf(new LazyPromise<any>(() => {}).toEager()).toEqualTypeOf<
+    Promise<any>
+  >();
+
   /* eslint-enable @typescript-eslint/no-floating-promises */
 });
 

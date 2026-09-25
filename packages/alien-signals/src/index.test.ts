@@ -1,6 +1,6 @@
 import type { ErrorBox } from "@lazy-promise/core";
 import { LazyPromise, box } from "@lazy-promise/core";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 import { computed, effect, signal, trigger, unbox } from "./index.js";
 
 const logContents: unknown[] = [];
@@ -177,9 +177,45 @@ effect(() => new LazyPromise<ErrorBox<string>>(() => {}));
 // @ts-expect-error effect must not accept a callback that returns LazyPromise<T | ErrorBox<X>>
 effect(() => new LazyPromise<number | ErrorBox<string>>(() => {}));
 
+// @ts-expect-error effect must not accept a callback that returns a LazyPromise with a dependency
+effect(() => new LazyPromise<number, "dep">(() => {}));
+
+effect(() => new LazyPromise<number, number | undefined>(() => {}));
+
 //
 // Memos
 //
+
+test("computed: types", () => {
+  expectTypeOf(computed(() => 1)).toEqualTypeOf<() => number>();
+  expectTypeOf(computed(() => new LazyPromise<number>(() => {}))).toEqualTypeOf<
+    () => LazyPromise<number>
+  >();
+  expectTypeOf(
+    computed(() =>
+      (true as boolean) ? new LazyPromise<number>(() => {}) : undefined,
+    ),
+  ).toEqualTypeOf<() => LazyPromise<number> | undefined>();
+  computed(() => new LazyPromise<number, number | undefined>(() => {}));
+  // @ts-expect-error
+  computed(() => new LazyPromise<ErrorBox<string>>(() => {}));
+  // @ts-expect-error
+  computed(() => new LazyPromise<number | ErrorBox<string>>(() => {}));
+  // @ts-expect-error
+  computed(() => new LazyPromise<number, "dep">(() => {}));
+  const maybeBoxed = (true as boolean)
+    ? new LazyPromise<number | ErrorBox<string>>(() => {})
+    : undefined;
+  // @ts-expect-error
+  computed(() => maybeBoxed);
+
+  expectTypeOf(unbox(() => box(1))).toEqualTypeOf<() => 1 | undefined>();
+  unbox(() => new LazyPromise<number, number | undefined>(() => {}));
+  // @ts-expect-error
+  unbox(() => new LazyPromise<number | ErrorBox<string>>(() => {}));
+  // @ts-expect-error
+  unbox(() => new LazyPromise<number, "dep">(() => {}));
+});
 
 test("computed: proxy LazyPromise fires when original settles", () => {
   let resolveOriginal!: (v: number) => void;

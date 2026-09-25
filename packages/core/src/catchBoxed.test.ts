@@ -134,7 +134,7 @@ test("outer promise resolves", () => {
 });
 
 test("outer promise rejects", () => {
-  const promise = new LazyPromise((sink) => {
+  const promise = new LazyPromise<never>((sink) => {
     sink.reject("oops");
   }).catchBoxed(() => undefined);
   promise.subscribe(logConsumer);

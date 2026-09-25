@@ -1,10 +1,11 @@
 import type {
-  Consumer,
-  ErrorBox,
-  InferDep,
-  Job,
-  Producer,
-  Sink,
+    Consumer,
+    ErrorBox,
+    InferDep,
+    Job,
+    NotAnErrorBox,
+    Producer,
+    Sink,
 } from "@lazy-promise/core";
 import { box, LazyPromise, never, rejecting } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
@@ -120,6 +121,28 @@ test("types", () => {
 
   /** @ts-expect-error */
   promise3.subscribe<"error b">();
+
+  // `unknown` may be an ErrorBox.
+  /** @ts-expect-error */
+  new LazyPromise<unknown>(() => {}).subscribe();
+  new LazyPromise<unknown>(() => {}).subscribe<unknown>();
+  new LazyPromise<unknown>(() => {}).subscribe<any>();
+  new LazyPromise<any>(() => {}).subscribe();
+
+  expectTypeOf<string>().toExtend<NotAnErrorBox>();
+  expectTypeOf<{ error: string }>().toExtend<NotAnErrorBox>();
+  expectTypeOf<Map<string, number>>().toExtend<NotAnErrorBox>();
+  expectTypeOf<void>().toExtend<NotAnErrorBox>();
+  expectTypeOf<ErrorBox<"oops">>().not.toExtend<NotAnErrorBox>();
+  expectTypeOf<ErrorBox<undefined>>().not.toExtend<NotAnErrorBox>();
+  expectTypeOf<1 | ErrorBox<1>>().not.toExtend<NotAnErrorBox>();
+  expectTypeOf<LazyPromise<number>>().toExtend<LazyPromise<NotAnErrorBox>>();
+  expectTypeOf<LazyPromise<number | ErrorBox<"oops">>>().not.toExtend<
+    LazyPromise<NotAnErrorBox>
+  >();
+  expectTypeOf<LazyPromise<number, "dep">>().not.toExtend<
+    LazyPromise<NotAnErrorBox>
+  >();
 
   new LazyPromise<void, "dep">(() => {}).subscribe(undefined, "dep");
   new LazyPromise<void, undefined>(() => {}).subscribe();
@@ -366,7 +389,7 @@ test("sync resolve (flattening)", () => {
 });
 
 test("async reject", () => {
-  const promise = new LazyPromise<unknown>((sink) => {
+  const promise = new LazyPromise<never>((sink) => {
     setTimeout(() => {
       sink.reject("oops");
     }, 1000);
@@ -391,7 +414,7 @@ test("async reject", () => {
 });
 
 test("sync reject", () => {
-  new LazyPromise<unknown>((sink) => {
+  new LazyPromise<never>((sink) => {
     log("produce");
     sink.reject("oops");
     return () => {
@@ -806,7 +829,7 @@ test("teardown function called by consumer", () => {
 });
 
 test("error in produce function before settling", () => {
-  new LazyPromise(() => {
+  new LazyPromise<never>(() => {
     throw "oops";
   }).subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
@@ -859,7 +882,7 @@ test("error in produce function after settling", () => {
 });
 
 test("error in teardown function", () => {
-  const promise = new LazyPromise(() => {
+  const promise = new LazyPromise<never>(() => {
     log("produce");
     return () => {
       throw "oops";
@@ -1088,7 +1111,7 @@ test("stack overflow", () => {
   };
   const maxStackDepth = getMaxStackDepth();
   const getInner = (count: number) =>
-    new LazyPromise((sink) => {
+    new LazyPromise<string>((sink) => {
       sink.resolve(count === 1 ? "value" : getInner(count - 1));
     });
   getInner(maxStackDepth + 10).subscribe(logConsumer);
@@ -1102,7 +1125,7 @@ test("stack overflow", () => {
   `);
 
   const getInnerWithLogging = (count: number) =>
-    new LazyPromise((sink) => {
+    new LazyPromise<string>((sink) => {
       log("start", count);
       sink.resolve(count === 1 ? "value" : getInnerWithLogging(count - 1));
       log("end", count);

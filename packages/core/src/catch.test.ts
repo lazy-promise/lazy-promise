@@ -91,9 +91,9 @@ test("value of this", () => {
 });
 
 test("falling back to a value", () => {
-  const promise = new LazyPromise((sink) => {
+  const promise = new LazyPromise<never>((sink) => {
     sink.reject("oops");
-  }).catch((error) => error);
+  }).catch((error) => error as string);
   promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`
     [
@@ -119,7 +119,7 @@ test("outer promise resolves", () => {
 });
 
 test("inner promise resolves", () => {
-  const promise = new LazyPromise((sink) => {
+  const promise = new LazyPromise<never>((sink) => {
     sink.reject("oops");
   }).catch((error) => {
     log("caught", error);
@@ -141,11 +141,11 @@ test("inner promise resolves", () => {
 });
 
 test("inner promise rejects", () => {
-  const promise = new LazyPromise((sink) => {
+  const promise = new LazyPromise<never>((sink) => {
     sink.reject("oops 1");
   }).catch((error) => {
     log("caught", error);
-    return new LazyPromise((sink) => {
+    return new LazyPromise<never>((sink) => {
       sink.reject("oops 2");
     });
   });
@@ -165,7 +165,7 @@ test("inner promise rejects", () => {
 });
 
 test("callback throws", () => {
-  const promise = new LazyPromise((sink) => {
+  const promise = new LazyPromise<never>((sink) => {
     sink.reject("oops 1");
   }).catch(() => {
     throw "oops 2";

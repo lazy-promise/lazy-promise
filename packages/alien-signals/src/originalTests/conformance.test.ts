@@ -36,7 +36,8 @@ const framework: ReactiveFramework = {
     };
   },
   computed(fn) {
-    const c = computed(fn);
+    // `T` is unconstrained here, so the LazyPromise gate cannot resolve.
+    const c = computed<any>(fn);
     return { read: () => c() };
   },
   effect(fn) {
