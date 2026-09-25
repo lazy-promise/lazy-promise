@@ -10,6 +10,8 @@ import type { NavItem } from "../components/MobileNav";
 import SideNav from "../components/SideNav.astro";
 import { Toc } from "../components/Toc";
 import { siteDescription, siteName, xUrl } from "../site";
+// Imported (not served from public/) so the URL carries a content hash.
+import ogPng from "../../assets/og.png";
 
 interface Props {
   title: string;
@@ -27,7 +29,7 @@ const documentTitle = isIndex
   ? `${siteName} - a tiny alternative to Effect`
   : `${title} · ${siteName}`;
 const canonical = new URL(path, Astro.site);
-const ogImage = new URL("/og.png", Astro.site);
+const ogImage = new URL(ogPng.src, Astro.site);
 const tocHeadings = headings.filter(
   (heading) => heading.depth === 2 || heading.depth === 3,
 );

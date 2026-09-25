@@ -1,5 +1,5 @@
-// Renders assets/*.html into the PNGs in public/. Uses the locally installed
-// Chrome via playwright-core, so no browser download is needed.
+// Renders assets/*.html into PNGs. The icons go to public/; og.png stays in
+// assets/ because DocsLayout imports it to get a content-hashed URL.
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
@@ -8,7 +8,13 @@ const assetsDir = new URL("../assets/", import.meta.url);
 const publicDir = new URL("../public/", import.meta.url);
 
 const jobs = [
-  { source: "og.html", target: "og.png", width: 1200, height: 630 },
+  {
+    source: "og.html",
+    target: "og.png",
+    targetDir: assetsDir,
+    width: 1200,
+    height: 630,
+  },
   { source: "icon.html?size=512", target: "icon-512.png", size: 512 },
   { source: "icon.html?size=192", target: "icon-192.png", size: 192 },
   {
@@ -54,7 +60,9 @@ try {
     });
     await page.goto(new URL(job.source, assetsDir).href);
     await page.evaluate(() => document.fonts.ready);
-    const target = fileURLToPath(new URL(job.target, publicDir));
+    const target = fileURLToPath(
+      new URL(job.target, job.targetDir ?? publicDir),
+    );
     await page.screenshot({
       path: target,
       omitBackground: job.size !== undefined,
