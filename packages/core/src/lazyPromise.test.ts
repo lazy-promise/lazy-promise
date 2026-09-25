@@ -1,11 +1,11 @@
 import type {
-    Consumer,
-    ErrorBox,
-    InferDep,
-    Job,
-    NotAnErrorBox,
-    Producer,
-    Sink,
+  Consumer,
+  ErrorBox,
+  InferDep,
+  Job,
+  NotAnErrorBox,
+  Producer,
+  Sink,
 } from "@lazy-promise/core";
 import { box, LazyPromise, never, rejecting } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
