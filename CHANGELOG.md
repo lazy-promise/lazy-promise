@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.43](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.43)
+
+- `log` method now disambiguates between subscriptions to the same lazy promise.
+
 ## [@lazy-promise/core@0.0.42](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.42)
 
 - Helper type `NotAnErrorBox`.
