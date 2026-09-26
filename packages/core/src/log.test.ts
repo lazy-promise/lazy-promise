@@ -153,9 +153,9 @@ test("resolve with a LazyPromise", () => {
     [
       "[outer async] [1] [flatten]",
       "· tearing down outer",
-      "· [inner of flatten] [1] [subscribe] undefined",
+      "· [inner of flatten] [2] [subscribe] undefined",
       "· · producing inner",
-      "· · [inner of flatten] [1] [resolve] 1",
+      "· · [inner of flatten] [2] [resolve] 1",
       "· · · [outer async] [1] [resolve] 1",
       "· · · · handleValue 1",
     ]
@@ -176,6 +176,35 @@ test("counter", () => {
       "· [counter case] [1] [resolve] 1",
       "[counter case] [2] [subscribe] undefined",
       "· [counter case] [2] [resolve] 1",
+    ]
+  `);
+});
+
+test("counter is bumped on each subscription of the same LazyPromise", () => {
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
+
+  const sinks: Sink<number>[] = [];
+  const lazyPromise = new LazyPromise<number>((sink) => {
+    sinks.push(sink);
+  }).log("shared");
+  lazyPromise.subscribe(logConsumer);
+  lazyPromise.subscribe(logConsumer);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "[shared] [1] [subscribe] undefined",
+      "[shared] [2] [subscribe] undefined",
+    ]
+  `);
+  sinks[1]!.resolve(2);
+  sinks[0]!.resolve(1);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "[shared] [2] [resolve] 2",
+      "· handleValue 2",
+      "[shared] [1] [resolve] 1",
+      "· handleValue 1",
     ]
   `);
 });

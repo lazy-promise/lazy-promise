@@ -35,13 +35,8 @@ let activeRuns = 0;
 const formatDots = (depth: number) =>
   depth > 10 ? `\u00B7 * ${depth} ` : "\u00B7 ".repeat(depth);
 
-class LogTracer implements Tracer<any, any>, Span<any> {
+class LogSpan implements Span<any> {
   constructor(public prefix: string[]) {}
-
-  subscribe(dep: unknown) {
-    console.log(...this.prefix, `[subscribe]`, dep);
-    return this;
-  }
 
   run(work: () => void, depth: number) {
     if (activeRuns++ === 0) {
@@ -78,6 +73,21 @@ class LogTracer implements Tracer<any, any>, Span<any> {
   }
 }
 
+class LogTracer implements Tracer<any, any> {
+  constructor(public label: string | number | undefined) {}
+
+  subscribe(dep: unknown) {
+    const id = (instanceCountMap.get(this.label) ?? 0) + 1;
+    instanceCountMap.set(this.label, id);
+    const span = new LogSpan([
+      ...(this.label === undefined ? [] : [`[${this.label}]`]),
+      `[${id}]`,
+    ]);
+    console.log(...span.prefix, `[subscribe]`, dep);
+    return span;
+  }
+}
+
 /* eslint-enable no-console */
 
 export const log = (
@@ -93,9 +103,5 @@ export const log = (
     return;
   }
   labelMap.set(lazyPromise, label);
-  const id = (instanceCountMap.get(label) ?? 0) + 1;
-  instanceCountMap.set(label, id);
-  lazyPromise.trace(
-    new LogTracer([...(label === undefined ? [] : [`[${label}]`]), `[${id}]`]),
-  );
+  lazyPromise.trace(new LogTracer(label));
 };
