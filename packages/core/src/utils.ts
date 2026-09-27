@@ -24,6 +24,27 @@ export type NeverIfObjectContainsNever<T> = true extends {
   ? never
   : T;
 
-export type ErrorBoxOrNever<Error> = Error extends never
+export type ErrorBoxOrNever<Error> = [Error] extends [never]
   ? never
   : ErrorBox<Error>;
+
+/**
+ * Like `CreateDataProperty`: a plain assignment with the key `__proto__` would
+ * set the prototype instead.
+ */
+export const setOwnProperty = (
+  target: Record<PropertyKey, unknown>,
+  key: PropertyKey,
+  value: unknown,
+) => {
+  if (key === "__proto__") {
+    Object.defineProperty(target, key, {
+      value,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
+    return;
+  }
+  target[key] = value;
+};

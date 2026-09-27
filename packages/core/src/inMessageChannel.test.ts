@@ -1,6 +1,6 @@
 import type { Consumer } from "@lazy-promise/core";
 import { box, inMessageChannel } from "@lazy-promise/core";
-import { afterEach, beforeEach, expect, test } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 
 const logContents: unknown[] = [];
 
@@ -36,9 +36,8 @@ const flushMessageQueue = () =>
     channel.port2.postMessage(null);
   });
 
-beforeEach(() => {});
-
 afterEach(() => {
+  vi.restoreAllMocks();
   try {
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
@@ -97,4 +96,35 @@ test("cancel", async () => {
   inMessageChannel().subscribe(logConsumer).dispose();
   await flushMessageQueue();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
+});
+
+test("the port is unrefed once the queue is empty", async () => {
+  // Node-only methods, absent from the DOM types.
+  const portPrototype = MessagePort.prototype as unknown as {
+    ref(): void;
+    unref(): void;
+  };
+  const ref = vi.spyOn(portPrototype, "ref");
+  const unref = vi.spyOn(portPrototype, "unref");
+  inMessageChannel().subscribe(logConsumer);
+  inMessageChannel().subscribe(logConsumer);
+  expect(ref).toHaveBeenCalledTimes(2);
+  const port = ref.mock.contexts[0];
+  const countUnrefs = () =>
+    unref.mock.contexts.filter((context) => context === port).length;
+  expect(countUnrefs()).toBe(0);
+  await flushMessageQueue();
+  expect(countUnrefs()).toBe(1);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleValue",
+        undefined,
+      ],
+      [
+        "handleValue",
+        undefined,
+      ],
+    ]
+  `);
 });

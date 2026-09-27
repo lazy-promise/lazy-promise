@@ -152,7 +152,7 @@ test("sync resolve", () => {
   `);
 });
 
-test("errors object has a null prototype and keys in source order", () => {
+test("errors object has an ordinary prototype and keys in source order", () => {
   const promise = anyKeyed({
     a: new LazyPromise<ErrorBox<"a">>((sink) => {
       setTimeout(() => {
@@ -172,11 +172,53 @@ test("errors object has a null prototype and keys in source order", () => {
     [
       "1000 ms passed",
       [
-        null,
+        {},
         [
           "a",
           "b",
         ],
+      ],
+    ]
+  `);
+});
+
+test("__proto__ key", () => {
+  const logErrors = (value: unknown) => {
+    const errors = (value as ErrorBox<{ __proto__: unknown }>).error;
+    log(Object.getPrototypeOf(errors), Object.keys(errors), errors.__proto__);
+  };
+  const promise = anyKeyed({
+    ["__proto__"]: new LazyPromise<ErrorBox<{ a: number }>>((sink) => {
+      setTimeout(() => {
+        sink.resolve(new ErrorBox({ a: 1 }));
+      }, 1000);
+    }),
+  });
+  promise.subscribe<unknown>({ resolve: logErrors });
+  vi.runAllTimers();
+  anyKeyed({ ["__proto__"]: new ErrorBox({ a: 2 }) }).subscribe<unknown>({
+    resolve: logErrors,
+  });
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        {},
+        [
+          "__proto__",
+        ],
+        {
+          "a": 1,
+        },
+      ],
+      [
+        {},
+        [
+          "__proto__",
+        ],
+        {
+          "a": 2,
+        },
       ],
     ]
   `);

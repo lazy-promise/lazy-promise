@@ -122,11 +122,14 @@ class AllProducer implements Producer<any, any> {
  * The LazyPromise equivalent of `Promise.all`.
  */
 export const all: {
-  <const Sources extends any[]>(
-    sources: [...Sources],
+  <const Sources extends readonly any[]>(
+    sources: Sources,
   ): LazyPromise<
     | NeverIfArrayContainsNever<{
-        [Key in keyof Sources]: Exclude<Unbox<Sources[Key]>, ErrorBox<any>>;
+        -readonly [Key in keyof Sources]: Exclude<
+          Unbox<Sources[Key]>,
+          ErrorBox<any>
+        >;
       }>
     | Extract<Unbox<Sources[number]>, ErrorBox<any>>,
     InferDep<Sources[number]>

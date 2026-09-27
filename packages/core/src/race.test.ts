@@ -69,7 +69,7 @@ test("types", () => {
 
   expectTypeOf(
     race([new LazyPromise<"value a", { a: null }>(() => {}), 42]),
-  ).toEqualTypeOf<LazyPromise<"value a" | number, { a: null }>>();
+  ).toEqualTypeOf<LazyPromise<"value a" | 42, { a: null }>>();
 
   () => {
     expectTypeOf(

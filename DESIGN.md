@@ -374,7 +374,11 @@ extends ...`) stays deferred and is then assignable neither to nor from `V`.
 ## API scope
 
 - `all`/`any` accept iterables and tuples only. Record inputs were removed: the
-  types were too permissive and diverged from native `Promise`.
+  types were too permissive and diverged from native `Promise`. The tuple
+  overload is `<const Sources extends readonly any[]>(sources: Sources)` with
+  a `-readonly` mapped result, like `Promise.all`: a `[...Sources]` parameter
+  rejects readonly tuples (`as const` inputs), which then fell through to the
+  iterable overload and lost their shape.
 - No result sharing/caching, no separate typed-error channel, `map` rather than
   `then`/`flatMap`: see the README Q&A and "Scope and philosophy" above.
 - Class-based `Producer`/`Job` API exists for library authors to avoid function

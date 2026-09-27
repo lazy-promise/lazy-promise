@@ -104,6 +104,17 @@ test("types", () => {
     LazyPromise<["value a", "value b", "value c"], { a: null } & { b: null }>
   >();
 
+  const readonlyTuple = [
+    new LazyPromise<"value a" | ErrorBox<"error a">>(() => {}),
+    "value b",
+  ] as const;
+  expectTypeOf(all(readonlyTuple)).toEqualTypeOf<
+    LazyPromise<["value a", "value b"] | ErrorBox<"error a">>
+  >();
+
+  const readonlyArray: readonly LazyPromise<"value a">[] = [];
+  expectTypeOf(all(readonlyArray)).toEqualTypeOf<LazyPromise<"value a"[]>>();
+
   expectTypeOf(
     all(
       new Set([

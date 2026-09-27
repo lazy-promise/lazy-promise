@@ -9,6 +9,7 @@ import type {
 } from "./lazyPromise.js";
 import { ErrorBox, LazyPromise } from "./lazyPromise.js";
 import type { NeverIfObjectContainsNever } from "./utils.js";
+import { setOwnProperty } from "./utils.js";
 
 interface SubscriptionNode {
   subscription: Subscription;
@@ -29,6 +30,7 @@ class AllKeyedConsumer implements Consumer<any> {
       job.sink.resolve(value);
       return;
     }
+    // Safe for `__proto__` too: the key was reserved as an own property.
     job.values[this.key] = value;
     if (job.initialized && job.pendingCount === 1) {
       job.sink.resolve(job.values);
@@ -45,7 +47,7 @@ class AllKeyedConsumer implements Consumer<any> {
 }
 
 class AllKeyedJob implements Job {
-  values: Record<PropertyKey, any> = { __proto__: null };
+  values: Record<PropertyKey, any> = {};
   subscriptions?: SubscriptionNode;
   pendingCount = 0;
   initialized = false;
@@ -58,7 +60,7 @@ class AllKeyedJob implements Job {
   next(key: PropertyKey, source: any) {
     if (source instanceof LazyPromise) {
       // Reserves the key so the result keeps source key order.
-      this.values[key] = undefined;
+      setOwnProperty(this.values, key, undefined);
       this.pendingCount++;
       const subscription = source.subscribe<any>(
         new AllKeyedConsumer(key, this),
@@ -75,7 +77,7 @@ class AllKeyedJob implements Job {
       this.sink.resolve(source);
       return;
     }
-    this.values[key] = source;
+    setOwnProperty(this.values, key, source);
   }
 
   dispose() {

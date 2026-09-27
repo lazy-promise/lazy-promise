@@ -52,6 +52,8 @@ class LazyPromiseIterator<TYield> implements Iterator<TYield> {
     };
   }
 
+  // Without this, `generator.throw(error)` at a `yield*` would throw a
+  // TypeError instead of the error.
   throw(error: unknown): IteratorResult<TYield> {
     throw error;
   }
@@ -589,7 +591,7 @@ export class LazyPromise<out Value, in Dep = unknown> {
    *
    * The type parameter `WhitelistedError` is used to constrain the type of
    * boxed errors that the promise is allowed to resolve to. If you do not
-   * expect  _any_ boxed errors, just omit the type parameter so it would
+   * expect _any_ boxed errors, just omit the type parameter so it would
    * default to `never`. If you do expect errors of a certain type, specify it
    * explicitly: `.subscribe<"error1" | "error2">()`. To bypass the check, use
    * `unknown` or `any`.

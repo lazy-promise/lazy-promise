@@ -799,6 +799,22 @@ test("empty iterator", () => {
   `);
 });
 
+test("yield a non-LazyPromise", () => {
+  // @ts-expect-error Not a LazyPromise.
+  const promise = fromGen(function* () {
+    yield 42;
+  });
+  promise.subscribe(logConsumer);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleError",
+        [TypeError: generatorResult.value.subscribe is not a function],
+      ],
+    ]
+  `);
+});
+
 test("return in try clause", () => {
   const promise = fromGen(function* () {
     log("in generator");

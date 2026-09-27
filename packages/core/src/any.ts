@@ -132,13 +132,13 @@ class AnyProducer implements Producer<any, any> {
  * the untyped error.
  */
 export const any: {
-  <const Sources extends any[]>(
-    sources: [...Sources],
+  <const Sources extends readonly any[]>(
+    sources: Sources,
   ): LazyPromise<
     | Exclude<Unbox<Sources[number]>, ErrorBox<any>>
     | ErrorBoxOrNever<
         NeverIfArrayContainsNever<{
-          [Key in keyof Sources]: UnboxError<Unbox<Sources[Key]>>;
+          -readonly [Key in keyof Sources]: UnboxError<Unbox<Sources[Key]>>;
         }>
       >,
     InferDep<Sources[number]>

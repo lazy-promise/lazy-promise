@@ -10,6 +10,7 @@ import type {
 } from "./lazyPromise.js";
 import { ErrorBox, LazyPromise } from "./lazyPromise.js";
 import type { ErrorBoxOrNever, NeverIfObjectContainsNever } from "./utils.js";
+import { setOwnProperty } from "./utils.js";
 
 interface SubscriptionNode {
   subscription: Subscription;
@@ -26,6 +27,7 @@ class AnyKeyedConsumer implements Consumer<any> {
   resolve(value: any) {
     const job = this.job;
     if (value instanceof ErrorBox) {
+      // Safe for `__proto__` too: the key was reserved as an own property.
       job.errors[this.key] = value.error;
       if (job.initialized && job.pendingCount === 1) {
         job.sink.resolve(new ErrorBox(job.errors));
@@ -46,7 +48,7 @@ class AnyKeyedConsumer implements Consumer<any> {
 }
 
 class AnyKeyedJob implements Job {
-  errors: Record<PropertyKey, any> = { __proto__: null };
+  errors: Record<PropertyKey, any> = {};
   subscriptions?: SubscriptionNode;
   pendingCount = 0;
   initialized = false;
@@ -59,7 +61,7 @@ class AnyKeyedJob implements Job {
   next(key: PropertyKey, source: any) {
     if (source instanceof LazyPromise) {
       // Reserves the key so the errors object keeps source key order.
-      this.errors[key] = undefined;
+      setOwnProperty(this.errors, key, undefined);
       this.pendingCount++;
       const subscription = source.subscribe<any>(
         new AnyKeyedConsumer(key, this),
@@ -72,7 +74,7 @@ class AnyKeyedJob implements Job {
       return;
     }
     if (source instanceof ErrorBox) {
-      this.errors[key] = source.error;
+      setOwnProperty(this.errors, key, source.error);
       return;
     }
     this.initialized = true;
@@ -130,7 +132,7 @@ class AnyKeyedProducer implements Producer<any, any> {
  * resulting promise will immediately resolve with that value.
  *
  * If all inputs resolve with boxed errors, the resulting promise will resolve
- * with a boxed null-prototype object of errors keyed like the input.
+ * with a boxed object of errors keyed like the input.
  *
  * If one of the inputs rejects, the resulting promise will immediately pass on
  * the untyped error.

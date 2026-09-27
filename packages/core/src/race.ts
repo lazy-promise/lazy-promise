@@ -85,7 +85,7 @@ class RaceProducer implements Producer<any, any> {
  * The LazyPromise equivalent of `Promise.race`.
  */
 export const race: {
-  <Source>(
+  <const Source>(
     sources: Iterable<Source>,
   ): [Source] extends [never]
     ? LazyPromise<never>

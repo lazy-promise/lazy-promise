@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.45](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.45)
+
+- Fix `all`/`any` type signature to correctly handle readonly tuples.
+
 ## [@lazy-promise/core@0.0.44](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.44)
 
 - Cancellation now runs `finally`.
