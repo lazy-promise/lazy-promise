@@ -2,7 +2,7 @@
 title: Recipes
 ---
 
-## Usage with async-await
+## Using `ErrorBox` with async-await
 
 It's sometimes convenient to use LazyPromise in some parts of your codebase (e.g. on the client), and async-await in others (e.g. on the server, if you don't need cancellation and often have to call Promise-based APIs). In that case you can still have the async-await code emit typed errors by returning error boxes, and converting values of the shape `Promise<... | ErrorBox<...>>` into lazy promises using `fromEager`.
 
