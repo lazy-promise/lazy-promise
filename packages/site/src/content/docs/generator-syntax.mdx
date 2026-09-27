@@ -17,8 +17,8 @@ const lazyPromise = fromGen(function* () {
 });
 ```
 
-Everything behaves analogously to the async-await syntax.
+Everything behaves analogously to the async-await syntax, including `try`/`catch`/`finally`, `using`, and Node's AsyncLocalStorage.
 
-In the case of native promises, if you `await promise`, and `promise` rejects with `error`, it's as if in place of `await promise` you had `throw error`. It works in exactly the same way when you have `yield* lazyPromise` and `lazyPromise` rejects.
+In particular, if you `await promise`, and `promise` rejects with `error`, it's as if in place of `await promise` you had `throw error`. It works in exactly the same way when you have `yield* lazyPromise` and `lazyPromise` rejects.
 
-If the whole flow is canceled while waiting at a `yield*`, it's as if in place of that `yield*` you had `return`: `catch` blocks are skipped, `finally` blocks run, and so do the disposers of `using` declarations.
+If the whole flow is canceled while waiting at a `yield*`, it's as if in place of that `yield*` you had `return`: `catch` blocks are skipped (looking at you AbortController), `finally` blocks run, and so do the disposers of `using` declarations.
