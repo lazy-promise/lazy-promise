@@ -31,7 +31,7 @@ const result = fromGen(function* () {
 });
 ```
 
-## `using` in generator functions
+## Resource cleanup with `using`
 
 Here a database connection is taken from a pool and returned to it when the query is done, whether the query completes, fails, or is canceled. With async-await, covering cancellation would take threading an AbortSignal into every awaited call.
 
