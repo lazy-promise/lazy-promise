@@ -54,10 +54,6 @@ ErrorBox instances are treated differently from other values by some of the Lazy
   });
   ```
 
-## Usage with async-await
-
-It's sometimes convenient to use LazyPromise in some parts of your codebase (e.g. on the client), and async-await in others (e.g. on the server, if you don't need cancellation and often have to call Promise-based APIs). In that case you can still have the async-await code produce typed errors by returning error boxes, and converting values of the shape `Promise<... | ErrorBox<...>>` into lazy promises using `fromEager`.
-
 ## any
 
 Unlike other operators, `any` does not behave like its native promise counterpart, but this is only because that operator isn't very ergonomic without typed errors anyway. When one of the promises passed to `Promise.any` rejects because of a bug, the bug passes undetected if some other input promise resolves. The LazyPromise version of `any` works like `Promise.any` with respect to boxed errors, but rejects if just one input rejects:
