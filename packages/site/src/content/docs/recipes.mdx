@@ -13,7 +13,9 @@ const getUser = async (id: string) => {
   return user ?? new ErrorBox("not-found");
 };
 
-// Client RPC: type inferred as LazyPromise<User | ErrorBox<"not-found">>
+// Client RPC: the type of `user` is inferred as `LazyPromise<User |
+// ErrorBox<"not-found">>`, and you'll get a typechecking error unless you
+// handle "not-found".
 const user = fromEager(() => getUser(id));
 ```
 
