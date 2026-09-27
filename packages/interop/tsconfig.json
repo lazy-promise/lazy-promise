@@ -4,14 +4,12 @@
     "module": "Preserve",
     "verbatimModuleSyntax": true,
     "target": "ES2022",
-    // "dom" currently replaced with @types/web to pick up the latest
-    // TaskController types.
-    "lib": ["es2022", "esnext.disposable"],
+    "lib": ["es2022"],
     "rootDir": "src",
     "noEmit": true,
     "stripInternal": true,
     "paths": {
-      "@lazy-promise/core": ["."]
+      "@lazy-promise/interop": ["."]
     }
   }
 }

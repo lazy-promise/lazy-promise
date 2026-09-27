@@ -2,8 +2,7 @@ import type { Consumer, Sink } from "@lazy-promise/core";
 import { any, box, ErrorBox, LazyPromise } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
-const mockMicrotaskQueue: (() => void)[] = [];
-const originalQueueMicrotask = queueMicrotask;
+const unhandledErrors: unknown[] = [];
 const logContents: unknown[] = [];
 let logTime: number;
 
@@ -33,27 +32,27 @@ const logConsumer: Consumer<any> = {
   },
 };
 
-const processMockMicrotaskQueue = () => {
-  while (mockMicrotaskQueue.length) {
-    mockMicrotaskQueue.shift()!();
-  }
-};
-
 beforeEach(() => {
   vi.useFakeTimers();
   logTime = Date.now();
-  global.queueMicrotask = (task) => mockMicrotaskQueue.push(task);
+  vi.spyOn(Promise, "reject").mockImplementation((error) => {
+    unhandledErrors.push(error);
+    return new Promise<never>(() => {});
+  });
 });
 
 afterEach(() => {
-  processMockMicrotaskQueue();
-  global.queueMicrotask = originalQueueMicrotask;
+  vi.restoreAllMocks();
   vi.useRealTimers();
   try {
+    if (unhandledErrors.length) {
+      throw new Error("Unhandled errors expected to be read by each test.");
+    }
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
     }
   } finally {
+    unhandledErrors.length = 0;
     logContents.length = 0;
   }
 });

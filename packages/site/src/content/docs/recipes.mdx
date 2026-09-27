@@ -2,23 +2,6 @@
 title: Recipes
 ---
 
-## Delaying a lazy promise
-
-With native promises, you can do the following:
-
-```ts
-// Wait for `anotherPromise`, then pass on the result of `promise`.
-promise.finally(() => anotherPromise);
-```
-
-You can use the same pattern to delay a lazy promise:
-
-```ts
-lazyPromise.finally(() => inTimeout(1000));
-```
-
-In the same way, you can make a lazy promise fire in a microtask like a native promise by adding `.finally(inMicrotask)`.
-
 ## Timing out
 
 ```ts
@@ -48,7 +31,19 @@ const result = fromGen(function* () {
 });
 ```
 
-## Periodically yielding to the event loop
+## `using` in generator functions
+
+Here a database connection is taken from a pool and returned to it when the query is done, whether the query completes, fails, or is canceled. With async-await, covering cancellation would take threading an AbortSignal into every awaited call.
+
+```ts
+// `pool.acquire()` resolves to a `Disposable` connection.
+const rows = fromGen(function* () {
+  using connection = yield* pool.acquire();
+  return yield* connection.query(sql);
+});
+```
+
+## Periodically yielding to the browser event loop
 
 Here to keep the UI responsive during heavy synchronous work, we yield to the event loop every few milliseconds.
 
@@ -75,7 +70,7 @@ const longRunningTask = fromGen(function* () {
 
 ## Usage with EventTarget API
 
-When dealing with EventTarget, it's convenient to have a lower-level utility `listen` that's not even specific to lazy promises, and which adds a listener and returns a teardown function.
+When dealing with EventTarget, it's convenient to have a lower-level utility `listen` that's not even specific to lazy promises, and which adds a listener and returns a teardown function (or alternatively a Disposable).
 
 ```ts
 const listen = <DispatchedEvent extends Event = Event>(

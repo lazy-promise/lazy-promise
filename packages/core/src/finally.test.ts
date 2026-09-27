@@ -2,8 +2,7 @@ import type { Consumer, Sink } from "@lazy-promise/core";
 import { box, ErrorBox, LazyPromise, rejecting } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
-const mockMicrotaskQueue: (() => void)[] = [];
-const originalQueueMicrotask = queueMicrotask;
+const unhandledErrors: unknown[] = [];
 const logContents: unknown[] = [];
 let logTime: number;
 
@@ -33,27 +32,35 @@ const logConsumer: Consumer<any> = {
   },
 };
 
-const processMockMicrotaskQueue = () => {
-  while (mockMicrotaskQueue.length) {
-    mockMicrotaskQueue.shift()!();
+const readUnhandledErrors = () => {
+  try {
+    return [...unhandledErrors];
+  } finally {
+    unhandledErrors.length = 0;
   }
 };
 
 beforeEach(() => {
   vi.useFakeTimers();
   logTime = Date.now();
-  global.queueMicrotask = (task) => mockMicrotaskQueue.push(task);
+  vi.spyOn(Promise, "reject").mockImplementation((error) => {
+    unhandledErrors.push(error);
+    return new Promise<never>(() => {});
+  });
 });
 
 afterEach(() => {
-  processMockMicrotaskQueue();
-  global.queueMicrotask = originalQueueMicrotask;
+  vi.restoreAllMocks();
   vi.useRealTimers();
   try {
+    if (unhandledErrors.length) {
+      throw new Error("Unhandled errors expected to be read by each test.");
+    }
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
     }
   } finally {
+    unhandledErrors.length = 0;
     logContents.length = 0;
   }
 });
@@ -363,16 +370,137 @@ test("inner promise rejects", () => {
 });
 
 test("cancel outer promise", () => {
-  const promise = new LazyPromise<never>(() => () => {
+  const promise = new LazyPromise<never, "dep">(() => () => {
     log("dispose");
-  }).finally(() => undefined);
-  const subscription = promise.subscribe();
+  }).finally((dep: "dep") => {
+    log("callback", dep);
+  });
+  const subscription = promise.subscribe(logConsumer, "dep");
   vi.advanceTimersByTime(500);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
+  subscription.dispose();
   subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       "500 ms passed",
+      [
+        "dispose",
+      ],
+      [
+        "callback",
+        "dep",
+      ],
+    ]
+  `);
+});
+
+test("cancel outer promise (callback returns a promise)", () => {
+  const promise = new LazyPromise<never>(() => {}).finally(
+    () =>
+      new LazyPromise<void, "dep">((sink, dep) => {
+        log("inner produce", dep);
+        const timeoutId = setTimeout(() => {
+          sink.resolve();
+        }, 1000);
+        return () => {
+          log("inner dispose");
+          clearTimeout(timeoutId);
+        };
+      }),
+  );
+  promise.subscribe(logConsumer, "dep").dispose();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "inner produce",
+        "dep",
+      ],
+    ]
+  `);
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "inner dispose",
+      ],
+    ]
+  `);
+});
+
+test("cancel outer promise (callback throws)", () => {
+  new LazyPromise<never>(() => {})
+    .finally(() => {
+      throw "oops";
+    })
+    .subscribe(logConsumer)
+    .dispose();
+  expect(readUnhandledErrors()).toEqual(["oops"]);
+});
+
+test("cancel outer promise (callback returns a rejecting promise)", () => {
+  new LazyPromise<never>(() => {})
+    .finally(() => rejecting("oops"))
+    .subscribe(logConsumer)
+    .dispose();
+  expect(readUnhandledErrors()).toEqual(["oops"]);
+});
+
+test("cancel outer promise (callback returns a boxed error)", () => {
+  new LazyPromise<never>(() => {})
+    .finally(() => new ErrorBox("oops"))
+    .subscribe<unknown>(logConsumer)
+    .dispose();
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+});
+
+test("cancel outer promise from the source teardown", () => {
+  const subscription = new LazyPromise<never>(() => () => {
+    log("dispose");
+    subscription.dispose();
+  })
+    .finally(() => {
+      log("callback");
+    })
+    .subscribe(logConsumer);
+  subscription.dispose();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "dispose",
+      ],
+      [
+        "callback",
+      ],
+    ]
+  `);
+});
+
+test("cancel outer promise from the source producer", () => {
+  const subscription = new LazyPromise<never>((sink) => {
+    setTimeout(() => {
+      sink.resolve(
+        new LazyPromise<never>(() => {
+          subscription.dispose();
+          return () => {
+            log("dispose");
+          };
+        }),
+      );
+    }, 1000);
+  })
+    .finally(() => {
+      log("callback");
+    })
+    .subscribe(logConsumer);
+  vi.runAllTimers();
+  // The teardown of a producer that is still running has to wait for it.
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "callback",
+      ],
       [
         "dispose",
       ],
@@ -381,15 +509,21 @@ test("cancel outer promise", () => {
 });
 
 test("cancel inner promise", () => {
-  const promise = box(1).finally(
-    () =>
-      new LazyPromise(() => () => {
-        log("dispose");
-      }),
-  );
+  const promise = box(1).finally(() => {
+    log("callback");
+    return new LazyPromise(() => () => {
+      log("dispose");
+    });
+  });
   const subscription = promise.subscribe();
   vi.advanceTimersByTime(500);
-  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "callback",
+      ],
+    ]
+  `);
   subscription.dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [

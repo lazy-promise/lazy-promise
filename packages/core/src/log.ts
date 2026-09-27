@@ -1,6 +1,6 @@
 import type { LazyPromise } from "./lazyPromise.js";
 import type { Span, Tracer } from "./trace.js";
-import { throwInMicrotask } from "./utils.js";
+import { reportUnhandledError } from "./utils.js";
 
 const instanceCountMap = new Map<string | number | undefined, number>();
 
@@ -95,7 +95,7 @@ export const log = (
   label: string | number | undefined,
 ): void => {
   if (labelMap.has(lazyPromise)) {
-    throwInMicrotask(
+    reportUnhandledError(
       new Error(
         `The .log(...) call (${formatNewLabel(label)}) was ignored because the LazyPromise is already being logged (${formatOldLabel(labelMap.get(lazyPromise), label)}).`,
       ),

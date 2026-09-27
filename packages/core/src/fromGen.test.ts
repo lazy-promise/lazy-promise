@@ -10,6 +10,7 @@ import {
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
 const logContents: unknown[] = [];
+const unhandledErrors: unknown[] = [];
 let logTime: number;
 
 const log = (...args: unknown[]) => {
@@ -38,18 +39,35 @@ const logConsumer: Consumer<any> = {
   },
 };
 
+const readUnhandledErrors = () => {
+  try {
+    return [...unhandledErrors];
+  } finally {
+    unhandledErrors.length = 0;
+  }
+};
+
 beforeEach(() => {
   vi.useFakeTimers();
   logTime = Date.now();
+  vi.spyOn(Promise, "reject").mockImplementation((error) => {
+    unhandledErrors.push(error);
+    return new Promise<never>(() => {});
+  });
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
   try {
+    if (unhandledErrors.length) {
+      throw new Error("Unhandled errors expected to be read by each test.");
+    }
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
     }
   } finally {
+    unhandledErrors.length = 0;
     logContents.length = 0;
   }
 });
@@ -972,20 +990,248 @@ test("override rejection with throw in finally clause (async)", () => {
   `);
 });
 
-test("ignore the finally clause when unsubscribed", () => {
+test("run the finally clause when unsubscribed", () => {
   const promise = fromGen(function* () {
     log("in generator");
     try {
-      yield* never;
+      yield* new LazyPromise<void>(() => () => {
+        log("dispose yielded");
+      });
     } finally {
       log("in finally");
     }
   });
-  promise.subscribe();
+  promise.subscribe(logConsumer).dispose();
   expect(readLog()).toMatchInlineSnapshot(`
     [
       [
         "in generator",
+      ],
+      [
+        "dispose yielded",
+      ],
+      [
+        "in finally",
+      ],
+    ]
+  `);
+});
+
+test("catch clause does not run when unsubscribed", () => {
+  fromGen(function* () {
+    try {
+      yield* never;
+    } catch {
+      log("in catch");
+    } finally {
+      log("in finally");
+    }
+  })
+    .subscribe(logConsumer)
+    .dispose();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in finally",
+      ],
+    ]
+  `);
+});
+
+test("yield in the finally clause when unsubscribed", () => {
+  const promise = fromGen(function* () {
+    try {
+      yield* never;
+    } finally {
+      log("in finally", yield* box(1));
+      log(
+        "in finally",
+        yield* new LazyPromise<number, "dep">((sink, dep) => {
+          log("produce", dep);
+          const timeoutId = setTimeout(() => {
+            sink.resolve(2);
+          }, 1000);
+          return () => {
+            log("dispose");
+            clearTimeout(timeoutId);
+          };
+        }),
+      );
+      log("in finally", yield* box(3));
+    }
+    return "unreachable";
+  });
+  promise.subscribe(logConsumer, "dep").dispose();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in finally",
+        1,
+      ],
+      [
+        "produce",
+        "dep",
+      ],
+    ]
+  `);
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "dispose",
+      ],
+      [
+        "in finally",
+        2,
+      ],
+      [
+        "in finally",
+        3,
+      ],
+    ]
+  `);
+});
+
+test("return in the finally clause when unsubscribed", () => {
+  fromGen(function* () {
+    try {
+      yield* never;
+    } finally {
+      // eslint-disable-next-line no-unsafe-finally
+      return "discarded";
+    }
+  })
+    .subscribe(logConsumer)
+    .dispose();
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+});
+
+test("throw in the finally clause when unsubscribed", () => {
+  fromGen(function* () {
+    try {
+      yield* never;
+    } finally {
+      // eslint-disable-next-line no-unsafe-finally
+      throw "oops";
+    }
+  })
+    .subscribe(logConsumer)
+    .dispose();
+  expect(readLog()).toMatchInlineSnapshot(`[]`);
+  expect(readUnhandledErrors()).toEqual(["oops"]);
+});
+
+test("rejection in the finally clause when unsubscribed", () => {
+  fromGen(function* () {
+    try {
+      yield* never;
+    } finally {
+      yield* new LazyPromise<never>((sink) => {
+        setTimeout(() => {
+          sink.reject("oops");
+        }, 1000);
+      });
+    }
+  })
+    .subscribe(logConsumer)
+    .dispose();
+  expect(readUnhandledErrors()).toEqual([]);
+  vi.runAllTimers();
+  expect(readUnhandledErrors()).toEqual(["oops"]);
+});
+
+test("caught rejection in the finally clause when unsubscribed", () => {
+  fromGen(function* () {
+    try {
+      yield* never;
+    } finally {
+      try {
+        yield* rejecting("oops");
+      } catch (error) {
+        log("caught", error);
+      }
+    }
+  })
+    .subscribe(logConsumer)
+    .dispose();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "caught",
+        "oops",
+      ],
+    ]
+  `);
+});
+
+test("boxed error in the finally clause when unsubscribed", () => {
+  fromGen(function* () {
+    try {
+      yield* never;
+    } finally {
+      try {
+        yield* box(new ErrorBox("oops"));
+        log("unreachable");
+      } finally {
+        log("in inner finally");
+      }
+    }
+  })
+    .subscribe<unknown>(logConsumer)
+    .dispose();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in inner finally",
+      ],
+    ]
+  `);
+});
+
+test("using declaration when unsubscribed", () => {
+  fromGen(function* () {
+    using resource = {
+      [Symbol.dispose]() {
+        log("dispose resource");
+      },
+    };
+    log("acquired", typeof resource);
+    yield* never;
+  })
+    .subscribe(logConsumer)
+    .dispose();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "acquired",
+        "object",
+      ],
+      [
+        "dispose resource",
+      ],
+    ]
+  `);
+});
+
+test("finally clause runs once when the generator finishes", () => {
+  fromGen(function* () {
+    try {
+      yield* box(1);
+    } finally {
+      log("in finally");
+    }
+  })
+    .subscribe(logConsumer)
+    .dispose();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "in finally",
+      ],
+      [
+        "handleValue",
+        undefined,
       ],
     ]
   `);
@@ -1135,6 +1381,40 @@ test("unsubscribe in generator after async reject", () => {
   const subscription = promise.subscribe(logConsumer);
   vi.runAllTimers();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
+});
+
+test("unsubscribe in generator then yield in try clause", () => {
+  const promise = fromGen(function* () {
+    yield* new LazyPromise<void>((sink) => {
+      setTimeout(() => {
+        sink.resolve();
+      }, 1000);
+    });
+    try {
+      // eslint-disable-next-line no-use-before-define
+      subscription.dispose();
+      log("before yield");
+      yield* new LazyPromise<void>(() => {
+        log("never get here");
+      });
+      log("never get here");
+    } finally {
+      log("in finally");
+    }
+  });
+  const subscription = promise.subscribe(logConsumer);
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "1000 ms passed",
+      [
+        "before yield",
+      ],
+      [
+        "in finally",
+      ],
+    ]
+  `);
 });
 
 test("dependency injection", () => {

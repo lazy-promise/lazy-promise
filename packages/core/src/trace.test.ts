@@ -226,7 +226,7 @@ test("detach", () => {
       ],
     ]
   `);
-  tracingA.dispose();
+  tracingA[Symbol.dispose]();
   promise.subscribe();
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });

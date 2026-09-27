@@ -160,6 +160,59 @@ const withBackoff = <Value>(source: LazyPromise<Value>) =>
   });
 
 //
+// Cleaning up on cancellation
+//
+
+interface Connection extends Disposable {
+  query: (sql: string) => LazyPromise<string[]>;
+}
+
+// Acquiring takes 100ms, a query takes 100ms; `failure` makes queries fail.
+const createPool = (failure?: unknown) => {
+  const acquire = () =>
+    new LazyPromise<Connection>((sink) => {
+      log("acquiring connection");
+      const timeoutId = setTimeout(() => {
+        log("connection acquired");
+        sink.resolve({
+          query: (sql) =>
+            new LazyPromise<string[]>((sink) => {
+              log("query", sql);
+              let settled = false;
+              const timeoutId = setTimeout(() => {
+                settled = true;
+                if (failure !== undefined) {
+                  sink.reject(failure);
+                  return;
+                }
+                sink.resolve(["row"]);
+              }, 100);
+              return () => {
+                if (!settled) {
+                  log("query canceled");
+                }
+                clearTimeout(timeoutId);
+              };
+            }),
+          [Symbol.dispose]() {
+            log("connection released");
+          },
+        });
+      }, 100);
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    });
+  return { acquire };
+};
+
+const queryRows = (pool: ReturnType<typeof createPool>, sql: string) =>
+  fromGen(function* () {
+    using connection = yield* pool.acquire();
+    return yield* connection.query(sql);
+  });
+
+//
 // Limiting concurrency
 //
 
@@ -660,6 +713,115 @@ test("withBackoff: dispose while waiting to retry", () => {
       [
         "dispose",
         "a0",
+      ],
+    ]
+  `);
+});
+
+//
+// Cleaning up on cancellation
+//
+
+test("queryRows: releases the connection on completion", () => {
+  queryRows(createPool(), "select 1").subscribe(logConsumer);
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "acquiring connection",
+      ],
+      "100 ms passed",
+      [
+        "connection acquired",
+      ],
+      [
+        "query",
+        "select 1",
+      ],
+      "100 ms passed",
+      [
+        "connection released",
+      ],
+      [
+        "handleValue",
+        [
+          "row",
+        ],
+      ],
+    ]
+  `);
+});
+
+test("queryRows: releases the connection on failure", () => {
+  queryRows(createPool("oops"), "select 1").subscribe(logConsumer);
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "acquiring connection",
+      ],
+      "100 ms passed",
+      [
+        "connection acquired",
+      ],
+      [
+        "query",
+        "select 1",
+      ],
+      "100 ms passed",
+      [
+        "connection released",
+      ],
+      [
+        "handleError",
+        "oops",
+      ],
+    ]
+  `);
+});
+
+test("queryRows: releases the connection on cancel", () => {
+  const subscription = queryRows(createPool(), "select 1").subscribe(
+    logConsumer,
+  );
+  vi.advanceTimersByTime(150);
+  subscription.dispose();
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "acquiring connection",
+      ],
+      "100 ms passed",
+      [
+        "connection acquired",
+      ],
+      [
+        "query",
+        "select 1",
+      ],
+      "50 ms passed",
+      [
+        "query canceled",
+      ],
+      [
+        "connection released",
+      ],
+    ]
+  `);
+});
+
+test("queryRows: cancel while acquiring releases nothing", () => {
+  const subscription = queryRows(createPool(), "select 1").subscribe(
+    logConsumer,
+  );
+  vi.advanceTimersByTime(50);
+  subscription.dispose();
+  vi.runAllTimers();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "acquiring connection",
       ],
     ]
   `);

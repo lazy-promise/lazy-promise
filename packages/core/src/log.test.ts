@@ -380,18 +380,14 @@ test("log called twice on the same LazyPromise", () => {
   vi.spyOn(console, "log").mockImplementation((...args) =>
     logContents.push(args.map(String).join(" ")),
   );
-  const microtasks: (() => void)[] = [];
-  vi.spyOn(global, "queueMicrotask").mockImplementation((callback) => {
-    microtasks.push(callback);
+  const unhandledErrors: unknown[] = [];
+  vi.spyOn(Promise, "reject").mockImplementation((error) => {
+    unhandledErrors.push(error);
+    return new Promise<never>(() => {});
   });
   const getErrorMessage = () => {
-    expect(microtasks.length).toBe(1);
-    try {
-      microtasks.pop()!();
-    } catch (error) {
-      return (error as Error).message;
-    }
-    throw new Error("Expected the microtask to throw.");
+    expect(unhandledErrors.length).toBe(1);
+    return (unhandledErrors.pop() as Error).message;
   };
 
   const labeled = box(1).log("a");

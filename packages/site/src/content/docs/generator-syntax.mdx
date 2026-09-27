@@ -17,6 +17,8 @@ const lazyPromise = fromGen(function* () {
 });
 ```
 
+Everything behaves analogously to the async-await syntax.
+
 In the case of native promises, if you `await promise`, and `promise` rejects with `error`, it's as if in place of `await promise` you had `throw error`. It works in exactly the same way when you have `yield* lazyPromise` and `lazyPromise` rejects.
 
-If you `yield*` to a lazy promise inside a `try` or `catch` block, and the whole flow is canceled while waiting for that lazy promise, the `finally` block will not get executed. Similarly, the `.finally` method will run its callback if the lazy promise resolves or rejects, but not if it's unsubscribed before settling.
+If the whole flow is canceled while waiting at a `yield*`, it's as if in place of that `yield*` you had `return`: `catch` blocks are skipped, `finally` blocks run, and so do the disposers of `using` declarations.

@@ -6,12 +6,12 @@ import type {
   NotAnErrorBox,
   Producer,
   Sink,
+  Subscription,
 } from "@lazy-promise/core";
 import { box, LazyPromise, never, rejecting } from "@lazy-promise/core";
 import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
-const mockMicrotaskQueue: (() => void)[] = [];
-const originalQueueMicrotask = queueMicrotask;
+const unhandledErrors: unknown[] = [];
 const logContents: unknown[] = [];
 let logTime: number;
 
@@ -41,27 +41,35 @@ const logConsumer: Consumer<any> = {
   },
 };
 
-const processMockMicrotaskQueue = () => {
-  while (mockMicrotaskQueue.length) {
-    mockMicrotaskQueue.shift()!();
+const readUnhandledErrors = () => {
+  try {
+    return [...unhandledErrors];
+  } finally {
+    unhandledErrors.length = 0;
   }
 };
 
 beforeEach(() => {
   vi.useFakeTimers();
   logTime = Date.now();
-  global.queueMicrotask = (task) => mockMicrotaskQueue.push(task);
+  vi.spyOn(Promise, "reject").mockImplementation((error) => {
+    unhandledErrors.push(error);
+    return new Promise<never>(() => {});
+  });
 });
 
 afterEach(() => {
-  processMockMicrotaskQueue();
-  global.queueMicrotask = originalQueueMicrotask;
+  vi.restoreAllMocks();
   vi.useRealTimers();
   try {
+    if (unhandledErrors.length) {
+      throw new Error("Unhandled errors expected to be read by each test.");
+    }
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
     }
   } finally {
+    unhandledErrors.length = 0;
     logContents.length = 0;
   }
 });
@@ -222,8 +230,18 @@ test("types", () => {
 
   expectTypeOf(rejecting()).toEqualTypeOf<LazyPromise<never>>();
 
+  expectTypeOf(box(new LazyPromise<"value", "dep">(() => {}))).toEqualTypeOf<
+    LazyPromise<"value", "dep">
+  >();
+
   // Check that boxed errors are nominally typed.
   expectTypeOf({ error: "a" }).not.toExtend<ErrorBox<string>>();
+
+  expectTypeOf<Subscription>().toExtend<Disposable>();
+  expectTypeOf<Subscription>().toExtend<Job>();
+  expectTypeOf<Producer<void>["produce"]>().returns.toEqualTypeOf<
+    (() => void) | Job | Disposable | void
+  >();
 
   expectTypeOf<LazyPromise<"a">>().toExtend<LazyPromise<string>>();
   expectTypeOf<LazyPromise<string>>().not.toExtend<LazyPromise<"a">>();
@@ -614,7 +632,7 @@ test("unsubscribe from produce (error in unsubscribe)", () => {
       ],
     ]
   `);
-  expect(processMockMicrotaskQueue).toThrow("oops");
+  expect(readUnhandledErrors()).toEqual(["oops"]);
 });
 
 test("unsubscribe from produce (no teardown function)", () => {
@@ -769,7 +787,7 @@ test("error in teardown function when settling", () => {
       ],
     ]
   `);
-  expect(processMockMicrotaskQueue).toThrow("oops");
+  expect(readUnhandledErrors()).toEqual(["oops"]);
 });
 
 test("settle from the teardown function", () => {
@@ -857,12 +875,12 @@ test("error in produce function before settling", () => {
       ],
     ]
   `);
-  expect(processMockMicrotaskQueue).toThrow("oops2");
+  expect(readUnhandledErrors()).toEqual(["oops2"]);
 
   new LazyPromise<never>(() => {
     throw "oops";
   }).subscribe();
-  expect(processMockMicrotaskQueue).toThrow("oops");
+  expect(readUnhandledErrors()).toEqual(["oops"]);
 });
 
 test("error in produce function after settling", () => {
@@ -896,7 +914,7 @@ test("error in teardown function", () => {
       ],
     ]
   `);
-  expect(processMockMicrotaskQueue).toThrow("oops");
+  expect(readUnhandledErrors()).toEqual(["oops"]);
 });
 
 test("error in value handler function", () => {
@@ -924,7 +942,7 @@ test("error in value handler function", () => {
       ],
     ]
   `);
-  expect(processMockMicrotaskQueue).toThrow("oops 1");
+  expect(readUnhandledErrors()).toEqual(["oops 1"]);
 });
 
 test("error in error handler function", () => {
@@ -949,7 +967,7 @@ test("error in error handler function", () => {
       ],
     ]
   `);
-  expect(processMockMicrotaskQueue).toThrow("oops");
+  expect(readUnhandledErrors()).toEqual(["oops"]);
 });
 
 test("unhandled rejection", () => {
@@ -959,9 +977,9 @@ test("unhandled rejection", () => {
     }, 1000);
   });
   promise.subscribe();
-  expect(mockMicrotaskQueue.length).toMatchInlineSnapshot(`0`);
+  expect(readUnhandledErrors()).toEqual([]);
   vi.runAllTimers();
-  expect(processMockMicrotaskQueue).toThrow("oops");
+  expect(readUnhandledErrors()).toEqual(["oops"]);
 });
 
 test("already resolved", () => {
@@ -1182,7 +1200,7 @@ test("box", () => {
       throw "oops";
     },
   });
-  expect(processMockMicrotaskQueue).toThrow("oops");
+  expect(readUnhandledErrors()).toEqual(["oops"]);
   expect(box(promise)).toBe(promise);
 });
 
@@ -1203,14 +1221,62 @@ test("rejected", () => {
       throw "oops";
     },
   });
-  expect(processMockMicrotaskQueue).toThrow("oops");
+  expect(readUnhandledErrors()).toEqual(["oops"]);
   promise.subscribe();
-  expect(processMockMicrotaskQueue).toThrow("error");
+  expect(readUnhandledErrors()).toEqual(["error"]);
 });
 
 test("never", () => {
   expect(never instanceof LazyPromise).toMatchInlineSnapshot(`true`);
   never.subscribe(logConsumer);
+});
+
+test("Symbol.dispose", () => {
+  const promise = new LazyPromise<never>(() => () => {
+    log("dispose");
+  });
+  {
+    using subscription = promise.subscribe(logConsumer);
+    expect(typeof subscription[Symbol.dispose]).toBe("function");
+    expect(readLog()).toMatchInlineSnapshot(`[]`);
+  }
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "dispose",
+      ],
+    ]
+  `);
+});
+
+test("Disposable as a Job", () => {
+  new LazyPromise<never>(() => ({
+    [Symbol.dispose]() {
+      log("Symbol.dispose");
+    },
+  }))
+    .subscribe(logConsumer)
+    .dispose();
+  new LazyPromise<never>(() => ({
+    dispose() {
+      log("dispose");
+    },
+    [Symbol.dispose]() {
+      log("Symbol.dispose");
+    },
+  }))
+    .subscribe(logConsumer)
+    .dispose();
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "Symbol.dispose",
+      ],
+      [
+        "Symbol.dispose",
+      ],
+    ]
+  `);
 });
 
 test("pipe", () => {

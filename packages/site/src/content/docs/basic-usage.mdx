@@ -4,7 +4,7 @@ title: Basic usage
 
 ## Constructor
 
-You create a LazyPromise like you create a native promise, except you have a `sink` object instead of a `resolve, reject` pair, and you can optionally return a teardown function:
+You create a LazyPromise like you create a native promise, except you have a `sink` object instead of a `resolve, reject` pair, and you can optionally return a teardown function or a native Disposable:
 
 ```ts
 const lazyPromise = new LazyPromise<number>((sink) => {
@@ -36,7 +36,7 @@ const subscription = lazyPromise.subscribe({
 To cancel the subscription, you call
 
 ```ts
-// This method is idempotent.
+// This method is idempotent. The subscription is also a native Disposable.
 subscription.dispose();
 ```
 
@@ -70,7 +70,7 @@ then `new LazyPromise(foo)` is simply `foo` with a wrapper around it that's only
 
 ## Microtasks
 
-Also like Observable, LazyPromise does not defer notifications to microtasks. A native promise guarantees that in `promise.then(foo); bar();`, `foo` runs after `bar`, but that guarantee comes at a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it. (It's jumping a bit ahead, but if you want a LazyPromise to fire in a microtask, add `.finally(inMicrotask)`.)
+Also like Observable, LazyPromise does not defer notifications to microtasks. A native promise guarantees that in `promise.then(foo); bar();`, `foo` runs after `bar`, but that guarantee comes at a cost: if for example you have two async functions that each await a few resolved promises, which of them will finish last will depend on which one has more `await`s in it.
 
 ## Promise-like API
 

@@ -1,7 +1,14 @@
+import type {
+  Consumer,
+  NotAnErrorBox,
+  UnboxError,
+} from "@lazy-promise/interop";
+import { ErrorBox, lazyPromiseSymbol } from "@lazy-promise/interop";
 import type { AsyncContextResource } from "./asyncResource.js";
 import { AsyncResource } from "./asyncResource.js";
 import { CatchProducer } from "./catch.js";
 import { CatchBoxedProducer } from "./catchBoxed.js";
+import { disposeSymbol } from "./disposeSymbol.js";
 import { FinallyProducer } from "./finally.js";
 import { InjectProducer } from "./inject.js";
 import { log } from "./log.js";
@@ -17,31 +24,10 @@ import {
   SpanNode,
   Tracing,
 } from "./trace.js";
-import { throwInMicrotask } from "./utils.js";
+import { reportUnhandledError } from "./utils.js";
 
-export class ErrorBox<const Error> {
-  constructor(public readonly error: Error) {}
-  // `NotAnErrorBox` has a public optional property of the same name, and a
-  // private property never satisfies a public one.
-  declare private __errorBoxBrand: never;
-}
-
-export type UnboxError<T> = T extends ErrorBox<infer Error> ? Error : never;
-
-// An interface, not `{}`: an empty anonymous object type is dropped from
-// intersections, and without the intersection `{ __errorBoxBrand?: ... }` is a
-// weak type that rejects primitives and unrelated objects.
-interface NonNullish {}
-
-/**
- * Any value except an ErrorBox. `LazyPromise<NotAnErrorBox>` is the type of
- * LazyPromises that don't resolve to boxed errors.
- */
-export type NotAnErrorBox =
-  | ({ readonly __errorBoxBrand?: "NotAnErrorBox" } & NonNullish)
-  | null
-  | undefined
-  | void;
+export { ErrorBox };
+export type { Consumer, NotAnErrorBox, UnboxError };
 
 export type Yieldable = {
   [`❌ Did you forget a star (*) after yield?`]: never;
@@ -69,11 +55,6 @@ class LazyPromiseIterator<TYield> implements Iterator<TYield> {
   throw(error: unknown): IteratorResult<TYield> {
     throw error;
   }
-}
-
-export interface Consumer<Value> {
-  resolve?: (value: Value) => void;
-  reject?: (error: unknown) => void;
 }
 
 class Sink<in Value, out Dep = unknown> {
@@ -143,7 +124,7 @@ export interface Job {
 
 class Subscription {
   /** @internal */
-  job: (() => void) | Job | void | undefined;
+  job: (() => void) | Job | Disposable | void | undefined;
   /** @internal */
   settled: boolean = false;
   /** @internal */
@@ -419,7 +400,7 @@ class Subscription {
       try {
         consumer.resolve(value);
       } catch (error) {
-        throwInMicrotask(error);
+        reportUnhandledError(error);
       }
     }
   }
@@ -433,13 +414,17 @@ class Subscription {
       try {
         consumer.reject(error);
       } catch (error) {
-        throwInMicrotask(error);
+        reportUnhandledError(error);
       }
     } else {
-      throwInMicrotask(error);
+      reportUnhandledError(error);
     }
   }
 
+  /**
+   * Cancels the subscription: runs the teardown logic, and nothing gets
+   * emitted afterwards. Idempotent.
+   */
   dispose() {
     if (this.settled || this.disposed) {
       return;
@@ -455,6 +440,8 @@ class Subscription {
     this.dep = undefined;
     this.runInContext(this.teardown, undefined);
   }
+
+  declare [disposeSymbol]: () => void;
 
   /** @internal */
   teardown() {
@@ -502,9 +489,18 @@ class Subscription {
     // For GC purposes.
     this.job = undefined;
     try {
-      typeof job === "function" ? job() : job.dispose();
+      if (typeof job === "function") {
+        job();
+      } else {
+        const dispose = (job as Partial<Disposable>)[disposeSymbol];
+        if (dispose) {
+          dispose.call(job);
+        } else {
+          (job as Job).dispose();
+        }
+      }
     } catch (error) {
-      throwInMicrotask(error);
+      reportUnhandledError(error);
     }
   }
 
@@ -544,8 +540,13 @@ class Subscription {
 
 export type { Subscription };
 
+Subscription.prototype[disposeSymbol] = Subscription.prototype.dispose;
+
 export interface Producer<Value, Dep = unknown> {
-  produce: (sink: Sink<Value, Dep>, dep: Dep) => (() => void) | Job | void;
+  produce: (
+    sink: Sink<Value, Dep>,
+    dep: Dep,
+  ) => (() => void) | Job | Disposable | void;
 }
 
 /**
@@ -562,14 +563,22 @@ export interface Producer<Value, Dep = unknown> {
 export class LazyPromise<out Value, in Dep = unknown> {
   /** @internal */
   public producer:
-    | ((sink: Sink<Value, Dep>, dep: Dep) => (() => void) | Job | void)
+    | ((
+        sink: Sink<Value, Dep>,
+        dep: Dep,
+      ) => (() => void) | Job | Disposable | void)
     | Producer<Value, Dep>;
   /** @internal */
   tracers: Tracing | undefined;
+  // The interop brand.
+  declare readonly [lazyPromiseSymbol]: true;
 
   constructor(
     producer:
-      | ((sink: Sink<Value, Dep>, dep: Dep) => (() => void) | Job | void)
+      | ((
+          sink: Sink<Value, Dep>,
+          dep: Dep,
+        ) => (() => void) | Job | Disposable | void)
       | Producer<Value, Dep>,
   ) {
     this.producer = producer;
@@ -664,9 +673,9 @@ export class LazyPromise<out Value, in Dep = unknown> {
   }
 
   /**
-   * The LazyPromise equivalent of `promise.finally(...)`. The callback
-   * is called if the source promise resolves or rejects, but not if it's
-   * unsubscribed before settling.
+   * The LazyPromise equivalent of `promise.finally(...)`. The callback runs
+   * when the source promise resolves or rejects, or when the subscription is
+   * disposed before the source settles.
    */
   finally<NewValue, ExtraDep = unknown>(
     callback: (dep: ExtraDep) => NewValue,
@@ -805,6 +814,10 @@ export class LazyPromise<out Value, in Dep = unknown> {
   declare protected inferenceHelper: (dep: Dep) => void;
 }
 
+Object.defineProperty(LazyPromise.prototype, lazyPromiseSymbol, {
+  value: true,
+});
+
 class ResolvingProducer<Value> implements Producer<Value> {
   constructor(public value: Value) {}
 
@@ -818,9 +831,8 @@ class ResolvingProducer<Value> implements Producer<Value> {
  * LazyPromise that synchronously resolves with it.
  */
 export const box: {
-  <const Arg>(
-    arg: Arg,
-  ): LazyPromise<Arg extends LazyPromise<infer Value> ? Value : Arg>;
+  // eslint-disable-next-line no-use-before-define
+  <const Arg>(arg: Arg): LazyPromise<Unbox<Arg>, InferDep<Arg>>;
   (): LazyPromise<void>;
 } = (arg?: any): any => {
   if (arg instanceof LazyPromise) {

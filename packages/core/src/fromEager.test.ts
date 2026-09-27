@@ -1,11 +1,10 @@
 import type { Consumer, LazyPromise } from "@lazy-promise/core";
 import { box, ErrorBox, fromEager } from "@lazy-promise/core";
-import { afterEach, expect, expectTypeOf, test } from "vitest";
+import { afterEach, beforeEach, expect, expectTypeOf, test, vi } from "vitest";
 
 const logContents: unknown[] = [];
+const unhandledErrors: unknown[] = [];
 
-const mockMicrotaskQueue: (() => void)[] = [];
-const originalQueueMicrotask = queueMicrotask;
 const log = (...args: unknown[]) => {
   logContents.push(args);
 };
@@ -27,23 +26,26 @@ const logConsumer: Consumer<any> = {
   },
 };
 
-const processMockMicrotaskQueue = () => {
-  while (mockMicrotaskQueue.length) {
-    mockMicrotaskQueue.shift()!();
-  }
-};
+beforeEach(() => {
+  vi.spyOn(Promise, "reject").mockImplementation((error) => {
+    unhandledErrors.push(error);
+    return new Promise<never>(() => {});
+  });
+});
 
 afterEach(() => {
-  processMockMicrotaskQueue();
-  global.queueMicrotask = originalQueueMicrotask;
+  vi.restoreAllMocks();
   try {
+    if (unhandledErrors.length) {
+      throw new Error("Unhandled errors expected to be read by each test.");
+    }
     if (logContents.length) {
       throw new Error("Log expected to be empty at the end of each test.");
     }
   } finally {
+    unhandledErrors.length = 0;
     logContents.length = 0;
   }
-  global.queueMicrotask = (task) => mockMicrotaskQueue.push(task);
 });
 
 const flushMicrotasks = async () => {
@@ -194,7 +196,12 @@ test("source resolves with a lazy promise", async () => {
 });
 
 test("source rejects", async () => {
-  const promise = fromEager(() => Promise.reject("oops"));
+  // Not `Promise.reject`, which is mocked to capture unhandled errors.
+  const promise = fromEager(() =>
+    Promise.resolve().then(() => {
+      throw "oops";
+    }),
+  );
   promise.subscribe(logConsumer);
   expect(readLog()).toMatchInlineSnapshot(`[]`);
   await flushMicrotasks();

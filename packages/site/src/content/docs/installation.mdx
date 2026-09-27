@@ -8,4 +8,6 @@ npm install @lazy-promise/core
 
 LazyPromise supports all modern browsers, Node.js 20.16.0 and later in the 20.x series, and Node.js 22.3.0 and later.
 
+The types require TypeScript 5.4 or later, and refer to `Symbol.dispose`, so in your `tsconfig.json`, `lib` needs to include `esnext.disposable` (or `esnext`) unless `skipLibCheck` is on. `Symbol.dispose` is not required at runtime.
+
 To try it without installing anything, you can use the [Playground](https://stackblitz.com/edit/lazy-promise?devToolsHeight=1000&file=index.ts).

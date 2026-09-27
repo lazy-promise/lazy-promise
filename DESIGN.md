@@ -5,6 +5,20 @@ considered and rejected. Behavior is documented on the site
 (`packages/site/src/content/docs`, https://lazypromise.com); this file records
 the reasoning so it does not get re-litigated. There are no compatibility constraints from earlier designs.
 
+## Scope and philosophy
+
+LazyPromise is a primitive in the full sense: it prioritizes simplicity and
+versatility, and there is an explicit goal not to grow it with utilities that
+can be built in userland or by other library authors (retry, timeout, delay,
+concurrency limits, rate limits are recipes, not exports). In particular it is
+designed to complement state libraries (Signals, React state, ...), not to
+implement anything that involves state itself: sharing or memoizing a result,
+knowing whether async cleanup has finished, tracking pending counts. Those
+belong to whatever the app uses for state, which is also why `dispose()` has
+no return value and `finally` cleanup runs detached. When evaluating a proposed
+addition, ask: does a state library need this in the primitive, or can it be
+written against `subscribe`/`dispose` and the operators?
+
 ## Settlement and teardown
 
 Invariants: teardown runs at most once, and runs before anything is emitted
@@ -27,8 +41,122 @@ runProducer` disposes the job and then delivers the recorded settlement. After
 - A producer that throws after settling: the recorded settlement wins, the
   error is dropped. A producer that settles and then disposes its own
   subscription synchronously: nothing is emitted, the job is disposed.
+- A job may be a function, a `Job` (`dispose()`) or a native `Disposable`;
+  `disposeJob` prefers `[Symbol.dispose]` when both are present. `Subscription`
+  and `Tracing` alias `[Symbol.dispose]` to `dispose` (same function object, so
+  no extra frame when an operator returns a subscription as its job). The key
+  is `disposeSymbol` from `utils.ts`, which falls back to
+  `Symbol.for("Symbol.dispose")` only so that the property key is never
+  `undefined`; `lib` includes `esnext.disposable` for the types.
 
-`finally` deliberately does not run on cancellation; see the README Q&A.
+## Cancellation runs `finally`
+
+Cancellation is a synchronous request; cleanup it triggers runs detached
+(nothing waits for it, nothing can cancel it, its rejections are reported as
+unhandled). The invariant "teardown runs before anything is emitted" therefore
+holds for the synchronous part of teardown, and `race` delivers the winner while
+losers may still be cleaning up (Effect's `disconnect` behavior by default).
+
+- `fromGen`: `dispose()` disposes the pending inner subscription and calls
+  `generator.return()`, so `finally` blocks and `using` disposers run and
+  `catch` blocks are skipped. `FromGeneratorConsumerJob.run` is one loop for
+  both the normal and the unwinding mode (`unwinding` flag): in unwinding mode
+  yielded promises are still subscribed (with the job as consumer) but a done
+  result is discarded and a throw goes to `reportUnhandledError`. A dispose
+  from inside the running generator is deferred (`running` flag): the next
+  `yield*` is where the generator gets to return, and the yielded promise is
+  not subscribed. A settlement that arrives together with the dispose is
+  dropped before `return()` is issued. Earlier, cancellation simply abandoned
+  the generator; the docs blamed the language, but `for…of` does call
+  `return()` on `break`, so it was a choice, and one that left the generator
+  flow with no cancellation hook at all.
+- `.finally()`: `FinallyConsumerProducerJob` is the job returned by the
+  producer. Its `dispose()` disposes the source subscription, and if the
+  source hadn't settled, runs the callback and subscribes a returned LazyPromise
+  with no consumer (`subscribe(undefined, dep)`), which is what makes it
+  detached and reports its rejection. On settlement the core also calls
+  `dispose()` (before emitting), but by then `value`/`error` is set and the
+  callback runs as the next producer instead.
+- Consequence: the `lazyPromise.finally(() => inTimeout(ms))` delay idiom is
+  gone from the docs; on cancel it would start a detached timer that keeps
+  Node alive. Delaying is a userland operator.
+- Rejected: giving `dispose()` a return value or a join mechanism. Knowing
+  when cleanup finished is state.
+
+## Identity and interop
+
+There will only ever be one LazyPromise implementation, so interop means one
+thing: a library that wants to accept lazy promises from its users without
+making `@lazy-promise/core` a dependency (its other users don't use lazy
+promises). Producing lazy promises from outside core is not a goal; a library
+that returns lazy promises depends on core, as a peer dependency so that the
+app and the library share one copy.
+
+- `@lazy-promise/interop` is a leaf package with no dependencies that core
+  depends on. It owns what can be shared as-is, re-exported by core so that
+  the types are identical, not lookalikes: the `ErrorBox` class (a data class
+  with no behavior), `NotAnErrorBox`, `UnboxError`, `Consumer`. Everything
+  that is a reduced version of a core type has a `Like` suffix, as in
+  `PromiseLike`: `LazyPromiseLike<Value, Dep>` (brand plus `subscribe`),
+  `SubscriptionLike` (`dispose()`), `isLazyPromiseLike`. The suffix is
+  deliberate: the library's users see these names in its signatures and
+  should not mistake them for the full type. An `Interop` suffix was tried
+  first and dropped as less readable for those users. Counterparts of `Unbox`
+  and `InferDep` were dropped as trivial to write when needed.
+- The brand is a plain `Symbol()` created in interop, imported by core and put
+  on `LazyPromise.prototype` with `Object.defineProperty` (instances stay two
+  fields). `LazyPromise` declares it (`declare readonly [lazyPromiseSymbol]:
+true`) so that it is assignable to `LazyPromiseLike`. TS cannot unify
+  `unique symbol` types across packages even for `Symbol.for`, so the import
+  is required for the type anyway; `Symbol.for` was dropped as we do not
+  support duplicate copies of interop.
+- `isLazyPromiseLike` is the only runtime guard; `ErrorBox` is checked with
+  `instanceof`, and the class lives in interop precisely so that a private
+  brand (`declare private __errorBoxBrand`) can be shared: private members
+  match only when they come from the same declaration, so a private brand can
+  never be satisfied structurally across packages, but one class re-exported
+  by two packages is one declaration. This keeps the terse
+  "`ErrorBox<1>` is not assignable to `NotAnErrorBox`" message (TS does not
+  elaborate private/public mismatches) for library users too.
+- `LazyPromiseLike.subscribe` is a function-typed property, not a method, so
+  that `Dep` is strictly contravariant under `strictFunctionTypes` and a
+  user-written `InferDep` counterpart yields an intersection over unions.
+  `dep` is required (`dep: Dep`), so a library always states what it passes;
+  core's method with a `this` gate and a conditional rest parameter is
+  assignable to it because `this` is not compared when the target has none,
+  and a required source parameter satisfies an optional target one. The guard's
+  predicate is `LazyPromiseLike<unknown, never>`: every lazy promise is
+  assignable to it, so it keeps all members when narrowing a union, and it is
+  honest when narrowing `unknown`.
+- A library that wants "a value or a lazy promise resolving to it" writes
+  `Value | (LazyPromiseLike<Value, any> & LazyPromiseLike<Requirements,
+Dep>)`. The obvious `LazyPromiseLike<Value & Requirements, Dep>` breaks
+  inference: `Value` inside an intersection is inferred at the same low
+  priority as the bare `Value` member, and the bare member wins, so the lazy
+  promise itself becomes `Value`. Direct `LazyPromiseLike<Value, any>` is
+  inferred first, and the second intersection member carries the checks. This
+  is the documented `unboxSync` example (`interop.test.ts`).
+- Rejected: a custom `Symbol.hasInstance` on `LazyPromise`/`ErrorBox` with
+  registry symbols and adoption of foreign objects in `flatten`/`box`. It made
+  `instanceof` a real call (map-chain benchmark 33 to 48 ms) so internals had
+  to use inlined brand checks, and it served producing foreign lazy promises,
+  which is not a goal. Also rejected: a string-keyed brand (unifies without an
+  import but shows up in `keyof`, autocomplete and hovers).
+- Cross-package tests live in core (`interop.test.ts`), not in interop: a
+  dev-dependency of interop on core would be a workspace cycle, which turbo
+  rejects.
+
+## Unhandled errors
+
+Errors nobody handles (a rejection with no `reject` handler, a throwing
+consumer handler, a throwing teardown, detached cleanup) go through
+`reportUnhandledError`, which is `void Promise.reject(error)`. Native promises,
+`--unhandled-rejections`, `unhandledrejection` listeners and error monitoring
+all see them in the same category as unhandled promise rejections. Rejected:
+throwing in a microtask (surfaces as `uncaughtException`/`window.onerror`, a
+different channel that Node cannot configure) and a global hook. Tests spy on
+`Promise.reject` (`vi.spyOn(Promise, "reject")`) to capture these; a test
+that needs a genuinely rejected promise must build one another way.
 
 ## Async context
 
@@ -179,18 +307,19 @@ not assignable to type 'NotAnErrorBox'`. Consequences: `LazyPromise<unknown>`
   with a conditional `this` plus a `Value`-typed parameter the inferred type
   is garbled in messages (`ErrorBox<NoInfer<LazyPromise<...>>>`).
 - `NotAnErrorBox` = `({ __errorBoxBrand?: "NotAnErrorBox" } & NonNullish) |
-null | undefined | void`. `ErrorBox` has `declare private __errorBoxBrand`,
-  and a private property never satisfies a public one, so boxes are rejected
-  by the private/public rule (independent of the property's type, which the
-  `.d.ts` erases) while everything else passes via optionality. The
-  intersection with an empty _interface_ is what disables weak-type detection
-  on the all-optional object type; an anonymous `{}` is removed from
-  intersections and an explicit primitive union is not future-proof. TS does
-  not elaborate the private/public mismatch, so the slot literal is never
-  shown. Rejected: a symbol-keyed brand (structurally airtight and gives a
-  leaf line, but changes the public `ErrorBox` API), and payload-as-brand
-  (`{ [sym]: Error }`; `ErrorBox<undefined>` leaks through an optional slot
-  without `exactOptionalPropertyTypes`).
+null | undefined | void` (in `@lazy-promise/interop`). `ErrorBox` has
+  `declare private __errorBoxBrand`, and a private property never satisfies a
+  public one, so boxes are rejected by the private/public rule (independent of
+  the property's type, which the `.d.ts` erases) while everything else passes
+  via optionality. The intersection with an empty _interface_ is what disables
+  weak-type detection on the all-optional object type; an anonymous `{}` is
+  removed from intersections and an explicit primitive union is not
+  future-proof. TS does not elaborate the private/public mismatch, so the slot
+  literal is never shown. Rejected: a symbol-keyed brand (structurally
+  airtight and gives a leaf line, but the leaf line is noise and a symbol key
+  is visible in the type), and payload-as-brand (`{ [sym]: Error }`;
+  `ErrorBox<undefined>` leaks through an optional slot without
+  `exactOptionalPropertyTypes`).
 - `subscribe`'s dep arity is a conditional chain with `Dep` only in check
   positions. `undefined extends Dep ? ... : ...` puts `Dep` in the extends
   position, and TS's variance-annotation validator cannot relate two such
@@ -208,6 +337,10 @@ null` detects `strictNullChecks: false`, where `dep` is optional for any
   constraint, and an `any`-containing constraint poisons the whole return type.
   Displaying the result as `Unbox<TYield> | Unbox<TReturn>` rather than
   `Unbox<TYield | TReturn>` makes hovers show the resolved type.
+- `box` is typed `LazyPromise<Unbox<Arg>, InferDep<Arg>>`. The earlier `Arg
+extends LazyPromise<infer Value>` dropped `Dep`: with contravariant `Dep`,
+  `LazyPromise<V, D>` does not extend `LazyPromise<infer Value>` (default
+  `unknown`), so the result was a higher-order type.
 - No unit test for hover text (via `ts.createLanguageService`): hover display is
   implementation-specific and the JS language-service API will not exist in
   the Go-based TypeScript 7. `expectTypeOf` pins semantics; hovers are checked
@@ -243,7 +376,7 @@ extends ...`) stays deferred and is then assignable neither to nor from `V`.
 - `all`/`any` accept iterables and tuples only. Record inputs were removed: the
   types were too permissive and diverged from native `Promise`.
 - No result sharing/caching, no separate typed-error channel, `map` rather than
-  `then`/`flatMap`: see the README Q&A.
+  `then`/`flatMap`: see the README Q&A and "Scope and philosophy" above.
 - Class-based `Producer`/`Job` API exists for library authors to avoid function
   allocation; the callback form is sugar over it.
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.44](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.44)
+
+- Cancellation now runs `finally`.
+
+- `@lazy-promise/interop` package.
+
+- `Subscription` and `Tracing` implement `[Symbol.dispose]`, a producer may return a `Disposable`.
+
 ## [@lazy-promise/core@0.0.43](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.43)
 
 - `log` method now disambiguates between subscriptions to the same lazy promise.

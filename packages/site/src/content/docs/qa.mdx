@@ -10,16 +10,6 @@ It cannot be `then` since JavaScript has some built-in behaviors around that par
 
 Because unlike RxJS, there exists a small and well-defined set of operators that are comparable to language features and are more equal than others.
 
-## Why does `finally` not run when the lazy promise is canceled?
-
-This question applies to both the `finally` block in generator functions and the `.finally` method. There are three reasons:
-
-- That's how generator functions work in JavaScript: you only get the guarantee that the `finally` block gets executed if you don't `yield` or `yield*` in `try` or `catch`.
-
-- Using `finally` for cleanup would go against the "only one way to do it" principle since there is already teardown logic that you return from the LazyPromise constructor.
-
-- This enables a [pattern](/recipes/#delaying-a-lazy-promise) `lazyPromise.finally(() => anotherLazyPromise)`.
-
 ## Do `sink.resolve` and `sink.reject` fire synchronously?
 
 Not when called synchronously from the LazyPromise constructor callback: we first let that callback return any teardown logic, call that logic, and only then fire. Otherwise, yes. It's only an academic question though. Consider the synchronous case:

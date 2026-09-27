@@ -48,7 +48,7 @@ effect(() =>
 );
 ```
 
-A footnote: to keep things simple, the above snippets don't involve any actual async, but if for example you add `.finally(() => inTimeout(1000))` after `all(...)`, this will delay the effect by a second but otherwise won't change the logic.
+A footnote: to keep things simple, the above snippets don't involve any actual async, but if for example you insert `.map((sum) => inTimeout(1000).map(() => sum))` after the first `map`, this will delay the effect by a second but otherwise won't change the logic.
 
 Another example is the LazyPromise constructor:
 
@@ -148,10 +148,14 @@ const str = signal("");
 // Type () => string | undefined
 const debounced = unbox(
   // Type () => LazyPromise<string>
-  () =>
-    box(str())
+  () => {
+    const value = str();
+    return fromGen(function* () {
       // Delays a lazy promise by 0.5s.
-      .finally(() => inTimeout(500)),
+      yield* inTimeout(500);
+      return value;
+    });
+  },
 );
 ```
 

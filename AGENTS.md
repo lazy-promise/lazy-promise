@@ -12,6 +12,10 @@ has the site's own operational notes.
 ## Layout
 
 - pnpm workspace + turbo. `packages/core` is the library (`@lazy-promise/core`);
+  `packages/interop` (`@lazy-promise/interop`) is a dependency-free leaf that
+  core depends on: it owns `ErrorBox`/`NotAnErrorBox`/`UnboxError`/`Consumer`
+  (re-exported by core) and the `*Like` types and guard for libraries that
+  accept lazy promises without depending on core;
   `packages/alien-signals` is a proof-of-concept of async signals built on it;
   `packages/site` is the docs site (Astro, private, no `version` so
   `publish.sh` skips it); `packages/eslint-config` and
@@ -35,7 +39,11 @@ has the site's own operational notes.
   `npx vitest run --coverage --coverage.reporter=text --coverage.include='build/module/**'`
   in `packages/core` after a rebuild (coverage on `src/**` reports 0%).
   Coverage is 100% and must stay there; if a line ever has to be exempt,
-  still run the report and check for regressions elsewhere.
+  still run the report and check for regressions elsewhere. The one existing
+  exemption is `disposeSymbol.ts`, excluded as a whole file in
+  `vitest.config.mjs` because which branch runs depends on the Node version;
+  v8 only supports file-level exclusion from config, and marker comments in
+  the source would ship to clients.
 - Benchmarks: `node scripts/bench.mjs [ref] --runs=5 --iterations=300000`
   compares the working tree against a git ref or npm version (default `HEAD`).
   The default iteration count is slow; run one benchmark process at a time.
@@ -76,13 +84,25 @@ has the site's own operational notes.
 - Style: early returns over `else`; no abbreviated names; minimal comments,
   especially on type-level code (the author prefers experimenting with types
   to reading prose about them).
+- Docs (site) state invariants, not corner cases. The reader is not a computer:
+  given the invariants they can infer the reasonable behavior in rare cases
+  (that `sink.reject` after `sink.resolve` is ignored, how detached `finally`
+  cleanup behaves) and experiment if they care. Such details belong in tests
+  and DESIGN.md, not on the site. Recipes are for realistic, general-audience
+  scenarios; prefer one concise example over a complete one.
 - Hot paths avoid closures: a method containing an arrow function, even on a
   branch never taken, makes V8 allocate a context object on every call. Pass
   method references (`runInContext(method, arg)`) instead.
 - Tests: flat `test(...)`, `log`/`readLog` helpers, fake timers, inline
   snapshots, one `test("types")` per file with `expectTypeOf` and
   `@ts-expect-error`. `await Promise.resolve()` when a real microtask is
-  needed.
+  needed. Unhandled errors go through `Promise.reject`, so test files spy on
+  it (`vi.spyOn(Promise, "reject")`) and assert with `readUnhandledErrors()`;
+  inside such tests build rejected promises without `Promise.reject`.
+- Tests that involve both core and interop live in core
+  (`packages/core/src/interop.test.ts`): a dev-dependency of interop on core
+  would be a workspace cycle. After editing `packages/interop/src`, rebuild
+  before type-checking core (core resolves interop's `build/types`).
 
 ## packages/core: type-level traps
 

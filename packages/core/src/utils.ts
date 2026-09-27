@@ -1,9 +1,12 @@
 import type { ErrorBox } from "./lazyPromise.js";
 
-export const throwInMicrotask = (error: unknown) => {
-  queueMicrotask(() => {
-    throw error;
-  });
+/**
+ * Surfaces an error nobody handles the same way an unhandled promise
+ * rejection is surfaced.
+ */
+export const reportUnhandledError = (error: unknown) => {
+  // eslint-disable-next-line @typescript-eslint/no-floating-promises
+  Promise.reject(error);
 };
 
 export type NeverIfArrayContainsNever<T extends unknown[]> = T extends [

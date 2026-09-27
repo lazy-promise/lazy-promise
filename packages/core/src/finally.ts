@@ -1,17 +1,28 @@
-import type { Consumer, Producer, Sink } from "./lazyPromise.js";
+import type {
+  Consumer,
+  Job,
+  Producer,
+  Sink,
+  Subscription,
+} from "./lazyPromise.js";
 import { ErrorBox, LazyPromise } from "./lazyPromise.js";
+import { reportUnhandledError } from "./utils.js";
 
 const emptySymbol = Symbol("empty");
 
-class FinallyConsumerProducer implements Consumer<any>, Producer<any, any> {
+class FinallyConsumerProducerJob
+  implements Consumer<any>, Producer<any, any>, Job
+{
   // The value that the source promise resolved to.
   value: any = emptySymbol;
   // The error that the source promise rejected with.
   error: unknown = emptySymbol;
+  subscription: Subscription | undefined;
 
   constructor(
     public sink: Sink<any>,
     public callback: (dep: any) => any,
+    public dep: any,
   ) {}
 
   resolve(value: any) {
@@ -48,6 +59,28 @@ class FinallyConsumerProducer implements Consumer<any>, Producer<any, any> {
     }
     this.resolve(callbackResult);
   }
+
+  /**
+   * Called on cancellation, and also before the settlement is passed on, in
+   * which case the callback runs as the next producer instead.
+   */
+  dispose() {
+    this.subscription?.dispose();
+    if (this.value !== emptySymbol || this.error !== emptySymbol) {
+      return;
+    }
+    // Canceled: the callback runs detached, its result is discarded.
+    let callbackResult;
+    try {
+      callbackResult = (0, this.callback)(this.dep);
+    } catch (error) {
+      reportUnhandledError(error);
+      return;
+    }
+    if (callbackResult instanceof LazyPromise) {
+      callbackResult.subscribe<any>(undefined, this.dep);
+    }
+  }
 }
 
 export class FinallyProducer implements Producer<any, any> {
@@ -57,9 +90,8 @@ export class FinallyProducer implements Producer<any, any> {
   ) {}
 
   produce(sink: Sink<any>, dep: any) {
-    return this.source.subscribe<any>(
-      new FinallyConsumerProducer(sink, this.callback),
-      dep,
-    );
+    const job = new FinallyConsumerProducerJob(sink, this.callback, dep);
+    job.subscription = this.source.subscribe<any>(job, dep);
+    return job;
   }
 }

@@ -1,4 +1,5 @@
 import type { AsyncContextResource } from "./asyncResource.js";
+import { disposeSymbol } from "./disposeSymbol.js";
 import type { LazyPromise, Subscription } from "./lazyPromise.js";
 
 /**
@@ -216,5 +217,9 @@ export class Tracing {
     if (this.next) {
       this.next.previous = this.previous;
     }
+  }
+
+  [disposeSymbol]() {
+    this.dispose();
   }
 }

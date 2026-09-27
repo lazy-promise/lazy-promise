@@ -1,12 +1,12 @@
 {
-  "name": "@lazy-promise/core",
-  "version": "0.0.44",
-  "description": "LazyPromise is a single-shot Observable, a lazy and cancelable promise, and a tiny alternative to Effect.",
+  "name": "@lazy-promise/interop",
+  "version": "0.0.0",
+  "description": "Consume LazyPromise instances without depending on @lazy-promise/core.",
   "homepage": "https://lazypromise.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/lazy-promise/lazy-promise.git",
-    "directory": "packages/core"
+    "directory": "packages/interop"
   },
   "license": "MIT",
   "sideEffects": false,
@@ -35,9 +35,6 @@
     "test:typescript": "tsc",
     "test:vitest": "vitest run"
   },
-  "dependencies": {
-    "@lazy-promise/interop": "workspace:*"
-  },
   "devDependencies": {
     "@babel/cli": "^7.19.3",
     "@babel/core": "^7.24.7",
@@ -45,14 +42,9 @@
     "@babel/preset-typescript": "^7.24.7",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@types/node": "^25.0.3",
-    "@types/web": "0.0.342",
     "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^8.57.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.16"
-  },
-  "engines": {
-    "node": "^20.16.0 || >=22.3.0"
   }
 }
