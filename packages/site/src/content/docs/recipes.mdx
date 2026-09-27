@@ -13,7 +13,7 @@ const getUser = async (id: string) => {
   return user ?? new ErrorBox("not-found");
 };
 
-// Client: type inferred as LazyPromise<User | ErrorBox<"not-found">>
+// Client RPC: type inferred as LazyPromise<User | ErrorBox<"not-found">>
 const user = fromEager(() => getUser(id));
 ```
 
