@@ -98,6 +98,8 @@ const lazyPromise = defer((dep?: RandomDep) =>
 lazyPromise.subscribe({ resolve: console.log });
 // Provide RandomDep.
 lazyPromise.subscribe({ resolve: console.log }, { [randomSymbol]: () => 0.5 });
+// Typechecking error: "Type 'string' is not assignable to type 'number'."
+lazyPromise.subscribe({ resolve: console.log }, { [randomSymbol]: () => "a" });
 ```
 
 ## InferDep
