@@ -203,6 +203,8 @@ test("computed: types", () => {
   computed(() => new LazyPromise<number | ErrorBox<string>>(() => {}));
   // @ts-expect-error
   computed(() => new LazyPromise<number, "dep">(() => {}));
+  // @ts-expect-error `never` Dep must not slip past the check.
+  computed(() => new LazyPromise<ErrorBox<string>, never>(() => {}));
   const maybeBoxed = (true as boolean)
     ? new LazyPromise<number | ErrorBox<string>>(() => {})
     : undefined;

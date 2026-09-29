@@ -26,9 +26,9 @@ importers:
 
   packages/alien-signals:
     dependencies:
-      '@lazy-promise/core':
+      '@lazy-promise/interop':
         specifier: workspace:*
-        version: link:../core
+        version: link:../interop
       alien-signals:
         specifier: 3.2.1
         version: 3.2.1
@@ -45,6 +45,9 @@ importers:
       '@babel/preset-typescript':
         specifier: ^7.24.7
         version: 7.26.0(@babel/core@7.26.0)
+      '@lazy-promise/core':
+        specifier: workspace:*
+        version: link:../core
       '@repo/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config

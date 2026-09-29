@@ -16,7 +16,9 @@ has the site's own operational notes.
   core depends on: it owns `ErrorBox`/`NotAnErrorBox`/`UnboxError`/`Consumer`
   (re-exported by core) and the `*Like` types and guard for libraries that
   accept lazy promises without depending on core;
-  `packages/alien-signals` is a proof-of-concept of async signals built on it;
+  `packages/alien-signals` is a proof-of-concept of async signals; at runtime it
+  depends only on interop (core is a dev dependency for tests) and derives
+  proxies via `original.constructor`;
   `packages/site` is the docs site (Astro, private, no `version` so
   `publish.sh` skips it); `packages/eslint-config` and
   `packages/typescript-config` are shared config.

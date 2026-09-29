@@ -1,28 +1,37 @@
 import type {
-  Job,
+  LazyPromiseLike,
   NotAnErrorBox,
-  Sink,
-  Subscription,
-} from "@lazy-promise/core";
-import { LazyPromise } from "@lazy-promise/core";
+  SubscriptionLike,
+} from "@lazy-promise/interop";
+import { isLazyPromiseLike } from "@lazy-promise/interop";
 import type { ReactiveNode } from "alien-signals/system";
 import { createReactiveSystem, ReactiveFlags } from "alien-signals/system";
 
 const resolvedSymbol = Symbol("resolved");
 const rejectedSymbol = Symbol("rejected");
 
+type NoDepLazyPromise = LazyPromiseLike<unknown, undefined>;
+
+interface SinkLike {
+  resolve(value: unknown): void;
+  reject(error: unknown): void;
+}
+
+// eslint-disable-next-line no-use-before-define
+type LazyPromiseConstructor = new (producer: ProxyProducer) => NoDepLazyPromise;
+
 interface EffectScopeNode extends ReactiveNode {}
 
 interface EffectNode extends ReactiveNode {
-  fn(): (() => void) | LazyPromise<NotAnErrorBox, undefined> | void;
+  fn(): (() => void) | LazyPromiseLike<NotAnErrorBox, undefined> | void;
   cleanup: (() => void) | void;
 }
 
 interface LPState {
-  original: LazyPromise<any>;
+  original: NoDepLazyPromise;
   // eslint-disable-next-line no-use-before-define
   pendingHead: PendingNode | undefined;
-  originalSub: Subscription | undefined;
+  originalSub: SubscriptionLike | undefined;
   status: typeof resolvedSymbol | typeof rejectedSymbol | undefined;
   result: any;
 }
@@ -151,7 +160,7 @@ class PendingNode {
   next: PendingNode | undefined = undefined;
 
   constructor(
-    public sink: Sink<any>,
+    public sink: SinkLike,
     public state: LPState,
     public c: ComputedNode,
   ) {}
@@ -227,7 +236,7 @@ class ProxyProducer {
     private c: ComputedNode,
   ) {}
 
-  produce(sink: Sink<any>): Job | void {
+  produce(sink: SinkLike): PendingNode | void {
     const { state, c } = this;
     if (state.status === resolvedSymbol) {
       sink.resolve(state.result);
@@ -251,23 +260,29 @@ class ProxyProducer {
 const subscribeToOriginal = (
   state: LPState,
   c: ComputedNode,
-  original: LazyPromise<any>,
+  original: NoDepLazyPromise,
 ): void => {
   // Clear activeSub so reads inside the original's producer don't create
   // reactive dependencies on the computed.
   const prevActiveSub = activeSub;
   activeSub = undefined;
   const consumer = new OriginalConsumer(state, c);
-  const sub = original.subscribe<any>(consumer);
+  const sub = original.subscribe(consumer, undefined);
   activeSub = prevActiveSub;
   if (!consumer.settled) {
     state.originalSub = sub;
   }
 };
 
+// The original is a real LazyPromise, so its constructor produces one too.
+const createProxy = (state: LPState, c: ComputedNode): NoDepLazyPromise =>
+  new (state.original.constructor as LazyPromiseConstructor)(
+    new ProxyProducer(state, c),
+  );
+
 const updateLPComputed = (
   c: ComputedNode,
-  newOriginal: LazyPromise<any>,
+  newOriginal: NoDepLazyPromise,
 ): boolean => {
   const state = c.lp!;
   if (state.originalSub !== undefined) {
@@ -298,7 +313,7 @@ const updateLPComputed = (
   }
   // New proxy needed
   c.lp = newState;
-  c.value = new LazyPromise(new ProxyProducer(newState, c));
+  c.value = createProxy(newState, c);
   return true;
 };
 
@@ -354,8 +369,8 @@ const updateComputed = (c: ComputedNode): boolean => {
     ++cycle;
     const oldValue = c.value;
     const newValue = c.getter(oldValue);
-    if (newValue instanceof LazyPromise) {
-      return updateLPComputed(c, newValue);
+    if (isLazyPromiseLike(newValue)) {
+      return updateLPComputed(c, newValue as NoDepLazyPromise);
     }
     return oldValue !== (c.value = newValue);
   } finally {
@@ -395,9 +410,12 @@ const run = (e: EffectNode): void => {
       ++cycle;
       ++runDepth;
       const result = e.fn();
-      if (result instanceof LazyPromise) {
+      if (isLazyPromiseLike(result)) {
         activeSub = undefined;
-        const lpSub = result.subscribe<any>();
+        const lpSub = (result as NoDepLazyPromise).subscribe(
+          undefined,
+          undefined,
+        );
         e.cleanup = () => {
           lpSub.dispose();
         };
@@ -502,18 +520,16 @@ function computedOper<T>(this: ComputedNode<T>): T {
     const prevSub = setActiveSub(this);
     try {
       const newValue = this.getter();
-      if (newValue instanceof LazyPromise) {
+      if (isLazyPromiseLike(newValue)) {
         const state: LPState = {
-          original: newValue,
+          original: newValue as NoDepLazyPromise,
           pendingHead: undefined,
           originalSub: undefined,
           status: undefined,
           result: undefined,
         };
         this.lp = state;
-        this.value = new LazyPromise(
-          new ProxyProducer(state, this),
-        ) as unknown as T;
+        this.value = createProxy(state, this) as T;
       } else {
         this.value = newValue;
       }
@@ -599,10 +615,11 @@ export function signal<T>(initialValue?: T): {
 
 export const computed = <T>(
   // Lazy promises must not resolve to boxed errors or need a dependency.
+  // `never` in the check: `LazyPromiseLike<any, any>` would miss a `never` Dep.
   getter: (
     previousValue?: T,
-  ) => T extends LazyPromise<any, any>
-    ? LazyPromise<NotAnErrorBox, undefined>
+  ) => T extends LazyPromiseLike<unknown, never>
+    ? LazyPromiseLike<NotAnErrorBox, undefined>
     : T,
 ): (() => T) =>
   computedOper.bind({
@@ -616,7 +633,7 @@ export const computed = <T>(
   }) as () => T;
 
 export const effect = (
-  fn: () => void | (() => void) | LazyPromise<NotAnErrorBox, undefined>,
+  fn: () => void | (() => void) | LazyPromiseLike<NotAnErrorBox, undefined>,
 ): (() => void) => {
   const e: EffectNode = {
     fn,
@@ -635,9 +652,12 @@ export const effect = (
   try {
     ++runDepth;
     const result = e.fn();
-    if (result instanceof LazyPromise) {
+    if (isLazyPromiseLike(result)) {
       activeSub = undefined;
-      const lpSub = result.subscribe<any>();
+      const lpSub = (result as NoDepLazyPromise).subscribe(
+        undefined,
+        undefined,
+      );
       e.cleanup = () => {
         lpSub.dispose();
       };
@@ -703,7 +723,7 @@ export const trigger = (fn: () => void) => {
 };
 
 export const unbox = <T extends NotAnErrorBox>(
-  getter: () => LazyPromise<T, undefined>,
+  getter: () => LazyPromiseLike<T, undefined>,
 ): (() => T | undefined) => {
   let returnValue: T | undefined, returnValuePromise: unknown;
   const memoizedGetter = computed(getter);
@@ -714,17 +734,25 @@ export const unbox = <T extends NotAnErrorBox>(
   // deferred for the generic `T`, so instantiate it with the constraint.
   return computed<NotAnErrorBox>(() => {
     const promise = memoizedGetter();
-    effect(() =>
-      promise.map((value) => {
-        returnValue = value;
-        if (returnValuePromise === promise) {
-          // The promise has resolved asynchronously.
-          trigger(tokenSignal);
-          return;
-        }
-        returnValuePromise = promise;
-      }),
-    );
+    effect(() => {
+      const subscription = promise.subscribe(
+        {
+          resolve: (value) => {
+            returnValue = value;
+            if (returnValuePromise === promise) {
+              // The promise has resolved asynchronously.
+              trigger(tokenSignal);
+              return;
+            }
+            returnValuePromise = promise;
+          },
+        },
+        undefined,
+      );
+      return () => {
+        subscription.dispose();
+      };
+    });
     if (returnValuePromise === promise) {
       // The promise has resolved synchronously.
       return returnValue;

@@ -126,4 +126,10 @@ unboxSync(new LazyPromise<string | ErrorBox<"oops">>(() => {}));
 unboxSync(new LazyPromise<string, MyDep>(() => {}));
 ```
 
-If on the other hand your library needs to not just consume, but create lazy promises, you would need `@lazy-promise/core` as a peer dependency.
+If your library needs to transform a lazy promise it was given into another one, and you can get away with not using the `LazyPromise` type in your declarations, you can do the following:
+
+```ts
+const newLazyPromise = new (originalLazyPromise.constructor as any)(...);
+```
+
+If you do need the `LazyPromise` type, this would require `@lazy-promise/core` as an optional peer dependency.
