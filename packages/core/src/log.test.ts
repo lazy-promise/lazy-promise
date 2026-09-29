@@ -1,7 +1,13 @@
 /* eslint-disable no-console */
 
 import type { Consumer, Sink } from "@lazy-promise/core";
-import { box, inMicrotask, LazyPromise, rejecting } from "@lazy-promise/core";
+import {
+  box,
+  ErrorBox,
+  inMicrotask,
+  LazyPromise,
+  rejecting,
+} from "@lazy-promise/core";
 import { afterEach, expect, test, vi } from "vitest";
 
 const logContents: unknown[] = [];
@@ -66,6 +72,21 @@ test("rejection", () => {
       "[rejection case] [1] [subscribe] undefined",
       "· [rejection case] [1] [reject] 1",
       "· · handleError 1",
+    ]
+  `);
+});
+
+test("resolve with a boxed error", () => {
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
+
+  box(new ErrorBox(1)).log("boxed error case").subscribe<1>(logConsumer);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "[boxed error case] [1] [subscribe] undefined",
+      "· [boxed error case] [1] [resolve] [boxed error] 1",
+      "· · handleValue [object Object]",
     ]
   `);
 });

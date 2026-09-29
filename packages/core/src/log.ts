@@ -1,4 +1,5 @@
 import type { LazyPromise } from "./lazyPromise.js";
+import { ErrorBox } from "./lazyPromise.js";
 import type { Span, Tracer } from "./trace.js";
 import { reportUnhandledError } from "./utils.js";
 
@@ -57,6 +58,10 @@ class LogSpan implements Span<any> {
   }
 
   resolve(value: unknown) {
+    if (value instanceof ErrorBox) {
+      console.log(...this.prefix, `[resolve]`, `[boxed error]`, value.error);
+      return;
+    }
     console.log(...this.prefix, `[resolve]`, value);
   }
 
