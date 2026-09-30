@@ -87,10 +87,10 @@ const longRunningTask = fromGen(function* () {
 
 ## Usage with EventTarget API
 
-When dealing with EventTarget, it's convenient to have a lower-level utility `listen` that's not even specific to lazy promises, and which adds a listener and returns a teardown function (or alternatively a Disposable).
+When dealing with EventTarget, it's convenient to have a lower-level utility `addDisposableEventListener` that's not even specific to lazy promises, and which adds a listener and returns a teardown function (or alternatively a Disposable).
 
 ```ts
-const listen = <DispatchedEvent extends Event = Event>(
+const addDisposableEventListener = <DispatchedEvent extends Event = Event>(
   target: EventTarget,
   type: string,
   listener: (event: DispatchedEvent) => void,
@@ -109,13 +109,13 @@ Then you can use the LazyPromise constructor to wait for an event, or wait for t
 declare const socket: WebSocket;
 
 const opened = new LazyPromise<void>((sink) =>
-  listen(socket, "open", () => {
+  addDisposableEventListener(socket, "open", () => {
     sink.resolve();
   }),
 );
 
 const reply = new LazyPromise<MessageEvent>((sink) =>
-  listen<MessageEvent>(socket, "message", (event) => {
+  addDisposableEventListener<MessageEvent>(socket, "message", (event) => {
     if (JSON.parse(event.data).id === id) {
       sink.resolve(event);
     }
