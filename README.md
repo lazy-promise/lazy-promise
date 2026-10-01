@@ -1,10 +1,10 @@
 # LazyPromise
 
-- A single-shot Observable
+- Cancelation without AbortController
 
-- A lazy and cancelable promise
+- Type-safe errors
 
-- A tiny alternative to Effect
+- Dependency injection
 
 Documentation: [lazypromise.com](https://lazypromise.com)
 

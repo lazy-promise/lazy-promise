@@ -3,7 +3,7 @@ import corePackage from "../../core/package.json";
 export const siteName = "LazyPromise";
 export const coreVersion = corePackage.version;
 export const siteDescription =
-  "LazyPromise is a single-shot Observable, a lazy and cancelable promise, and a tiny alternative to Effect.";
+  "Cancelation without AbortController, type-safe errors, dependency injection";
 export const githubUrl = "https://github.com/lazy-promise/lazy-promise";
 export const xUrl = "https://x.com/ivan7237d";
 export const playgroundUrl =
