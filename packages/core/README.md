@@ -1,6 +1,6 @@
 # LazyPromise
 
-- Cancelation without AbortController
+- Automatic cancellation
 
 - Type-safe errors
 

@@ -257,7 +257,7 @@ test("callback throws after unsubscribed", () => {
   expect(readLog()).toMatchInlineSnapshot(`[]`);
 });
 
-test("cancelation with abort signal", () => {
+test("cancellation with abort signal", () => {
   const promise = fromEager(
     (options) =>
       new Promise<never>((resolve, reject) => {

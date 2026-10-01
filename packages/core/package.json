@@ -1,7 +1,7 @@
 {
   "name": "@lazy-promise/core",
   "version": "0.0.46",
-  "description": "LazyPromise: cancelation without AbortController, type-safe errors, dependency injection",
+  "description": "LazyPromise: automatic cancellation, type-safe errors, dependency injection",
   "homepage": "https://lazypromise.com",
   "repository": {
     "type": "git",
