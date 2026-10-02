@@ -15,7 +15,6 @@ const pageOrder = [
   "dependency-injection",
   "for-library-authors",
   "qa",
-  "recipes",
 ];
 
 export const getOrderedDocs = async () => {

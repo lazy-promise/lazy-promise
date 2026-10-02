@@ -13,6 +13,18 @@ For example, to sleep for 1 second in the middle of a generator function, you wo
 yield* inTimeout(1000);
 ```
 
+To make a lazy promise time out, you can do
+
+```ts
+race([
+  lazyPromise,
+  // Or `.map(() => new ErrorBox("timeout"))`.
+  inTimeout(ms).map(() => {
+    throw new Error(`Timed out.`);
+  }),
+]);
+```
+
 ## inMicrotask
 
 `inMicrotask()` returns a lazy promise that fires with a value of type `void` in a `queueMicrotask` callback. If the lazy promise is unsubscribed before firing, the callback cannot be un-scheduled, but becomes a no-op.
@@ -44,6 +56,31 @@ Not available in browsers.
 ## inMessageChannel
 
 `inMessageChannel()` posts a message in MessageChannel and resolves with a value of type `void` when it receives the message back, unless by then it has been unsubscribed. In Node, it keeps the process alive while messages are pending and unrefs the port once the queue is empty.
+
+To keep the browser UI responsive during heavy synchronous work, you could do the following:
+
+```ts
+let deadline = 0;
+
+const resetDeadline = () => {
+  deadline = performance.now() + 5;
+};
+
+const maybeYieldToEventLoop = defer(() => {
+  if (performance.now() < deadline) {
+    return;
+  }
+  return inMessageChannel().map(resetDeadline);
+});
+
+const longRunningTask = fromGen(function* () {
+  for (const item of items) {
+    // Do work...
+
+    yield* maybeYieldToEventLoop;
+  }
+});
+```
 
 ## inScheduled
 

@@ -27,7 +27,12 @@ Once the constructor callback has settled the promise, its job is done, and in p
 
 ## Why not have the `subscribe` method return a function instead of a subscription object?
 
-To avoid the overhead of creating and garbage-collecting a function. On the Recipes page you can find a [utility](/recipes/#teardown-functions-instead-of-subscription-objects) that subscribes and returns a teardown function when you pipe a lazy promise through it.
+To avoid the overhead of creating and garbage-collecting a function. You can create a utility `toDisposeFn` that takes a `LazyPromise<NotAnErrorBox, undefined>`, subscribes to it, and returns a teardown function:
+
+```ts
+// () => void
+const dispose = lazyPromise.pipe(toDisposeFn);
+```
 
 ## Why not have an equivalent of `Promise.allSettled`?
 
@@ -44,3 +49,15 @@ While this is achievable with userland operators like those in RxJS, it's not so
 ## Why not a separate channel for typed errors like in Effect?
 
 Error boxes are part of what makes LazyPromise simple. `LazyPromise<"value" | ErrorBox<"error">>` is more verbose than `LazyPromise<"value", "error">`, but an extra channel and type parameter (or similarly, resolving promises with an object with two type parameters) would have introduced unnecessary complexity when it comes to using LazyPromise together with native promises and generator syntax. You wouldn't be able to produce typed errors in native async functions by returning error boxes, and try/catch/finally syntax in generator functions would have non-obvious behavior. Also, LazyPromise does not attempt to collapse types like `ErrorBox<"a"> | ErrorBox<"b">` into `ErrorBox<"a" | "b">` or to enforce a specific order of elements in the union. Large TS types have always been hard to read, and there is little LazyPromise can do about that: instead it focuses on correctness and simplicity.
+
+## Why does LazyPromise have deferral utilities, but no equivalent of `fromEvent` in RxJS?
+
+Sometimes you want to resolve the lazy promise not on the first event, but on the first event matching a condition, or to error out the promise based on some event. To cover all such use cases, it's better to have a lower-level utility that's not even specific to LazyPromise, and that simply returns a teardown function or a Disposable after adding an event listener. You can then use it in the LazyPromise constructor as follows:
+
+```ts
+const opened = new LazyPromise<void>((sink) =>
+  addDisposableEventListener(socket, "open", () => {
+    sink.resolve();
+  }),
+);
+```

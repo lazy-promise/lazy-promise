@@ -90,8 +90,10 @@ has the site's own operational notes.
   given the invariants they can infer the reasonable behavior in rare cases
   (that `sink.reject` after `sink.resolve` is ignored, how detached `finally`
   cleanup behaves) and experiment if they care. Such details belong in tests
-  and DESIGN.md, not on the site. Recipes are for realistic, general-audience
-  scenarios; prefer one concise example over a complete one.
+  and DESIGN.md, not on the site. Examples are for realistic, general-audience
+  scenarios; prefer one concise example over a complete one. There is no
+  recipes page; userland patterns (retry, concurrency limit, rate limit, ...)
+  live in `packages/core/src/recipes.test.ts`.
 - Hot paths avoid closures: a method containing an arrow function, even on a
   branch never taken, makes V8 allocate a context object on every call. Pass
   method references (`runInContext(method, arg)`) instead.

@@ -10,7 +10,8 @@ the reasoning so it does not get re-litigated. There are no compatibility constr
 LazyPromise is a primitive in the full sense: it prioritizes simplicity and
 versatility, and there is an explicit goal not to grow it with utilities that
 can be built in userland or by other library authors (retry, timeout, delay,
-concurrency limits, rate limits are recipes, not exports). In particular it is
+concurrency limits, rate limits are userland patterns, not exports; see
+`packages/core/src/recipes.test.ts`). In particular it is
 designed to complement state libraries (Signals, React state, ...), not to
 implement anything that involves state itself: sharing or memoizing a result,
 knowing whether async cleanup has finished, tracking pending counts. Those
@@ -350,8 +351,9 @@ D>>` resolves to `V` (matches on shape), but any conditional whose check type
   is `V` itself (`Unbox<V>`, `Exclude<V, ErrorBox<any>>`, `UnboxError<V>
 extends ...`) stays deferred and is then assignable neither to nor from `V`.
   Consequences: pass-through operators (`catch`, `finally`, `race`, `defer`,
-  `x.map(() => source)`) must return a naked `Value`, which every recipe relies
-  on (`new LazyPromise<V, D>((sink, dep) => ....subscribe<any>(sink, dep))`);
+  `x.map(() => source)`) must return a naked `Value`, which every wrapping
+  pattern in `recipes.test.ts` relies on
+  (`new LazyPromise<V, D>((sink, dep) => ....subscribe<any>(sink, dep))`);
   `box(v)`, `x.map(() => v)`, `subscribe()`, `toEager()`, `all([...])`, and
   `fromGen` pass-through cannot be expressed in generic code without a cast
   (plain `as LazyPromise<...>` is accepted and sound). A user constraint
