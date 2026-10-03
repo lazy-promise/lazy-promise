@@ -384,17 +384,19 @@ extends ...`) stays deferred and is then assignable neither to nor from `V`.
 - No result sharing/caching, no separate typed-error channel, `map` rather than
   `then`/`flatMap`: see the README Q&A and "Scope and philosophy" above.
 - Error boxes rather than a typed-error channel (a third type parameter and a
-  third sink method, as in versions up to 0.0.20). In `fromGen`, a yielded
-  promise that resolves with a box makes the driver call
-  `generator.return(box)`, so `catch` is skipped and `finally` runs, but this
-  is sugar for `return`ing a value and everything about it follows from the
-  language: the box is part of `TReturn`, `return new ErrorBox(...)` works
-  anywhere (also in `fromEager` async functions), and a `return` in `finally`
-  overrides it because whatever comes out as `done.value` is the result. A
-  channel cannot be `throw()`n into the generator (`catch` is untyped), so the
-  driver has to `return()` and define the semantics itself, and the best
-  available explanation, "as if you had written `return`", is a leaky analogy:
-  a `return` would resolve the promise with `undefined`, not fail it.
+  third sink method, as in versions up to 0.0.20). The deciding point is that
+  a box is a plain value, so typed errors exist outside promises: a
+  synchronous function or a `fromEager` async function returns one, and the
+  core stays at two channels with no third type parameter and no
+  `catchRejection`/`catchFailure`/`rejected`/`failed` split. The generator
+  syntax was once cited as a reason but is not one: `fromGen` calls
+  `generator.return(box)` when a yield resolves with a box, and a channel
+  could be specified just as tightly, "as if `return rejecting(error)` stood
+  in place of the `yield*`", via `generator.return(rejecting(error))` plus
+  flattening. The only wrinkle there is that the rule returns a promise, so a
+  reader may conflate it with `return p` for the yielded `p`, which has
+  `return await` semantics (`finally` first, `p` subscribed afterwards);
+  with boxes the rule returns a value and has no such lookalike.
 - Class-based `Producer`/`Job` API exists for library authors to avoid function
   allocation; the callback form is sugar over it.
 
