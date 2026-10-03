@@ -18,7 +18,7 @@ To make a lazy promise time out, you can do
 ```ts
 race([
   lazyPromise,
-  // Or `.map(() => new ErrorBox("timeout"))`.
+  // Or `.map(() => new ErrorBox("timeout"))` (see "Type-safe errors").
   inTimeout(ms).map(() => {
     throw new Error(`Timed out.`);
   }),
