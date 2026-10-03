@@ -91,20 +91,23 @@ const xHandle = `@${new URL(xUrl).pathname.slice(1)}`;
     <meta name="generator" content={Astro.generator} />
     <script is:inline>
       (() => {
-        try {
-          const stored = localStorage.getItem("theme");
+        const media = matchMedia("(prefers-color-scheme: dark)");
+        const apply = () => {
+          let stored = null;
+          try {
+            stored = localStorage.getItem("theme");
+          } catch {
+            // Storage disabled: fall through to the OS preference.
+          }
           document.documentElement.classList.toggle(
             "dark",
-            stored === "dark" ||
-              (stored !== "light" &&
-                matchMedia("(prefers-color-scheme: dark)").matches),
+            stored === "dark" || (stored !== "light" && media.matches),
           );
-        } catch {
-          document.documentElement.classList.toggle(
-            "dark",
-            matchMedia("(prefers-color-scheme: dark)").matches,
-          );
-        }
+        };
+        apply();
+        // A fresh incognito tab reports the dark NTP scheme for the first
+        // ~80ms before switching to the OS one.
+        media.addEventListener("change", apply);
       })();
     </script>
   </head>
