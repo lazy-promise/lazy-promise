@@ -5,6 +5,28 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
 import pagefind from "astro-pagefind";
 
+// Both github themes color comments #6a737d; use the site's muted ink instead.
+const commentColor = "#6a737d";
+
+const mutedComments = {
+  name: "muted-comments",
+  tokens(lines) {
+    for (const line of lines) {
+      for (const token of line) {
+        const style = token.htmlStyle;
+        if (!style) {
+          continue;
+        }
+        for (const key of Object.keys(style)) {
+          if (style[key].toLowerCase() === commentColor) {
+            style[key] = "var(--ink-muted)";
+          }
+        }
+      }
+    }
+  },
+};
+
 export default defineConfig({
   site: "https://lazypromise.com",
   trailingSlash: "always",
@@ -26,6 +48,7 @@ export default defineConfig({
         dark: "github-dark",
       },
       defaultColor: false,
+      transformers: [mutedComments],
     },
   },
   vite: {

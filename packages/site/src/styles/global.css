@@ -17,6 +17,7 @@
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
+  --color-code-canvas: var(--code-canvas);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
   --color-ink: var(--ink);
@@ -33,6 +34,7 @@
   --canvas: #fcfbfa;
   --surface: #f5f4f2;
   --surface-raised: #ffffff;
+  --code-canvas: #f5f4f2;
   --line: #e9e6e3;
   --line-strong: #d6d3d1;
   --ink: #1c1917;
@@ -47,6 +49,7 @@
   --canvas: #0f0e0d;
   --surface: #1f1c19;
   --surface-raised: #272320;
+  --code-canvas: #151311;
   --line: #36302a;
   --line-strong: #4d4640;
   --ink: #ebe8e4;
@@ -196,7 +199,7 @@
 }
 
 .docs pre {
-  @apply my-6 overflow-x-auto rounded-lg border border-line bg-surface px-5 py-4 text-sm leading-6;
+  @apply my-6 overflow-x-auto rounded-lg border border-line bg-code-canvas px-5 py-4 text-sm leading-6;
 }
 
 .docs pre code {
