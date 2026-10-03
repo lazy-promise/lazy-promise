@@ -18,6 +18,7 @@
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
   --color-code-canvas: var(--code-canvas);
+  --color-code-inline: var(--code-inline);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
   --color-ink: var(--ink);
@@ -35,6 +36,7 @@
   --surface: #f5f4f2;
   --surface-raised: #ffffff;
   --code-canvas: #f5f4f2;
+  --code-inline: #f5f4f2;
   --line: #e9e6e3;
   --line-strong: #d6d3d1;
   --ink: #1c1917;
@@ -50,6 +52,7 @@
   --surface: #1f1c19;
   --surface-raised: #272320;
   --code-canvas: #151311;
+  --code-inline: #312b26;
   --line: #36302a;
   --line-strong: #4d4640;
   --ink: #ebe8e4;
@@ -191,7 +194,7 @@
 }
 
 .docs :not(pre) > code {
-  @apply rounded-[0.3rem] bg-surface px-[0.35em] py-[0.15em] text-[0.875em] text-ink dark:bg-line;
+  @apply rounded-[0.3rem] bg-code-inline px-[0.35em] py-[0.15em] text-[0.875em] text-ink;
 }
 
 .docs a:not(.heading-anchor) > code {
