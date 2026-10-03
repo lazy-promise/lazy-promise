@@ -55,7 +55,7 @@ Not available in browsers.
 
 ## inMessageChannel
 
-`inMessageChannel()` posts a message in MessageChannel and resolves with a value of type `void` when it receives the message back, unless by then it has been unsubscribed. In Node, it keeps the process alive while messages are pending and unrefs the port once the queue is empty.
+`inMessageChannel()` posts a message in a MessageChannel and resolves with a value of type `void` when it receives the message back, unless by then it has been unsubscribed. In Node, it keeps the process alive while messages are pending and unrefs the port once the queue is empty.
 
 To keep the browser UI responsive during heavy synchronous work, you could do the following:
 
