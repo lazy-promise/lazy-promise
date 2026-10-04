@@ -12,7 +12,7 @@ Observable is beautifully simple conceptually, and has a great cancellation mech
 
 A native promise is eager and needs AbortController plumbing for cancellation, but in other respects its API is great. The LazyPromise API doesn't just resemble the native promise API, but follows all its subtleties unless stated otherwise in the docs. This has a happy side effect of making the library easier to document and learn.
 
-### A tiny alternative to Effect
+### A tiny Effect
 
 Like Effect, and as any self-respecting lazy promise should, LazyPromise supports generator syntax, type-safe errors, and dependency injection, but does so while staying simple.
 
