@@ -2,7 +2,7 @@
 title: Generator syntax
 ---
 
-This syntax is the LazyPromise equivalent of async-await. It lets you take advantage of JavaScript control flow statements, and as with chained operators, you get automatic cancellation. Just use generator functions instead of async functions, and `yield*` instead of `await`:
+This syntax is the LazyPromise equivalent of async-await. It lets you take advantage of JavaScript control flow statements, and as with chained operators, you get auto-propagating cancellation. Just use generator functions instead of async functions, and `yield*` instead of `await`:
 
 ```ts
 // Type inferred as LazyPromise<number>
