@@ -18,7 +18,7 @@ Like Effect, and as any self-respecting lazy promise should, LazyPromise support
 
 ## Documentation
 
-[lazypromise.com](https://lazypromise.com)
+[lazypromise.com](https://lazypromise.com/basic-usage/)
 
 ## Contributing
 
