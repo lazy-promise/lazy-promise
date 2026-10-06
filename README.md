@@ -2,11 +2,11 @@
 
 ## About
 
-LazyPromise is an async primitive that aims for maximum simplicity and draws upon ideas from [RxJS](https://rxjs.dev/), native promise and [Effect (-TS)](https://www.effect.website/). [Signals](https://www.npmjs.com/package/@solidjs/signals) have also helped shape its design by showing where the province of an async primitive ends. There are three ways to describe it.
+LazyPromise is a conceptually simple primitive that supports auto-propagating cancellation, type-safe errors, and dependency injection. It draws upon ideas from [RxJS](https://rxjs.dev/), native promise and [Effect (-TS)](https://www.effect.website/). [Signals](https://www.npmjs.com/package/@solidjs/signals) have also helped shape its design by showing where the province of an async primitive ends. There are three ways you can look at it.
 
 ### A single-shot Observable
 
-Observable is beautifully simple conceptually, and has a great cancellation mechanism. LazyPromise takes care to keep that, but limits Observable to a single shot—you could say it's a JavaScript cousin of a Single in RxJava. A single-shot Observable [nicely complements Signals](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals) and doesn't have [synchronous reentry gotchas](https://stackblitz.com/edit/rxjs-sync-reentry-vxjr9fhr?devToolsHeight=50&file=index.ts).
+Observable is beautifully simple, and has a great cancellation mechanism. LazyPromise takes care to keep that, but limits Observable to a single shot—you could say it's a JavaScript cousin of a Single in RxJava. A single-shot Observable [nicely complements Signals](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals) and doesn't have [synchronous reentry gotchas](https://stackblitz.com/edit/rxjs-sync-reentry-vxjr9fhr?devToolsHeight=50&file=index.ts).
 
 ### A lazy, cancellation-propagating promise with an otherwise familiar API
 

@@ -25,9 +25,7 @@ interface Props {
 const { title, path, navItems, headings = [], previous, next } = Astro.props;
 
 const isIndex = path === "/";
-const documentTitle = isIndex
-  ? `${siteName} - auto-propagating cancellation, type-safe errors, dependency injection`
-  : `${title} · ${siteName}`;
+const documentTitle = isIndex ? `${siteName}` : `${title} · ${siteName}`;
 const canonical = new URL(path, Astro.site);
 const ogImage = new URL(ogPng.src, Astro.site);
 const tocHeadings = headings.filter(

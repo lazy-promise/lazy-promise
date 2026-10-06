@@ -1,7 +1,7 @@
 {
   "name": "@lazy-promise/core",
   "version": "0.0.46",
-  "description": "Auto-propagating cancellation, type-safe errors, dependency injection",
+  "description": "A conceptually simple primitive that supports auto-propagating cancellation, type-safe errors, and dependency injection",
   "homepage": "https://lazypromise.com",
   "repository": {
     "type": "git",
