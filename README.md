@@ -2,7 +2,7 @@
 
 ## About
 
-LazyPromise is a conceptually simple primitive that supports auto-propagating cancellation, type-safe errors, and dependency injection. It draws upon ideas from [RxJS](https://rxjs.dev/), native promise and [Effect (-TS)](https://www.effect.website/). [Signals](https://www.npmjs.com/package/@solidjs/signals) have also helped shape its design by showing where the province of an async primitive ends. There are three ways you can look at it.
+LazyPromise is a conceptually simple primitive that supports auto-propagating cancellation, type-safe errors, and dependency injection. It draws upon ideas from [RxJS](https://rxjs.dev/), native promise and [Effect](https://www.effect.website/). [Signals](https://www.npmjs.com/package/@solidjs/signals) have also helped shape its design by showing where the province of an async primitive ends. There are three ways you can look at it.
 
 ### A single-shot Observable
 
