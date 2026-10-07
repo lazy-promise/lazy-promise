@@ -14,7 +14,7 @@ const lazyPromise = fromEager(async ({ signal }) => {
 });
 ```
 
-If the subscription is disposed before the returned promise settles, the signal is aborted with an `AbortError`. The abort controller is created lazily, so there's no cost if the callback does not read the `signal` property of the object passed to it. The callback can also be a regular (non-async) function, and any non-Promise values it returns are passed on synchronously.
+If the subscription is disposed before the returned promise settles, the signal is aborted with an `AbortError`. The callback can also be a regular (non-async) function, and any non-Promise values it returns are passed on synchronously.
 
 ## toEager
 
