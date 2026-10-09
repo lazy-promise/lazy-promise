@@ -6,7 +6,7 @@ LazyPromise is a conceptually simple primitive that supports auto-propagating ca
 
 ### Learnings from Observable
 
-Observable is beautifully simple, and has a great cancellation mechanism. LazyPromise takes care to keep that, but limits Observable to a single shot—you could say it's a JavaScript cousin of a Single in RxJava. A single-shot Observable [nicely complements Signals](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals) and doesn't have [synchronous reentry gotchas](https://stackblitz.com/edit/rxjs-sync-reentry-vxjr9fhr?devToolsHeight=50&file=index.ts).
+Observable is beautifully simple and auto-propagates cancellation. LazyPromise takes care to keep that, but limits Observable to a single shot—you could say it's a JavaScript cousin of a Single in RxJava. A single-shot Observable [nicely complements Signals](https://github.com/lazy-promise/lazy-promise/tree/main/packages/alien-signals) and doesn't have [synchronous reentry gotchas](https://stackblitz.com/edit/rxjs-sync-reentry-vxjr9fhr?devToolsHeight=50&file=index.ts).
 
 ### Learnings from the native promise
 
