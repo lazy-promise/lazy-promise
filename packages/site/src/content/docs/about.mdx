@@ -10,7 +10,7 @@ Observable is beautifully simple, and has a great cancellation mechanism. LazyPr
 
 ### Learnings from the native promise
 
-A native promise is eager and needs AbortController plumbing for cancellation, but in other respects its API is great. The LazyPromise API doesn't just resemble the native promise API, but follows all its subtleties unless stated otherwise in the docs. This has a happy side effect of making the library easier to document and learn.
+The native promise is eager and needs AbortController plumbing for cancellation, but in other respects its API is great. The LazyPromise API doesn't just resemble the native promise API, but follows all its subtleties unless stated otherwise in the docs. This has a happy side effect of making the library easier to document and learn.
 
 ### Learnings from Effect
 
