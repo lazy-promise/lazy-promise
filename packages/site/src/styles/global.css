@@ -122,7 +122,7 @@
 }
 
 .docs h2 {
-  @apply mt-11 mb-3 font-heading text-[1.7rem] leading-8 font-bold text-ink;
+  @apply mt-11 mb-5 font-heading text-[1.7rem] leading-8 font-bold text-ink;
 }
 
 .docs h3 {
