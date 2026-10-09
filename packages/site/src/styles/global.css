@@ -122,11 +122,11 @@
 }
 
 .docs h2 {
-  @apply mt-9 mb-3 font-heading text-2xl leading-8 font-bold text-ink;
+  @apply mt-11 mb-3 font-heading text-[1.7rem] leading-8 font-bold text-ink;
 }
 
 .docs h3 {
-  @apply mt-8 mb-2 font-heading text-xl leading-7 font-bold text-ink;
+  @apply mt-7 mb-2 font-heading text-xl leading-7 font-bold text-ink;
 }
 
 .docs :is(h2, h3) + :is(p, ul, ol) {
