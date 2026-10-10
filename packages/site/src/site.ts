@@ -3,7 +3,7 @@ import corePackage from "../../core/package.json";
 export const siteName = "LazyPromise";
 export const coreVersion = corePackage.version;
 export const siteDescription =
-  "A conceptually simple primitive that supports auto-propagating cancellation, type-safe errors, and dependency injection";
+  "An async primitive that has familiar semantics of a native promise, but supports auto-propagating cancellation, type-safe errors, and dependency injection";
 export const githubUrl = "https://github.com/lazy-promise/lazy-promise";
 export const xUrl = "https://x.com/ivan7237d";
 export const playgroundUrl =
