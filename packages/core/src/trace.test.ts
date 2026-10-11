@@ -1,4 +1,4 @@
-import type { Sink, Span, Subscription, Tracer } from "@lazy-promise/core";
+import type { Sink, Span, Tracer } from "@lazy-promise/core";
 import { box, LazyPromise } from "@lazy-promise/core";
 import { afterEach, expect, expectTypeOf, test } from "vitest";
 
@@ -69,9 +69,8 @@ afterEach(() => {
 
 test("types", () => {
   new LazyPromise<number, { dep: null }>(() => {}).trace({
-    subscribe: (dep, subscription) => {
+    subscribe: (dep) => {
       expectTypeOf(dep).toEqualTypeOf<{ dep: null }>();
-      expectTypeOf(subscription).toEqualTypeOf<Subscription>();
       return {
         resolve: (value) => {
           expectTypeOf(value).toEqualTypeOf<number>();
@@ -83,19 +82,12 @@ test("types", () => {
   box(1).trace(tracer);
   // @ts-expect-error
   box("a").trace(tracer);
-  expectTypeOf(box(1).trace(tracer).dispose).returns.toBeVoid();
-});
-
-test("subscription is passed to the tracer", () => {
-  let subscriptionInTracer: Subscription | undefined;
-  const promise = box(1);
-  promise.trace({
-    subscribe: (dep, subscription) => {
-      subscriptionInTracer = subscription;
-    },
+  box(1).trace({
+    // @ts-expect-error
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    subscribe: (dep: unknown, subscription: unknown) => {},
   });
-  const subscription = promise.subscribe();
-  expect(subscriptionInTracer).toBe(subscription);
+  expectTypeOf(box(1).trace(tracer).dispose).returns.toBeVoid();
 });
 
 test("multiple tracers", () => {

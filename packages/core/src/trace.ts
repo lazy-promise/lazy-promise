@@ -1,6 +1,6 @@
 import type { AsyncContextResource } from "./asyncResource.js";
 import { disposeSymbol } from "./disposeSymbol.js";
-import type { LazyPromise, Subscription } from "./lazyPromise.js";
+import type { LazyPromise } from "./lazyPromise.js";
 
 /**
  * Observes a single subscription. Returned by `Tracer.subscribe`.
@@ -170,7 +170,7 @@ export interface Tracer<Value, Dep = unknown> {
   /**
    * Called when the LazyPromise is subscribed, before the producer runs.
    */
-  subscribe(dep: Dep, subscription: Subscription): Span<Value, Dep> | void;
+  subscribe(dep: Dep): Span<Value, Dep> | void;
 }
 
 /**

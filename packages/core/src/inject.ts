@@ -7,10 +7,12 @@ export class InjectProducer implements Producer<any, any> {
   ) {}
 
   produce(sink: Sink<any>, dep: any) {
+    const subscription = sink.subscription;
     // This may throw and cause promise rejection.
-    sink.subscription.dep = (0, this.callback)(dep);
+    subscription.dep = (0, this.callback)(dep);
     // Flattens into the source instead of subscribing to it, so that the
     // source producer runs from the trampoline in `Subscription.next`.
+    subscription.silentFlatten = true;
     sink.resolve(this.source);
   }
 }

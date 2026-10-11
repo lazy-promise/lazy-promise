@@ -142,6 +142,10 @@ class Subscription {
   // caused, so that nesting is logical rather than physical.
   /** @internal */
   pendingFrame: Frame | undefined;
+  // Set by `inject`: its flatten is an implementation detail that tracers
+  // should not see.
+  /** @internal */
+  silentFlatten: boolean = false;
   // Created only once the producer has returned without settling, because
   // that's when the async context of `subscribe` can get lost.
   /** @internal */
@@ -153,10 +157,7 @@ class Subscription {
     // eslint-disable-next-line no-use-before-define
     public lazyPromise?: LazyPromise<any, any>,
     /** @internal */
-    public consumer?: {
-      resolve?: (value: any) => void;
-      reject?: (error: unknown) => void;
-    },
+    public consumer?: Consumer<any>,
     /** @internal */
     public dep?: any,
   ) {
@@ -199,7 +200,7 @@ class Subscription {
       this.lazyPromise!.tracers,
       undefined,
       (tracing) => {
-        const span = tracing.tracer.subscribe(this.dep, this);
+        const span = tracing.tracer.subscribe(this.dep);
         if (span) {
           this.spans = new SpanNode(span, this.spans);
         }
@@ -281,10 +282,11 @@ class Subscription {
     // Set before the teardown runs, which may dispose the subscription and
     // clear it.
     this.lazyPromise = lazyPromise;
-    if (this.spans) {
+    if (this.spans && !this.silentFlatten) {
       this.flattenTraced(lazyPromise, frame);
       return;
     }
+    this.silentFlatten = false;
     this.pendingFrame = frame;
     this.disposeJob();
   }
@@ -858,8 +860,6 @@ export const rejecting = (error?: unknown): LazyPromise<never> =>
   new LazyPromise(new RejectingProducer(error));
 
 class NeverProducer implements Producer<never> {
-  constructor() {}
-
   produce() {}
 }
 

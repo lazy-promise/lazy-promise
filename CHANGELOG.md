@@ -1,5 +1,11 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.48](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.48)
+
+- Make the `inject` optimization from the previous release invisible to tracers since this is an internal implementation detail.
+
+- Related to above, `Tracer.subscribe` no longer receives the subscription as its second argument.
+
 ## [@lazy-promise/core@0.0.47](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.47)
 
 - Avoid stack depth growth when `inject` is used recursively.

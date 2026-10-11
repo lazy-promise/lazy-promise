@@ -41,7 +41,8 @@ runProducer` disposes the job and then delivers the recorded settlement. After
   nests a subscription and grows the stack. `inject` therefore sets
   `Subscription.dep` and resolves the sink with the source instead of
   subscribing to it (a recursive `inject` chain used to overflow at ~1k
-  synchronous levels).
+  synchronous levels). That flatten is silent (`Subscription.silentFlatten`):
+  tracers see the source subscribed with the injected dependency, as before.
 - Because the core always disposes the job before emitting, combinators such as
   `all`/`any`/`race` do not dispose upstream themselves; `produce` just returns
   the job.
@@ -213,8 +214,8 @@ fixes `all` leaking the context of whichever input resolved last.
 
 ## Tracing
 
-`lazyPromise.trace(tracer)` attaches a `Tracer` whose `subscribe(dep,
-subscription)` is called per subscription and may return a `Span` with optional
+`lazyPromise.trace(tracer)` attaches a `Tracer` whose `subscribe(dep)` is
+called per subscription and may return a `Span` with optional
 `run(work, depth)`, `resolve`, `reject`, `flatten`, `unsubscribe`. `log` is a
 tracer (`LogTracer`) attached to the same instance; attaching it twice reports
 an error in a microtask.

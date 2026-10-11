@@ -371,6 +371,33 @@ test("producer resolving with a LazyPromise", () => {
   `);
 });
 
+test("inject", () => {
+  vi.spyOn(console, "log").mockImplementation((...args) =>
+    logContents.push(args.map(String).join(" ")),
+  );
+
+  new LazyPromise<number, number>((sink, dep) => {
+    sink.resolve(dep * 2);
+  })
+    .log("source")
+    .inject((dep: number) => dep + 1)
+    .log("injected")
+    .subscribe(logConsumer, 1);
+
+  // To avoid growing stack depth and for better perf, .inject uses flattening
+  // instead of a new subscription, but this is an internal implementation
+  // detail that does not affect the log.
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      "[injected] [1] [subscribe] 1",
+      "· [source] [1] [subscribe] 2",
+      "· · [source] [1] [resolve] 4",
+      "· · · [injected] [1] [resolve] 4",
+      "· · · · handleValue 4",
+    ]
+  `);
+});
+
 test("dots reset at an async boundary", async () => {
   vi.spyOn(console, "log").mockImplementation((...args) =>
     logContents.push(args.map(String).join(" ")),
