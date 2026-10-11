@@ -36,6 +36,12 @@ runProducer` disposes the job and then delivers the recorded settlement. After
   recursing, so a chain of synchronous flattenings does not grow the stack.
   `Subscription.lazyPromise` is the LazyPromise whose producer runs next and
   doubles as the "loop continues" flag; `dispose()` clears it to end the loop.
+  Every combinator that continues with another LazyPromise must hand it to the
+  sink to stay on this trampoline; calling `subscribe` from inside `produce`
+  nests a subscription and grows the stack. `inject` therefore sets
+  `Subscription.dep` and resolves the sink with the source instead of
+  subscribing to it (a recursive `inject` chain used to overflow at ~1k
+  synchronous levels).
 - Because the core always disposes the job before emitting, combinators such as
   `all`/`any`/`race` do not dispose upstream themselves; `produce` just returns
   the job.

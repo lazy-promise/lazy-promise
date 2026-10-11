@@ -165,3 +165,28 @@ test("cancel source promise", () => {
     ]
   `);
 });
+
+test("stack overflow", () => {
+  const getMaxStackDepth = (depth = 1) => {
+    try {
+      return getMaxStackDepth(depth + 1);
+    } catch (e) {
+      return depth;
+    }
+  };
+  const maxStackDepth = getMaxStackDepth();
+  const promise: LazyPromise<number, number> = new LazyPromise<number, number>(
+    (sink, count) => {
+      sink.resolve(count === 0 ? 0 : promise.inject(() => count - 1));
+    },
+  );
+  promise.subscribe(logConsumer, maxStackDepth + 10);
+  expect(readLog()).toMatchInlineSnapshot(`
+    [
+      [
+        "handleValue",
+        0,
+      ],
+    ]
+  `);
+});

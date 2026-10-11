@@ -1,16 +1,4 @@
-import type { Consumer, LazyPromise, Producer, Sink } from "./lazyPromise.js";
-
-class InjectConsumer implements Consumer<any> {
-  constructor(public sink: Sink<any>) {}
-
-  resolve(value: any) {
-    this.sink.resolve(value);
-  }
-
-  reject(error: unknown) {
-    this.sink.reject(error);
-  }
-}
+import type { LazyPromise, Producer, Sink } from "./lazyPromise.js";
 
 export class InjectProducer implements Producer<any, any> {
   constructor(
@@ -20,7 +8,9 @@ export class InjectProducer implements Producer<any, any> {
 
   produce(sink: Sink<any>, dep: any) {
     // This may throw and cause promise rejection.
-    const sourceDep = (0, this.callback)(dep);
-    return this.source.subscribe<any>(new InjectConsumer(sink), sourceDep);
+    sink.subscription.dep = (0, this.callback)(dep);
+    // Flattens into the source instead of subscribing to it, so that the
+    // source producer runs from the trampoline in `Subscription.next`.
+    sink.resolve(this.source);
   }
 }

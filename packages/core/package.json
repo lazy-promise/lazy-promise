@@ -1,6 +1,6 @@
 {
   "name": "@lazy-promise/core",
-  "version": "0.0.46",
+  "version": "0.0.47",
   "description": "An async primitive that has familiar semantics of a native promise, but supports auto-propagating cancellation, type-safe errors, and dependency injection",
   "homepage": "https://lazypromise.com",
   "repository": {

@@ -1,5 +1,9 @@
 # Changelog
 
+## [@lazy-promise/core@0.0.47](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.47)
+
+- Avoid stack depth growth when `inject` is used recursively.
+
 ## [@lazy-promise/core@0.0.46](https://github.com/lazy-promise/lazy-promise/tree/%40lazy-promise/core%400.0.46)
 
 - Log unpacked boxed errors instead of `ErrorBox` objects.
