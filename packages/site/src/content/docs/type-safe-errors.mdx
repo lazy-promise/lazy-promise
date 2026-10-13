@@ -84,4 +84,4 @@ This helper type extracts the error from the type a LazyPromise resolves with, s
 
 ## NotAnErrorBox
 
-This is the type of any value that isn't an ErrorBox. It's what `.subscribe` and `.toEager` use under the hood, and you can use it yourself to write a function that only accepts lazy promises without unhandled boxed errors, e.g. `(source: LazyPromise<NotAnErrorBox>) => ...`.
+This is the type of any value that isn't an ErrorBox. It's what `.subscribe` and `.toEager` use under the hood, and you can use it yourself to write a function that only accepts lazy promises without unhandled boxed errors, e.g. `(source: LazyPromise<NotAnErrorBox, undefined>) => ...` (see the next section regarding the second `undefined` type parameter).

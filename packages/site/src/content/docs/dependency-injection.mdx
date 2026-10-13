@@ -21,7 +21,7 @@ lazyPromise.subscribe(
 );
 ```
 
-The dependency type parameter is optional. If you omit it, it will default to `unknown`, indicating that there are no dependencies.
+The dependency type parameter is optional. If you omit it, it will default to `unknown`, indicating that there are no dependencies. If you have a function that takes a lazy promise but isn't able to satisfy any dependency, have the parameter typed as `LazyPromise<..., undefined>`. For example, `LazyPromise<NotAnErrorBox, undefined>` is a type for lazy promises on which you can call `.subscribe()` without any arguments, because they don't have unhandled typed errors and accept `undefined` as the dependency.
 
 Dependencies bubble up through the type system when you use the operators or the generator syntax, so for example if `promiseA` has dependency `A` and `promiseB` has dependency `B`, `all([promiseA, promiseB])` will have dependency `A & B`, in other words `all` needs a dependency that it'll be able to pass to both `promiseA` and `promiseB`. This is useful for testing since you can gather up a bunch of dependencies needed by your async logic, and then satisfy them with either production implementations or mocks.
 
